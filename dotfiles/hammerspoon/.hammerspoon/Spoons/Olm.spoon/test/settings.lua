@@ -362,6 +362,13 @@ do
   check("and laid over the data on the next load", appsSettings.value("apps.apps")["a.b"].mode, "hides")
   check("a mode that is neither is refused", (appsSettings.change("apps.apps", { ["a.b"] = { mode = "spin" } })), false)
   check("a list is refused", (M.check(appsDecl, { { mode = "hides" } })), false)
+  check("an own place is taken", (M.check(appsDecl, { ["a.b"] = { place = { display = "pointer", center = true,
+    size = { width = 90, height = 80, unit = "percent", maxWidth = 2400 }, padding = { x = 40, y = 20 } } } })), true)
+  check("a place on a display of four is refused", (M.check(appsDecl, { ["a.b"] = { place = { display = "builtin" } } })), false)
+  check("a percent past all of the display is refused", (M.check(appsDecl, { ["a.b"] = { place = {
+    size = { width = 120, height = 80, unit = "percent" } } } })), false)
+  check("a size with no height is refused", (M.check(appsDecl, { ["a.b"] = { place = {
+    size = { width = 800, unit = "points" } } } })), false)
   local appsShare
   for _, section in ipairs(appsSettings.share().sections) do
     if section.id == "applications" then

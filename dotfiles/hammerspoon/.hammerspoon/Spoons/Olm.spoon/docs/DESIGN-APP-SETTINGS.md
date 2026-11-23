@@ -365,6 +365,14 @@ a plain combination with Command is likely an app's menu item; macOS keeps some 
 any app sees them, Hyper and slash among them; and a remapped key loses its own meaning in every
 app. The full list is written when the recorder is designed.
 
+**Applications, Customize, 2026-11-23.** Milos asked for one button per application in place of the
+mode menu, opening a sheet. The row keeps its shortcut at the far right and gains Customize, which
+reads what is set in the accent, Show and hide · Pointer · Centered · 2400 × 1350, or Customize in
+the muted face. The sheet holds the mode, then the display, where it was, active or under the
+pointer, then the position, kept or centred, and the size, kept or set in points or a percent with a
+least, a most and the padding, and lists what that comes to on each display connected now. Reset
+puts both back, Done saves. `docs/DESIGN-APP-APPS.md` has how the app places the window.
+
 **Window Management, a page of its own, 2026-11-23.** Milos asked where his layouts, his named
 sizes and their keys are. The section is drawn by `Windows.swift` as the Applications page is by its
 own: every window action the launcher lists, read from the window manager's `catalog()` through the

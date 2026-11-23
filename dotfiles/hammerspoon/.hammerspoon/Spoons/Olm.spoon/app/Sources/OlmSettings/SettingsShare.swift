@@ -8,16 +8,23 @@
 
 import Foundation
 
-/// One application's own settings on the Applications page, its mode, and the name and path of one
-/// added from outside the catalog.
+/// One application's own settings on the Applications page, its mode, where its window goes when its
+/// key shows it, and the name and path of one added from outside the catalog.
 public struct AppOverride: Equatable, Sendable {
   public var mode: String?
   public var name: String?
   public var path: String?
-  public init(mode: String? = nil, name: String? = nil, path: String? = nil) {
+  public var place: AppPlace?
+  public init(mode: String? = nil, name: String? = nil, path: String? = nil, place: AppPlace? = nil) {
     self.mode = mode
     self.name = name
     self.path = path
+    self.place = place
+  }
+
+  init(_ e: [String: Any]) {
+    self.init(mode: e["mode"] as? String, name: e["name"] as? String, path: e["path"] as? String,
+      place: (e["place"] as? [String: Any]).map(AppPlace.init))
   }
 
   var any: [String: Any] {
@@ -25,6 +32,63 @@ public struct AppOverride: Equatable, Sendable {
     if let mode { o["mode"] = mode }
     if let name { o["name"] = name }
     if let path { o["path"] = path }
+    if let place { o["place"] = place.any }
+    return o
+  }
+}
+
+/// Where an application's window goes when its key shows it, set in its Customize sheet: the display,
+/// where it was, the active one or the one under the pointer, centred or kept where it stands, its
+/// size kept or set, in points or a percent of the display with a least and a most, and the padding it
+/// keeps from the display's edges. The app's Placement reads the same table.
+public struct AppPlace: Equatable, Sendable {
+  public var display = "was"
+  public var center = false
+  public var sized = false
+  public var percent = false
+  public var width = 1200.0
+  public var height = 800.0
+  public var minWidth: Double?
+  public var minHeight: Double?
+  public var maxWidth: Double?
+  public var maxHeight: Double?
+  public var padX = 0.0
+  public var padY = 0.0
+  public init() {}
+
+  init(_ o: [String: Any]) {
+    display = o["display"] as? String ?? "was"
+    center = o["center"] as? Bool ?? false
+    if let s = o["size"] as? [String: Any] {
+      sized = true
+      percent = s["unit"] as? String == "percent"
+      width = (s["width"] as? NSNumber)?.doubleValue ?? width
+      height = (s["height"] as? NSNumber)?.doubleValue ?? height
+      minWidth = (s["minWidth"] as? NSNumber)?.doubleValue
+      minHeight = (s["minHeight"] as? NSNumber)?.doubleValue
+      maxWidth = (s["maxWidth"] as? NSNumber)?.doubleValue
+      maxHeight = (s["maxHeight"] as? NSNumber)?.doubleValue
+    }
+    if let p = o["padding"] as? [String: Any] {
+      padX = (p["x"] as? NSNumber)?.doubleValue ?? 0
+      padY = (p["y"] as? NSNumber)?.doubleValue ?? 0
+    }
+  }
+
+  /// Where it was, kept and kept, which asks for nothing.
+  public var isDefault: Bool { display == "was" && !center && !sized }
+
+  public var any: [String: Any] {
+    var o: [String: Any] = ["display": display, "center": center]
+    if sized {
+      var s: [String: Any] = ["width": width, "height": height, "unit": percent ? "percent" : "points"]
+      if let minWidth { s["minWidth"] = minWidth }
+      if let minHeight { s["minHeight"] = minHeight }
+      if let maxWidth { s["maxWidth"] = maxWidth }
+      if let maxHeight { s["maxHeight"] = maxHeight }
+      o["size"] = s
+    }
+    if center || sized { o["padding"] = ["x": padX, "y": padY] }
     return o
   }
 }
@@ -57,7 +121,7 @@ public enum SettingValue: Equatable, Sendable {
       var apps: [String: AppOverride] = [:]
       for (bundle, entry) in o {
         guard let e = entry as? [String: Any] else { continue }
-        apps[bundle] = AppOverride(mode: e["mode"] as? String, name: e["name"] as? String, path: e["path"] as? String)
+        apps[bundle] = AppOverride(e)
       }
       self = .apps(apps)
     default: self = .none
@@ -112,6 +176,9 @@ public struct CatalogApp: Equatable, Sendable {
   public let placed: Bool
   public let added: Bool
   public let path: String?
+  /// The style's placement in the page's words, a centred window at its size, where the Customize
+  /// sheet starts for an app with no place of its own.
+  public var placement: AppPlace? = nil
 }
 
 /// One named size of the window manager, plugins/windowmanager/plan.lua's named size: a name, a width
@@ -242,12 +309,40 @@ public struct SettingsShare: Equatable, Sendable {
     let catalog = ((r["extra"] as? [Any]) ?? []).compactMap { any -> CatalogApp? in
       guard let e = any as? [String: Any], let name = e["name"] as? String, let bundle = e["bundle"] as? String
       else { return nil }
+      let placement = (e["placement"] as? [String: Any]).map { p -> AppPlace in
+        var place = AppPlace()
+        place.center = true
+        if let w = (p["width"] as? NSNumber)?.doubleValue, let h = (p["height"] as? NSNumber)?.doubleValue {
+          place.sized = true
+          place.width = w
+          place.height = h
+        }
+        if let pad = p["padding"] as? [String: Any] {
+          place.padX = (pad["x"] as? NSNumber)?.doubleValue ?? 0
+          place.padY = (pad["y"] as? NSNumber)?.doubleValue ?? 0
+        } else if let n = (p["padding"] as? NSNumber)?.doubleValue {
+          place.padX = n
+          place.padY = n
+        }
+        return place
+      }
       return CatalogApp(name: name, bundle: bundle, style: e["style"] as? String, hides: e["hides"] as? Bool,
-        placed: e["placed"] as? Bool ?? false, added: e["added"] as? Bool ?? false, path: e["path"] as? String)
+        placed: e["placed"] as? Bool ?? false, added: e["added"] as? Bool ?? false, path: e["path"] as? String,
+        placement: placement)
     }
     let kind = Setting.Kind(rawValue: r["kind"] as? String ?? "") ?? .other
     // A list of sizes is read as sizes, since read by shape alone it is a list of names.
-    func value(_ any: Any?) -> SettingValue { kind == .sizes ? .sizes(WindowSize.list(any)) : SettingValue(any) }
+    func value(_ any: Any?) -> SettingValue {
+      if kind == .sizes { return .sizes(WindowSize.list(any)) }
+      // An applications table is read as one, since an entry holding only booleans and words looks
+      // like a table of keys by shape alone.
+      if kind == .apps, let o = any as? [String: Any] {
+        var apps: [String: AppOverride] = [:]
+        for (bundle, entry) in o { if let e = entry as? [String: Any] { apps[bundle] = AppOverride(e) } }
+        return .apps(apps)
+      }
+      return SettingValue(any)
+    }
     var made = Setting(id: id, title: title, detail: r["detail"] as? String,
       kind: kind,
       keywords: r["keywords"] as? [String] ?? [], applies: r["applies"] as? String ?? "live",

@@ -305,14 +305,16 @@ function obj:_buildAction(spec, bundleID)
       placement = spec.placement }) then
       return
     end
+    -- An own place reaches Lua as what Lua can do of it.
+    local placement = spec.place ~= nil and luaPlacement(spec.place) or spec.placement
     local outcome
     if spec.hides then
       outcome = self_ref:toggle(bundleID)
     else
       outcome = self_ref._appFocus.focusOrCycle(bundleID, id, true)
     end
-    if spec.placement and PLACING_OUTCOMES[outcome] then
-      self_ref:_setupPlacement(bundleID, spec.placement)
+    if placement and PLACING_OUTCOMES[outcome] then
+      self_ref:_setupPlacement(bundleID, placement)
     end
   end
 end
@@ -369,6 +371,24 @@ local MOVED = {
   modifiers = "modifiers belong in config/keymap.lua, written into the chord",
   url = "a pane is opened by its System Settings action, systemsettings.<pane>, named in config/keymap.lua",
 }
+
+-- An application's own place from the Applications page, written as the app reads it: display was,
+-- active or pointer, center, a size in points or a percent with a least and a most, and the padding.
+-- Where it was, kept and kept asks for nothing, so it is no placement at all.
+local function placeActs(place)
+  return type(place) == "table"
+    and ((place.display ~= nil and place.display ~= "was") or place.center == true or type(place.size) == "table")
+end
+
+-- What Lua can do of a place when the app cannot run the press, a centred window at a size in points.
+-- A display, a kept position, a percent and the least and the most are the app's alone, so a press Lua
+-- runs places only what it can and leaves the rest.
+local function luaPlacement(place)
+  if not placeActs(place) or place.center ~= true then return nil end
+  local size = type(place.size) == "table" and place.size or {}
+  local points = size.unit ~= "percent"
+  return { width = points and size.width or nil, height = points and size.height or nil, padding = place.padding }
+end
 
 local function sortedNames(t)
   local out = {}
@@ -544,12 +564,27 @@ function obj:_build(apps, styles, toggles)
         spec = spec or {}
         spec.hides = mode == "hides"
       end
+      -- An application's own place wins over its style's placement whole, and one asking for nothing
+      -- takes the style's away, since keeping where it was is what it chose.
+      local place = type(own) == "table" and own.place or nil
+      if type(place) == "table" then
+        spec = spec or {}
+        local copy = {}
+        for k, v in pairs(spec) do copy[k] = v end
+        spec = copy
+        spec.place = place
+        spec.placement = placeActs(place) and place or nil
+      end
       if spec and spec.hides == nil then spec.hides = self._mode == "hides" end
       if not spec and self._mode == "hides" then spec = { hides = true } end
       local added = self._added and self._added[bundleID]
+      -- The style's placement in the page's words, so its Customize sheet starts from what the app does
+      -- today, a centred window at the style's size in points, with the padding.
+      local styled = style and type(style.spec.placement) == "table" and style.spec.placement or nil
       catalog[#catalog + 1] = { name = name, bundle = bundleID, style = style and style.styleName or nil,
         hides = stated, placed = style ~= nil and style.spec.placement ~= nil,
-        added = added ~= nil, path = added and added.path or nil }
+        added = added ~= nil, path = added and added.path or nil,
+        placement = styled and { width = styled.width, height = styled.height, padding = styled.padding } or nil }
       actions[#actions + 1] = {
         name = name, app = bundleID, description = style and style.description or nil,
         group = function() return self_ref:_isRunning(bundleID) and RUNNING or DORMANT end,

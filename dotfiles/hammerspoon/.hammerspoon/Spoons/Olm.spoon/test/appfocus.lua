@@ -213,6 +213,28 @@ eq(byBundle["h.h"] and byBundle["h.h"].placed, true, "and whether it is placed")
 eq(byBundle["h.h"] and byBundle["h.h"].mode, "cycle", "and its own mode")
 eq(byBundle["s.s"] and byBundle["s.s"].hides, nil, "an application with no style states no hides")
 eq(byBundle["z.added"] and byBundle["z.added"].added, true, "an added application says so")
+eq(byBundle["h.h"] and byBundle["h.h"].placement and byBundle["h.h"].placement.width, 10,
+  "the catalog carries the style's placement for the Customize sheet")
+
+-- An application's own place, set in its Customize sheet, over its style's placement.
+sent = {}
+local placed = assert(loadfile(here .. "../plugins/apptoggler/init.lua"))()
+local summon = { display = "pointer", center = true, size = { width = 2400, height = 1350, unit = "points" },
+  padding = { x = 40, y = 20 } }
+placed:configure({ apps = { Herdr = "h.h", Rex = "r.r", Safari = "s.s" }, appFocus = appfocus, mode = "cycle",
+  styles = { popup = { hides = true, placement = { width = 10, height = 10 } } },
+  toggles = { { app = "Herdr", style = "popup" }, { app = "Rex", style = "popup" } },
+  overrides = { ["h.h"] = { place = summon }, ["r.r"] = { place = { display = "was" } },
+    ["s.s"] = { place = { display = "active" } } } })
+local placedRuns = {}
+for _, a in ipairs(placed:actions()) do placedRuns[a.name] = a.run end
+placedRuns.Herdr()
+eq(sent[1] and sent[1].placement, summon, "an own place is handed to the app as it is")
+eq(sent[1] and sent[1].hides, true, "keeping the style's hides")
+placedRuns.Rex()
+eq(sent[2] and sent[2].placement, nil, "a place asking for nothing takes the style's placement away")
+placedRuns.Safari()
+eq(sent[3] and sent[3].placement and sent[3].placement.display, "active", "an unstyled app is placed by its own")
 eq(byBundle["z.added"] and byBundle["z.added"].path, "/Volumes/x/Zed Editor.app", "with its path")
 
 print(string.format("appfocus: %d checks, %d failures", checks, failures))

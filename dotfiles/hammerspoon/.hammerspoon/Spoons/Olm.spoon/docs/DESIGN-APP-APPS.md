@@ -69,6 +69,30 @@ that and Hammerspoon never said so. The trial is the log empty through a day of 
 The shadow costs Lua one extra read of the app's windows per press, the same reads it made before,
 and it goes when the keys move at 5.3 and Lua no longer sees the press.
 
+## Where a shown window goes, an app's own place
+
+Asked by Milos on 2026-11-23. Each row of the Applications page opens a Customize sheet holding the
+app's mode and its place, which the toggler hands to the app in `appRun` in place of the style's
+placement. Placement fires as before, on a press that launched or focused the app.
+
+- **Display.** Where it was, the default, leaves the window on the display it stands on, so moving
+  the window moves where it shows next time. Active is the display of the window that was in front
+  when the key was pressed, and Pointer the display under the pointer then, both read at the press,
+  before the app comes forward. Built-in and external are not offered here, Milos's choice.
+- **Position.** Kept, the default, or centred. A kept window moved to another display keeps its
+  distance from that display's corner and is moved in only as far as it has to be to fit.
+- **Size.** Kept, the default, or set in points or a percent of the display's visible frame, then
+  held between the least and the most, then to the display less the padding. The padding wins over
+  the least, so the window never reaches a display's edge. 90 percent with a most of 2400 by 1350
+  grows to that on a large display and fills a small one less the padding.
+
+The rule is `Placement.place(current:from:to:)` in `OlmApps/Placement.swift`, checked by
+`olm-apps-check`. It answers nothing when the window already stands where it would go, so nothing is
+written. The sheet shows what the place comes to on every display connected now, from the same rule.
+A place the same as what the app would do with none, its style's placement or nothing, is not saved.
+Hammerspoon's styles in `config/toggles.lua` stay the starting point the sheet shows for Ghostty,
+Herdr and Rex until the catalog and the styles move into the app with the rest of 6.2.
+
 ## Steps
 
 1. **6.2, this.** The seam, `appRun` and `appsReady`, `app/Sources/OlmApps`, the Accessibility

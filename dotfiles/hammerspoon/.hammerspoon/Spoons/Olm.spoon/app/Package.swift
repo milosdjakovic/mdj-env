@@ -45,7 +45,7 @@ let package = Package(
     // The app's end of the bridge, docs/PROTOCOL-BRIDGE.md, and the launcher Hammerspoon serves over it.
     .target(name: "OlmBridge", dependencies: ["OlmKit", "OlmSearch"], path: "Sources/OlmBridge"),
     // The Olm Settings window, drawn from the share Hammerspoon writes, docs/DESIGN-APP-SETTINGS.md.
-    .target(name: "OlmSettings", path: "Sources/OlmSettings"),
+    .target(name: "OlmSettings", dependencies: ["OlmApps"], path: "Sources/OlmSettings"),
     // The launcher's catalog built in the app, its typed rows still Hammerspoon's, step 6.1.
     .target(name: "OlmLauncher", dependencies: ["OlmKit", "OlmBridge", "OlmSearch"], path: "Sources/OlmLauncher"),
     // The keys, heard through a tap and resolved as the Lua leaders resolve them, step 5.1.

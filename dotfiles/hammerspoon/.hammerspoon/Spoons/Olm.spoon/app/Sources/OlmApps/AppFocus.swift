@@ -159,6 +159,9 @@ public final class AppFocus: @unchecked Sendable {
   }
 
   private func act(_ press: AppPress) {
+    // The display an active or pointer placement goes to is read now, before the app comes forward
+    // and takes the focus and the pointer's meaning with it.
+    let target = press.placement.flatMap { targetScreen($0.display) }
     let (plan, app, listed) = read(press.bundle, hides: press.hides)
     shadow?.ran(press, plan: plan, trusted: Self.allowed)
 
@@ -179,9 +182,11 @@ public final class AppFocus: @unchecked Sendable {
     }
 
     placing += 1
-    if plan.places, let placement = press.placement {
+    if plan.places, let placement = press.placement, placement.acts {
       let mine = placing
-      queue.asyncAfter(deadline: .now() + timing.first) { self.wait(press, placement, mine, left: self.timing.attempts) }
+      queue.asyncAfter(deadline: .now() + timing.first) {
+        self.wait(press, placement, target, mine, left: self.timing.attempts)
+      }
     }
   }
 
@@ -205,7 +210,7 @@ public final class AppFocus: @unchecked Sendable {
   // MARK: Placing
 
   // Ready is the toggler's _isAppReady: the app has a main window and holds focus.
-  private func wait(_ press: AppPress, _ placement: Placement, _ mine: Int, left: Int) {
+  private func wait(_ press: AppPress, _ placement: Placement, _ target: Box?, _ mine: Int, left: Int) {
     guard mine == placing else { return }
     guard let found = running(press.bundle) else { return }
     let app = element(found.pid)
@@ -213,7 +218,7 @@ public final class AppFocus: @unchecked Sendable {
     let focus = focused()
     guard main != nil, focus.pid == found.pid else {
       if left > 1 {
-        queue.asyncAfter(deadline: .now() + timing.every) { self.wait(press, placement, mine, left: left - 1) }
+        queue.asyncAfter(deadline: .now() + timing.every) { self.wait(press, placement, target, mine, left: left - 1) }
       } else {
         shadow?.unplaced(press)
       }
@@ -223,7 +228,8 @@ public final class AppFocus: @unchecked Sendable {
     guard let window = main ?? focus.window, let current = frame(window) else { return }
     let screens = visibleScreens()
     guard let screen = screenOf(current, among: screens) else { return }
-    let asked = placement.frame(in: placement.box(screen), current: current)
+    // Nothing to write when the window already stands where placing would put it.
+    guard let asked = placement.place(current: current, from: screen, to: target ?? screen) else { return }
     // Size, position, then size again, as hs.window:setFrame does, since an app may refuse a size
     // that would cross the screen's edge from where the window stood.
     setSize(window, asked)
@@ -250,6 +256,28 @@ public final class AppFocus: @unchecked Sendable {
     var point = CGPoint(x: box.x, y: box.y)
     if let value = AXValueCreate(.cgPoint, &point) {
       AXUIElementSetAttributeValue(window, kAXPositionAttribute as CFString, value)
+    }
+  }
+
+  // The visible frame of the display a placement names, read at the press: the one the window in front
+  // stands on, or the one under the pointer. nil for where the window was, and when nothing answers,
+  // so the window stays on its own display.
+  private func targetScreen(_ display: PlaceDisplay) -> Box? {
+    switch display {
+    case .was:
+      return nil
+    case .active:
+      guard let window = focused().window, let frame = frame(window) else { return nil }
+      return screenOf(frame, among: visibleScreens())
+    case .pointer:
+      return DispatchQueue.main.sync {
+        let point = NSEvent.mouseLocation
+        let screens = NSScreen.screens
+        guard let primary = screens.first?.frame,
+          let under = screens.first(where: { NSMouseInRect(point, $0.frame, false) }) else { return nil }
+        let v = under.visibleFrame
+        return Box(x: v.origin.x, y: primary.maxY - v.origin.y - v.height, w: v.width, h: v.height)
+      }
     }
   }
 

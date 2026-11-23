@@ -83,6 +83,31 @@ eq(wild.frame(in: screen, current: Box(x: 0, y: 0, w: 800, h: 600)), Box(x: 0, y
   "an anchor past 0 or 1 is clamped")
 eq(Placement("function") == nil, true, "a placement that is not a table is none")
 
+// The Applications page's form, an app's own place, on a built-in and an external display.
+let builtIn = Box(x: 0, y: 25, w: 1512, h: 920), external = Box(x: 1512, y: 0, w: 3008, h: 1667)
+let summon = Placement(["display": "pointer", "center": true,
+  "size": ["width": 2400.0, "height": 1350.0, "unit": "points"], "padding": ["x": 40.0, "y": 20.0]])!
+eq(summon.display, .pointer, "the page's form names its display")
+eq(summon.place(current: Box(x: 0, y: 0, w: 800, h: 600), from: builtIn, to: external),
+  Box(x: 1816, y: 158.5, w: 2400, h: 1350), "a size the display holds is centred at that size")
+eq(summon.place(current: Box(x: 0, y: 0, w: 800, h: 600), from: builtIn, to: builtIn),
+  Box(x: 40, y: 45, w: 1432, h: 880), "and on a smaller one it fills the display less the padding")
+let share = Placement(["center": true, "size": ["width": 90.0, "height": 90.0, "unit": "percent",
+  "maxWidth": 2400.0, "maxHeight": 1350.0, "minWidth": 1600.0], "padding": ["x": 40.0, "y": 20.0]])!
+eq(share.place(current: Box(x: 0, y: 0, w: 800, h: 600), from: external, to: external)?.w, 2400,
+  "a percent grows to its most on a large display")
+eq(share.place(current: Box(x: 0, y: 0, w: 800, h: 600), from: builtIn, to: builtIn)?.w, 1432,
+  "and the padding wins over its least on a small one")
+let keep = Placement(["display": "active"])!
+eq(keep.acts, true, "a display of its own is something to do")
+eq(keep.place(current: Box(x: 100, y: 125, w: 800, h: 600), from: builtIn, to: external),
+  Box(x: 1612, y: 100, w: 800, h: 600), "a kept window keeps its place on its display, on another one")
+eq(keep.place(current: Box(x: 1000, y: 525, w: 800, h: 600), from: builtIn, to: builtIn) == nil, true,
+  "and already on that display it is left where it is")
+eq(keep.place(current: Box(x: 1400, y: 125, w: 2000, h: 600), from: external, to: builtIn),
+  Box(x: 0, y: 150, w: 1512, h: 600), "and is moved in only as far as it has to be to fit")
+eq(Placement(["display": "was"])!.acts, false, "where it was, kept and kept is nothing to do")
+
 // The screen a window stands on.
 let left = Box(x: 0, y: 25, w: 1512, h: 920), right = Box(x: 1512, y: 0, w: 2560, h: 1415)
 eq(screenOf(Box(x: 1400, y: 100, w: 800, h: 600), among: [left, right]), right, "the screen it overlaps most")

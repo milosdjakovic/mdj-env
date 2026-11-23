@@ -1603,3 +1603,16 @@ typed there, until the launcher's choosing moves.
   the app, `~/.olm/app/Olm.app` and its folder were deleted here by hand, once, after
   `/Applications/Olm.app` was built, started and connected to the bridge. Units ran 2180 of 2180
   and the console showed no error.
+- **2026-11-23 17:30, an application's own place, the Customize sheet.** Asked by Milos. Each
+  Applications row has a Customize button in place of its mode menu, opening a sheet with the mode
+  and the place: the display (where it was, active, under the pointer), the position (kept or
+  centred) and the size (kept, or points or percent with a least, a most and the padding). It is
+  saved as `place` in the app's entry of `apptoggler.apps`, so it travels in Olm's config, and the
+  toggler hands it to the app as the press's placement. Built-in, external and primary were offered
+  first and turned down by Milos as choices for an app's window. Where it was is the default because
+  a window moved by hand should show again where it was put. The padding wins over the least, so the
+  window never reaches the display's edge, Claude's call, not asked. Ghostty, Herdr and Rex keep
+  their popup style from `config/toggles.lua` as the sheet's starting point until the catalog and
+  the styles move into the app with the rest of 6.2, since removing the file now would take the
+  popup away from the other machines that read it. A press Lua runs, the app down or without its
+  grant, places only a centred window at a size in points, and the rest is the app's alone.

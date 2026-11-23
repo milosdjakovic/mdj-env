@@ -148,6 +148,37 @@ local SIZE_ANCHORS = { topLeft = true, top = true, topRight = true, left = true,
   bottomLeft = true, bottom = true, bottomRight = true }
 local SIZE_DISPLAYS = { current = true, builtin = true, external = true, pointer = true }
 
+local PLACE_DISPLAYS = { was = true, active = true, pointer = true }
+local function positive(v) return v == nil or (type(v) == "number" and v == v and v > 0) end
+
+--- M.checkPlace(place) -> ok, why
+--- Whether an application's own place from the Applications page is one the app can run: a display
+--- of the three, center on or off, a size in points or a percent with a least and a most, and a
+--- padding of x and y.
+function M.checkPlace(p)
+  if type(p) ~= "table" then return false, "is not a table" end
+  if p.display ~= nil and not PLACE_DISPLAYS[p.display] then return false, "names a display that is not one of three" end
+  if p.center ~= nil and type(p.center) ~= "boolean" then return false, "says center as neither on nor off" end
+  if p.size ~= nil then
+    local s = p.size
+    if type(s) ~= "table" then return false, "has a size that is not a table" end
+    if s.unit ~= "points" and s.unit ~= "percent" then return false, "measures its size in neither points nor percent" end
+    for _, k in ipairs({ "width", "height", "minWidth", "minHeight", "maxWidth", "maxHeight" }) do
+      if not positive(s[k]) then return false, "has a " .. k .. " that is not a size" end
+    end
+    if s.width == nil or s.height == nil then return false, "has a size with no width or no height" end
+    if s.unit == "percent" and (s.width > 100 or s.height > 100) then return false, "asks for more than all of the display" end
+  end
+  if p.padding ~= nil then
+    if type(p.padding) ~= "table" then return false, "has a padding that is not a table" end
+    for _, k in ipairs({ "x", "y" }) do
+      local v = p.padding[k]
+      if v ~= nil and (type(v) ~= "number" or v ~= v or v < 0) then return false, "has a padding that is not a distance" end
+    end
+  end
+  return true
+end
+
 --- M.check(decl, value) -> ok, why
 --- Whether value is one decl allows, and the reason in words when it is not.
 function M.check(decl, value)
@@ -194,6 +225,10 @@ function M.check(decl, value)
       end
       if (o.name ~= nil and type(o.name) ~= "string") or (o.path ~= nil and type(o.path) ~= "string") then
         return false, "gives " .. bundle .. " a name or a path that is not words"
+      end
+      if o.place ~= nil then
+        local ok, why = M.checkPlace(o.place)
+        if not ok then return false, "gives " .. bundle .. " a place that " .. why end
       end
     end
     return true

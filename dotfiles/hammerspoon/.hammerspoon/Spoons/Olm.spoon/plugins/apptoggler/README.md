@@ -131,6 +131,16 @@ on and the app holds Accessibility. Otherwise it runs here as before, and so doe
 an app whose placement is written as a Lua function, since a function cannot
 cross. `docs/DESIGN-APP-APPS.md` has it.
 
+## An application's own place
+
+An application's Customize sheet on the Applications page of Olm Settings saves a `place` in its
+entry of the `apptoggler.apps` setting, beside its mode. `display` is `was`, `active` or `pointer`,
+`center` is true or false, `size` is `{ width, height, unit }` in `points` or `percent`, with
+`minWidth`, `minHeight`, `maxWidth` and `maxHeight` where set, and `padding` is `{ x, y }`. A place
+wins over the style's placement whole, and one asking for nothing, where it was with its position and
+its size kept, takes the style's placement away. The place goes to Olm.app as it is. When Lua runs
+the press instead, it places only what it can of it, a centred window at a size in points.
+
 ## History
 
 A show and hide behaviour and a placement engine both used to live in

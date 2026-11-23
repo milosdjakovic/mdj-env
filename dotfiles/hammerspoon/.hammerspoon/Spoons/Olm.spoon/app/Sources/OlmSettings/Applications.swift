@@ -8,14 +8,16 @@
 // utilities stay out, and an app that runs with no Dock icon, an agent or a background helper, is
 // left out too. One kept anywhere else is added with Add Application, a file picker.
 //
-// Each row is the app, then its mode, then its key at the far right. A mode of its own and a key that
-// is set are drawn in the accent, a light tint and an outline, and a default mode and no key are
-// muted, so a scroll down the list catches what is set. A key is Olm's own setting `keys`, an action
+// Each row is the app, then its Customize button, then its key at the far right. Customize opens a
+// sheet holding the app's mode and where its window goes when its key shows it, the display, the
+// position and the size. A row customized and a key that is set are drawn in the accent, a light tint
+// and an outline, and the rest muted, so a scroll down the list catches what is set. A key is Olm's own setting `keys`, an action
 // to its chord, laid over the keymap's, so it travels with Olm's config when it is exported. A change
 // goes to Hammerspoon as every setting's does, the whole table at once, and applies on the reload the
 // window's close runs.
 
 import AppKit
+import OlmApps
 import SwiftUI
 import UniformTypeIdentifiers
 
@@ -83,6 +85,8 @@ final class AppsPageModel: ObservableObject {
   @Published var found = Set<String>()
   /// The action whose key is being recorded, and the monitor hearing the key.
   @Published var recording: String?
+  /// The application whose Customize sheet is open, and what it holds until Done.
+  @Published var customizing: AppCustomize?
   private var monitor: Any?
 
   /// The picture an application not installed here wears.
@@ -242,8 +246,8 @@ struct AppEntry: Identifiable {
   let catalog: CatalogApp?
   let own: AppOverride?
   var id: String { bundle }
-  /// Given a mode of its own on this page.
-  var overridden: Bool { own?.mode != nil }
+  /// Given a mode or a place of its own on this page.
+  var customized: Bool { own?.mode != nil || own?.place != nil }
   /// In the catalog or added, so it has an action and a key.
   var configured: Bool { catalog != nil || own != nil }
   /// Added on this page from outside the catalog, so it can be removed here.
@@ -266,8 +270,8 @@ enum AppsPage {
 /// The widths of a row's controls, so the mode and the key line up from row to row. The name takes
 /// every point the two leave, and the key stands flush with the row's right edge.
 enum AppColumns {
-  /// The mode control and the key control themselves.
-  static let menu: CGFloat = 150
+  /// The Customize button and the key control themselves.
+  static let menu: CGFloat = 200
   static let recorder: CGFloat = 110
   /// A reset or a remove beside a control, kept in place when hidden so nothing moves.
   static let mark: CGFloat = 16
@@ -317,6 +321,9 @@ struct AppsView: View {
       page.fill(apps)
     }
     .onDisappear { page.stop() }
+    .sheet(isPresented: Binding(get: { page.customizing != nil }, set: { if !$0 { page.customizing = nil } })) {
+      CustomizeSheet(page: page, global: global, save: save)
+    }
   }
 
   private var header: some View {
@@ -338,8 +345,8 @@ struct AppsView: View {
   }
 
   private var summary: String {
-    let n = table.values.filter { $0.mode != nil }.count
-    return n == 1 ? "1 application overridden" : "\(n) applications overridden"
+    let n = table.values.filter { $0.mode != nil || $0.place != nil }.count
+    return n == 1 ? "1 application customized" : "\(n) applications customized"
   }
 
   private var note: (text: String, symbol: String)? {
@@ -355,7 +362,7 @@ struct AppsView: View {
       VStack(alignment: .leading, spacing: Space.related) {
         HStack(spacing: Space.pad) {
           Text(title).font(.headline).frame(maxWidth: .infinity, alignment: .leading)
-          Text("Mode").font(.caption).foregroundStyle(.secondary)
+          Text("Behaviour").font(.caption).foregroundStyle(.secondary)
             .padding(.leading, AppColumns.mark + Space.related)
             .frame(width: AppColumns.mode, alignment: .leading)
           Text("Shortcut").font(.caption).foregroundStyle(.secondary)
@@ -369,7 +376,7 @@ struct AppsView: View {
             AppRow(entry: entry, icon: page.icons[entry.bundle],
               chord: entry.action.flatMap(chord), recording: entry.action != nil && page.recording == entry.action,
               keyOwn: entry.action.map { keysTable[$0] != nil } ?? false, busy: !model.busy.isEmpty,
-              choose: { choose(entry, $0) }, remove: { remove(entry) },
+              customize: { customize(entry) }, reset: { resetCustom(entry) }, remove: { remove(entry) },
               record: { record(entry) }, resetKey: { resetKey(entry) })
               .padding(.horizontal, Space.pad + 4).padding(.vertical, Space.pad - 4)
           }
@@ -420,19 +427,49 @@ struct AppsView: View {
 
   // MARK: Changes, each table sent whole
 
-  /// "default", "cycle" or "hides". Default on an app with nothing else of its own here takes it off
-  /// the table, an added one keeping its name and path.
-  private func choose(_ entry: AppEntry, _ mode: String) {
+  /// Opens the entry's Customize sheet, starting from its own mode and place, or for an app with no
+  /// place of its own from what its style does today.
+  private func customize(_ entry: AppEntry) {
+    let own = entry.own
+    let inherited = entry.catalog?.placement
+    page.customizing = AppCustomize(bundle: entry.bundle, name: entry.name, mode: own?.mode ?? "default",
+      place: own?.place ?? inherited ?? AppPlace(),
+      fromStyle: own?.place == nil && inherited != nil ? entry.catalog?.style : nil,
+      added: entry.catalog == nil || entry.catalog?.added == true, path: entry.path)
+  }
+
+  /// Writes the sheet's mode and place. Default and a place equal to what the app would do anyway are
+  /// left off, and an app with nothing else of its own here is taken off the table, an added one
+  /// keeping its name and path.
+  private func save(_ c: AppCustomize) {
     var next = table
-    var own = next[entry.bundle] ?? AppOverride()
-    own.mode = mode == "default" ? nil : mode
-    let added = entry.catalog == nil || entry.catalog?.added == true
-    if added {
-      own.name = own.name ?? entry.name
-      own.path = own.path ?? entry.path
+    var own = next[c.bundle] ?? AppOverride()
+    own.mode = c.mode == "default" ? nil : c.mode
+    let inherited = catalogPlacement(c.bundle)
+    // A place is kept when it differs from what the app does with none of its own: the style's
+    // placement where it has one, otherwise where it was, kept and kept.
+    own.place = c.place == (inherited ?? AppPlace()) ? nil : c.place
+    if c.added {
+      own.name = own.name ?? c.name
+      own.path = own.path ?? c.path
     }
-    next[entry.bundle] = own.mode == nil && (!added || own.path == nil) ? nil : own
+    next[c.bundle] = own.mode == nil && own.place == nil && (!c.added || own.path == nil) ? nil : own
+    page.customizing = nil
     model.change(setting, to: .apps(next))
+  }
+
+  private func resetCustom(_ entry: AppEntry) {
+    var next = table
+    guard var own = next[entry.bundle] else { return }
+    own.mode = nil
+    own.place = nil
+    let added = entry.catalog == nil || entry.catalog?.added == true
+    next[entry.bundle] = !added || own.path == nil ? nil : own
+    model.change(setting, to: .apps(next))
+  }
+
+  private func catalogPlacement(_ bundle: String) -> AppPlace? {
+    setting.catalog.first { $0.bundle == bundle }?.placement
   }
 
   private func remove(_ entry: AppEntry) {
@@ -520,14 +557,11 @@ struct AppRow: View {
   let recording: Bool
   let keyOwn: Bool
   let busy: Bool
-  let choose: (String) -> Void
+  let customize: () -> Void
+  let reset: () -> Void
   let remove: () -> Void
   let record: () -> Void
   let resetKey: () -> Void
-
-  static let modes: [(tag: String, title: String)] = [
-    ("default", "Default"), ("cycle", "Cycle windows"), ("hides", "Show and hide"),
-  ]
 
   var body: some View {
     HStack(alignment: .center, spacing: Space.pad) {
@@ -551,22 +585,20 @@ struct AppRow: View {
     .disabled(busy)
   }
 
-  // The mode column: the reset and the remove keep their place when hidden, so nothing moves.
+  // The behaviour column: the reset and the remove keep their place when hidden, so nothing moves.
   private var mode: some View {
     HStack(spacing: Space.related) {
-      mark("arrow.uturn.backward", shown: entry.overridden, help: "Back to the default") { choose("default") }
-      let current = entry.own?.mode ?? "default"
-      Button {
-        RowMenu.show(Self.modes.map { ($0.tag, $0.title) }, selected: current, dividerAfterFirst: true, pick: choose)
-      } label: {
-        Field(width: AppColumns.menu, leading: true, set: entry.overridden) {
-          Text(Self.modes.first { $0.tag == current }?.title ?? "Default")
+      mark("arrow.uturn.backward", shown: entry.customized, help: "Back to the default", action: reset)
+      Button(action: customize) {
+        Field(width: AppColumns.menu, leading: true, set: entry.customized) {
+          Text(entry.customized ? AppCustomize.words(entry.own) : "Customize…")
+            .truncationMode(.tail)
           Spacer(minLength: Space.related)
-          Image(systemName: "chevron.up.chevron.down").font(.caption)
+          Image(systemName: "slider.horizontal.3").font(.caption)
         }
       }
       .buttonStyle(.plain)
-      .help("How \(entry.name)'s key acts")
+      .help("How \(entry.name)'s key acts and where its window goes")
       mark("minus.circle", shown: entry.removable, help: "Remove \(entry.name) from Olm", action: remove)
     }
   }
@@ -629,38 +661,6 @@ struct Field<Content: View>: View {
   }
 }
 
-/// The menu a row's mode opens, shown under the pointer with the value in force checked, as a pop-up
-/// button shows its own.
-@MainActor
-enum RowMenu {
-  private final class Target: NSObject {
-    let pick: (String) -> Void
-    init(_ pick: @escaping (String) -> Void) { self.pick = pick }
-    @objc func chosen(_ item: NSMenuItem) { if let tag = item.representedObject as? String { pick(tag) } }
-  }
-
-  static func show(_ items: [(String, String)], selected: String, dividerAfterFirst: Bool,
-    pick: @escaping (String) -> Void) {
-    guard let event = NSApp.currentEvent, let view = event.window?.contentView else { return }
-    let target = Target(pick)
-    let menu = NSMenu()
-    var current: NSMenuItem?
-    for (i, (tag, title)) in items.enumerated() {
-      let item = NSMenuItem(title: title, action: #selector(Target.chosen(_:)), keyEquivalent: "")
-      item.target = target
-      item.representedObject = tag
-      item.state = tag == selected ? .on : .off
-      if tag == selected { current = item }
-      menu.addItem(item)
-      if i == 0, dividerAfterFirst { menu.addItem(.separator()) }
-    }
-    // popUp runs the menu to its end, so the target lives as long as it is needed.
-    withExtendedLifetime(target) {
-      _ = menu.popUp(positioning: current, at: view.convert(event.locationInWindow, from: nil), in: view)
-    }
-  }
-}
-
 /// Temporary, the bridge to Hammerspoon. What the app toggler there knows of each application, its
 /// style, whether it is placed and so its action and key, comes in the share as the setting's
 /// catalog, the apps of config/apps.lua, which names apps for every machine. Only those on this Mac
@@ -678,5 +678,195 @@ enum HammerspoonCatalog {
   /// app for one, not yet listed.
   static func outsideScan(_ catalog: [CatalogApp], found: Set<String>, seen: inout Set<String>) -> [CatalogApp] {
     catalog.filter { found.contains($0.bundle) && seen.insert($0.bundle).inserted }
+  }
+}
+
+/// What a Customize sheet holds until Done: the application, its mode and its place.
+struct AppCustomize: Equatable {
+  let bundle: String
+  let name: String
+  var mode: String
+  var place: AppPlace
+  /// The style its place starts from when it has none of its own, popup, said in the sheet.
+  let fromStyle: String?
+  let added: Bool
+  let path: String?
+
+  static let displays: [(id: String, title: String)] = [
+    ("was", "Where it was"), ("active", "Active display"), ("pointer", "Display under the pointer"),
+  ]
+
+  /// An application's own mode and place in a few words, for its row.
+  static func words(_ own: AppOverride?) -> String {
+    var parts: [String] = []
+    if let mode = own?.mode { parts.append(mode == "hides" ? "Show and hide" : "Cycle") }
+    if let p = own?.place {
+      if p.display == "active" { parts.append("Active display") }
+      if p.display == "pointer" { parts.append("Pointer") }
+      if p.center { parts.append("Centered") }
+      if p.sized { parts.append(size(p)) }
+      if p.isDefault { parts.append("Where it was") }
+    }
+    return parts.isEmpty ? "Customize…" : parts.joined(separator: " · ")
+  }
+
+  static func number(_ v: Double) -> String { v.rounded() == v ? String(Int(v)) : String(format: "%.1f", v) }
+
+  static func size(_ p: AppPlace) -> String {
+    p.percent ? "\(number(p.width))% × \(number(p.height))%" : "\(number(p.width)) × \(number(p.height))"
+  }
+}
+
+/// An application's Customize sheet: what its key does, and where its window goes when the key shows
+/// it, the display, the position and the size, with what that comes to on each display connected now.
+struct CustomizeSheet: View {
+  @ObservedObject var page: AppsPageModel
+  let global: String
+  let save: (AppCustomize) -> Void
+
+  var body: some View {
+    if let c = page.customizing {
+      VStack(alignment: .leading, spacing: Space.group) {
+        Text(c.name).font(.title2.weight(.semibold))
+        Form {
+          Section("When the shortcut is pressed") {
+            Picker("Mode", selection: bind(\.mode)) {
+              Text("Default, \(global == "hides" ? "show and hide" : "cycle windows")").tag("default")
+              Text("Cycle windows").tag("cycle")
+              Text("Show and hide").tag("hides")
+            }
+          }
+          Section {
+            Picker("Display", selection: bind(\.place.display)) {
+              ForEach(AppCustomize.displays, id: \.id) { Text($0.title).tag($0.id) }
+            }
+            Picker("Position", selection: bind(\.place.center)) {
+              Text("Keep where it stands").tag(false)
+              Text("Center").tag(true)
+            }
+            Picker("Size", selection: bind(\.place.sized)) {
+              Text("Keep its size").tag(false)
+              Text("Set").tag(true)
+            }
+            if c.place.sized {
+              Picker("Measured in", selection: bind(\.place.percent)) {
+                Text("Points").tag(false)
+                Text("Percent of the display").tag(true)
+              }
+              LabeledContent("Width") { pair(\.place.width, c.place.percent ? "%" : "pt") }
+              LabeledContent("Height") { pair(\.place.height, c.place.percent ? "%" : "pt") }
+              LabeledContent("Least") { optional(\.place.minWidth, \.place.minHeight) }
+              LabeledContent("Most") { optional(\.place.maxWidth, \.place.maxHeight) }
+            }
+            if c.place.sized || c.place.center {
+              LabeledContent("Padding") {
+                HStack(spacing: Space.related) {
+                  number(\.place.padX, "Sides")
+                  number(\.place.padY, "Top and bottom")
+                  Text("pt").foregroundStyle(.secondary)
+                }
+              }
+            }
+            Text(explain(c)).font(.caption).foregroundStyle(.secondary)
+          } header: {
+            Text("When the shortcut shows it")
+          }
+          Section("On the displays connected now") {
+            ForEach(Array(preview(c.place).enumerated()), id: \.offset) { _, line in
+              LabeledContent(line.name) { Text(line.result).foregroundStyle(.secondary) }
+            }
+          }
+        }
+        .formStyle(.grouped)
+        if let why = problem(c.place) {
+          Text(why).font(.caption).foregroundStyle(.secondary)
+        }
+        HStack {
+          Button("Reset") {
+            page.customizing?.mode = "default"
+            page.customizing?.place = AppPlace()
+          }
+          Spacer()
+          Button("Cancel") { page.customizing = nil }.keyboardShortcut(.cancelAction)
+          Button("Done") { save(c) }
+            .keyboardShortcut(.defaultAction)
+            .disabled(problem(c.place) != nil)
+        }
+      }
+      .padding(Space.edge)
+      .frame(width: 520)
+    }
+  }
+
+  private func explain(_ c: AppCustomize) -> String {
+    var lines: [String] = []
+    if let style = c.fromStyle { lines.append("Starts from Hammerspoon's \(style) style, what \(c.name) does today.") }
+    switch c.place.display {
+    case "active": lines.append("It goes to the display holding the window you were working in.")
+    case "pointer": lines.append("It goes to the display under the pointer.")
+    default: lines.append("It stays on the display it was last on, so moving it moves where it shows.")
+    }
+    if c.place.sized {
+      lines.append("The size is held between the least and the most, then to the display less the padding, which always wins.")
+    }
+    return lines.joined(separator: " ")
+  }
+
+  private func problem(_ p: AppPlace) -> String? {
+    guard p.sized else { return nil }
+    if p.width <= 0 || p.height <= 0 { return "The width and the height are more than nothing." }
+    if p.percent && (p.width > 100 || p.height > 100) { return "A share of the display is at most 100 percent." }
+    if [p.minWidth, p.minHeight, p.maxWidth, p.maxHeight].contains(where: { ($0 ?? 1) <= 0 }) {
+      return "A least or a most is more than nothing, or left empty."
+    }
+    if let a = p.minWidth, let b = p.maxWidth, a > b { return "The least width is more than the most." }
+    if let a = p.minHeight, let b = p.maxHeight, a > b { return "The least height is more than the most." }
+    return nil
+  }
+
+  private func bind<T>(_ path: WritableKeyPath<AppCustomize, T>) -> Binding<T> {
+    Binding(get: { page.customizing![keyPath: path] }, set: { page.customizing?[keyPath: path] = $0 })
+  }
+
+  private func number(_ path: WritableKeyPath<AppCustomize, Double>, _ prompt: String) -> some View {
+    TextField(prompt, value: bind(path), format: .number).frame(width: 80).multilineTextAlignment(.trailing)
+      .help(prompt)
+  }
+
+  private func pair(_ path: WritableKeyPath<AppCustomize, Double>, _ unit: String) -> some View {
+    HStack(spacing: Space.related) {
+      number(path, "Size")
+      Text(unit).foregroundStyle(.secondary).frame(width: 20, alignment: .leading)
+    }
+  }
+
+  private func optional(_ w: WritableKeyPath<AppCustomize, Double?>, _ h: WritableKeyPath<AppCustomize, Double?>) -> some View {
+    HStack(spacing: Space.related) {
+      TextField("Width", value: bind(w), format: .number).frame(width: 80).multilineTextAlignment(.trailing)
+      Text("×").foregroundStyle(.secondary)
+      TextField("Height", value: bind(h), format: .number).frame(width: 80).multilineTextAlignment(.trailing)
+      Text("pt").foregroundStyle(.secondary).frame(width: 20, alignment: .leading)
+    }
+  }
+
+  /// What the place comes to on each display connected now, the app's own Placement over each
+  /// display's visible frame, for a window of the size given or its own.
+  private func preview(_ p: AppPlace) -> [(name: String, result: String)] {
+    guard let placement = Placement(p.any) else { return [] }
+    let screens = NSScreen.screens
+    guard let primary = screens.first?.frame else { return [] }
+    return screens.map { s in
+      let v = s.visibleFrame
+      let box = Box(x: v.origin.x, y: primary.maxY - v.origin.y - v.height, w: v.width, h: v.height)
+      let name = "\(s.localizedName), \(AppCustomize.number(v.width)) × \(AppCustomize.number(v.height))"
+      guard p.sized || p.center else {
+        return (name, p.display == "was" ? "Left as it is" : "Its own size, where it stands on its display")
+      }
+      // A window as large as the display less the padding, so a kept size reads as its own.
+      let own = Box(x: box.x, y: box.y, w: 1, h: 1)
+      let out = placement.place(current: own, from: box, to: box)
+      let size = p.sized ? out.map { "\(AppCustomize.number($0.w)) × \(AppCustomize.number($0.h))" } ?? "" : "Its own size"
+      return (name, size + (p.center ? ", centered" : ", where it stands"))
+    }
   }
 }
