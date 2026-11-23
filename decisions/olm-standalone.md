@@ -1444,3 +1444,11 @@ exclusively. The belief of 2026-11-20 that Carbon lets a second process claim a 
 another holds was true only of a claim that is not exclusive, corrected here. Milos asked that
 showing macOS's picker too be a choice in Olm Settings, so it is the switch macOS Picker on the Globe
 Key, off as shipped, which leaves the Globe key's claim not exclusive.
+
+**2026-11-23 10:15, 6.3a, the window manager's geometry stated once.** Every placement moved into
+plugins/windowmanager/plan.lua, one pure function the plugin's methods call, and pinned by 72 cases
+recorded from it, which the Swift port in OlmApps answers the same. Porting method by method was
+turned down, since the geometry carries a dozen decisions two copies would let drift. The one trap
+found was Lua's floored modulo, which wraps the previous screen to the last where Swift's truncating
+one would not. The unit case for the hold step loads the plugin in a sandbox and was given loadfile
+and the screen and window ids the plugin now reads, its checks unchanged.

@@ -43,8 +43,10 @@ local SHARE = 0.4
 local function freshModule(canvas)
   canvas = canvas or WIDE
   local frame = { x = 500, y = 400, w = 700, h = 500 }
-  local screen = { frame = function() return { x = 0, y = 0, w = canvas.w, h = canvas.h } end }
+  local screen = { frame = function() return { x = 0, y = 0, w = canvas.w, h = canvas.h } end,
+    getUUID = function() return "SCREEN" end, id = function() return 1 end }
   local win = {
+    id = function() return 1 end,
     frame = function() return { x = frame.x, y = frame.y, w = frame.w, h = frame.h } end,
     screen = function() return screen end,
     setFrame = function(_, f) frame = { x = f.x, y = f.y, w = f.w, h = f.h } end,
@@ -52,12 +54,15 @@ local function freshModule(canvas)
   local fakeHs = {
     logger = { new = function() return { w = function() end } end },
     window = { focusedWindow = function() return win end, animationDuration = 0 },
+    screen = { allScreens = function() return { screen } end },
     geometry = { rect = function(x, y, w, h) return { x = x, y = y, w = w, h = h } end },
     alert = { show = function() end },
   }
   local env = {
     hs = fakeHs, math = math, table = table, string = string,
     type = type, pairs = pairs, ipairs = ipairs, tostring = tostring, print = print,
+    -- The plugin loads its pure plan beside it, plugins/windowmanager/plan.lua, step 6.3.
+    debug = debug, loadfile = loadfile, assert = assert, tonumber = tonumber,
   }
   local chunk, err = loadfile(modulePath, "t", env)
   if not chunk then

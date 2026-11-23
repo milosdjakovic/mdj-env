@@ -17,23 +17,15 @@ obj.license = "MIT"
 
 local log = hs.logger.new("WindowManager", "info")
 
--- Hold a value inside a travel range, whichever way round the two bounds arrive. A window
--- wider than the canvas inverts the range, since its left edge can then only sit at or left
--- of the canvas edge, and ordering the pair keeps that case a real range to slide along,
--- flush left through flush right, rather than an empty one that would pin the window where
--- it stands.
-local function clampBetween(value, a, b)
-  local low, high = math.min(a, b), math.max(a, b)
-  if value < low then return low end
-  if value > high then return high end
-  return value
-end
+-- Where every action puts the window, one pure function, step 6.3, loaded beside this file since
+-- a plugin's directory is not on the module path.
+local Plan = assert(loadfile(debug.getinfo(1, "S").source:sub(2):match("(.*/)") .. "plan.lua"))()
 
 -- Dependencies (injected via configure)
 obj._margins = {}
 obj._settings = nil
 
--- The round trip memory for _placeOnScreen, declared here as well as reset in init, since
+-- The round trip memory for a move between screens, plan.lua's place, declared here as well as reset in init, since
 -- init runs inside loader.lua's own pcall and a failure anywhere else inside it would
 -- otherwise leave this field nil, turning the next display switch into a crash rather than
 -- only a lost memory.
@@ -86,169 +78,93 @@ end
 --- Get screen frame adjusted for margins (canvas)
 function obj:getScreenFrame(screen)
   screen = screen or (hs.window.focusedWindow() and hs.window.focusedWindow():screen()) or hs.screen.mainScreen()
-  local f = screen:frame()
+  return Plan.canvas(screen:frame(), self:_resolvedMargins())
+end
 
-  local top = self:_resolveMargin(self._margins.top)
-  local right = self:_resolveMargin(self._margins.right)
-  local bottom = self:_resolveMargin(self._margins.bottom)
-  local left = self:_resolveMargin(self._margins.left)
-
+-- The margins as numbers, each one a number or a function answering one.
+function obj:_resolvedMargins()
   return {
-    x = f.x + left,
-    y = f.y + top,
-    w = f.w - left - right,
-    h = f.h - top - bottom,
+    top = self:_resolveMargin(self._margins.top), right = self:_resolveMargin(self._margins.right),
+    bottom = self:_resolveMargin(self._margins.bottom), left = self:_resolveMargin(self._margins.left),
   }
+end
+
+local function rectOf(f) return { x = f.x, y = f.y, w = f.w, h = f.h } end
+local function uuidOf(screen) return screen:getUUID() or tostring(screen:id()) end
+
+--- WindowManager:planInput(win, extra) -> table
+--- Method
+--- What plan.lua reads for a window, its frame, its screen, every screen, the memory and the
+--- settings, with extra's depth, size or target laid over it.
+function obj:planInput(win, extra)
+  local screens = {}
+  for _, screen in ipairs(hs.screen.allScreens()) do
+    screens[#screens + 1] = { uuid = uuidOf(screen), frame = rectOf(screen:frame()) }
+  end
+  local id = win:id()
+  local screen = win:screen()
+  local s = {
+    window = rectOf(win:frame()), id = id, screen = screen and uuidOf(screen), screens = screens,
+    margins = self:_resolvedMargins(), gap = self:_gap(), sizing = (self._settings or {}).windowSizing or {},
+    memory = id and self._lastFrames[id] or nil,
+  }
+  for k, v in pairs(extra or {}) do s[k] = v end
+  return s
+end
+
+--- WindowManager:_do(action, extra) -> result or nil
+--- Method
+--- Runs one action on the focused window, the frame plan.lua answers written, through _applyFrame
+--- where the plan asks for a read back, and the frame a window leaves a screen with remembered.
+function obj:_do(action, extra)
+  local win = hs.window.focusedWindow()
+  if not win then return nil end
+  local result = Plan.plan(action, self:planInput(win, extra))
+  if not result then return nil end
+  local id = win:id()
+  if result.remember and id then
+    self._lastFrames[id] = self._lastFrames[id] or {}
+    self._lastFrames[id][result.remember.screen] = result.remember.frame
+    self:_pruneLastFrames()
+  end
+  if result.verify then self:_applyFrame(win, result.frame) else win:setFrame(result.frame) end
+  return result
 end
 
 --- WindowManager:maximize()
 --- Method
 --- Maximize the focused window
-function obj:maximize()
-  local win = hs.window.focusedWindow()
-  if win then
-    local screen = win:screen()
-    local screenFrame = self:getScreenFrame(screen)
-    win:setFrame(hs.geometry.rect(screenFrame.x, screenFrame.y, screenFrame.w, screenFrame.h))
-  end
-end
+function obj:maximize() self:_do("maximize") end
 
 --- WindowManager:center()
 --- Method
 --- Center the focused window on screen
-function obj:center()
-  local win = hs.window.focusedWindow()
-  if win then
-    local screen = win:screen()
-    local frame = win:frame()
-    local screenFrame = self:getScreenFrame(screen)
-
-    frame.x = screenFrame.x + (screenFrame.w - frame.w) / 2
-    frame.y = screenFrame.y + (screenFrame.h - frame.h) / 2
-
-    win:setFrame(frame)
-  end
-end
+function obj:center() self:_do("center") end
 
 --- WindowManager:fullHeightReasonableWidth()
 --- Method
 --- Make window full height with reasonable width
-function obj:fullHeightReasonableWidth()
-  local win = hs.window.focusedWindow()
-  if not win then return end
-
-  local screen = win:screen()
-  local screenFrame = self:getScreenFrame(screen)
-  local maxWidth = (self._settings.windowSizing and self._settings.windowSizing.fullHeightMaxWidth) or 2400
-
-  local frame = win:frame()
-  frame.h = screenFrame.h
-  frame.w = math.min(screenFrame.w - 140, maxWidth)
-  frame.x = screenFrame.x + (screenFrame.w - frame.w) / 2
-  frame.y = screenFrame.y
-
-  win:setFrame(frame)
-end
+function obj:fullHeightReasonableWidth() self:_do("fullHeightReasonableWidth") end
 
 --- WindowManager:fullHeight()
 --- Method
 --- Expand the focused window to full height, leaving its width and x untouched
---- (pure vertical fill). Distinct from fullHeightReasonableWidth(), which the
---- workspace automation uses to also set a centered reasonable width.
-function obj:fullHeight()
-  local win = hs.window.focusedWindow()
-  if not win then return end
+function obj:fullHeight() self:_do("fullHeight") end
 
-  local screen = win:screen()
-  local screenFrame = self:getScreenFrame(screen)
-
-  local frame = win:frame()
-  frame.h = screenFrame.h
-  frame.y = screenFrame.y
-
-  win:setFrame(frame)
-end
-
---- WindowManager:resizeToPercentage(widthPercentage, heightPercentage)
+--- WindowManager:resizeDefault()
 --- Method
---- Resize window to percentage of screen
-function obj:resizeToPercentage(widthPercentage, heightPercentage)
-  local win = hs.window.focusedWindow()
-  if not win then return end
-
-  local screen = win:screen()
-  local screenFrame = self:getScreenFrame(screen)
-
-  local frame = win:frame()
-  frame.w = (widthPercentage / 100) * screenFrame.w
-  frame.h = (heightPercentage / 100) * screenFrame.h
-  frame.x = screenFrame.x + (screenFrame.w - frame.w) / 2
-  frame.y = screenFrame.y + (screenFrame.h - frame.h) / 2
-
-  win:setFrame(frame)
-end
-
---- WindowManager:resizeDefault(maxWidth, maxHeight)
---- Method
---- Resize window to default size
-function obj:resizeDefault(maxWidth, maxHeight)
-  local sizing = self._settings.windowSizing or {}
-  maxWidth = maxWidth or sizing.maxWidth or 1800
-  maxHeight = maxHeight or sizing.maxHeight or 1200
-
-  local win = hs.window.focusedWindow()
-  if not win then return end
-
-  local screen = win:screen()
-  local screenFrame = self:getScreenFrame(screen)
-
-  local newWidth = math.min(maxWidth, screenFrame.w - 80)
-  local newHeight = math.min(maxHeight, screenFrame.h - 80)
-  local newX = (screenFrame.w - newWidth) / 2
-  local newY = (screenFrame.h - newHeight) / 2
-
-  win:setFrame(hs.geometry.rect(screenFrame.x + newX, screenFrame.y + newY, newWidth, newHeight))
-end
+--- Resize window to default size, the reasonable size
+function obj:resizeDefault() self:_do("reasonableSize") end
 
 --- WindowManager:leftHalf()
 --- Method
 --- Move window to left half of screen
-function obj:leftHalf()
-  local win = hs.window.focusedWindow()
-  if not win then return end
-
-  local screen = win:screen()
-  local screenFrame = self:getScreenFrame(screen)
-  local gap = self:_gap()
-
-  local frame = win:frame()
-  frame.w = (screenFrame.w - gap) / 2
-  frame.h = screenFrame.h
-  frame.x = screenFrame.x
-  frame.y = screenFrame.y
-
-  win:setFrame(frame)
-end
+function obj:leftHalf() self:_do("leftHalf") end
 
 --- WindowManager:rightHalf()
 --- Method
 --- Move window to right half of screen
-function obj:rightHalf()
-  local win = hs.window.focusedWindow()
-  if not win then return end
-
-  local screen = win:screen()
-  local screenFrame = self:getScreenFrame(screen)
-  local gap = self:_gap()
-
-  local frame = win:frame()
-  frame.w = (screenFrame.w - gap) / 2
-  frame.h = screenFrame.h
-  frame.x = screenFrame.x + (screenFrame.w + gap) / 2
-  frame.y = screenFrame.y
-
-  win:setFrame(frame)
-end
+function obj:rightHalf() self:_do("rightHalf") end
 
 --- WindowManager:_applyFrame(win, rect)
 --- Method
@@ -291,106 +207,6 @@ function obj:_applyFrame(win, rect)
   end
 
   win:setFrameWithWorkarounds(rect, 0)
-end
-
---- WindowManager:_placeOnScreen(win, targetScreen)
---- Method
---- Moves a window onto another screen keeping its size and its place, in place of the
---- proportional rescaling hs.window's own moveToScreen applies with no flags, which stretches
---- or shrinks a window by the ratio of the two screens' shapes, a terminal moved from the
---- built in panel to an ultrawide arriving stretched by that ratio and the same window moved
---- back arriving shrunk by it. Both moveToDisplay and moveToScreen call this one method, so
---- the two ways a window reaches another screen can never disagree about how it lands.
----
---- The window keeps its current pixel width and height, each clamped down to the target
---- canvas only on the axis that genuinely does not fit, so an axis with room keeps its exact
---- pixel count and only a real mismatch shrinks anything. Its place is carried across as the
---- centre expressed as a fraction of the source canvas, so a window sitting a third of the way
---- across a small screen lands a third of the way across the target one too, which keeps the
---- window's felt position on screen rather than its proportions.
----
---- A window returning to a screen it has already visited lands back on exactly the frame it
---- had there, for as long as this config has been running, through the round trip memory this
---- method is the only writer and the only reader of. The remembered rect holds absolute screen
---- coordinates rather than anything relative, so a size that still fits says nothing on its
---- own about whether the position still does, an origin can move under it whenever a display
---- is unplugged and replugged or whenever DisplayProfiles applies a new arrangement, which
---- this config already does on every screen change. So the remembered rect is only trusted
---- once every one of its four edges is checked against the target canvas, never its size
---- alone. Placing either the remembered frame or the layer 1 fit goes through _applyFrame
---- above rather than through hs.window's own setFrame directly, since a plain write can land
---- short of a growing window's true size and this method's whole job is landing on the frame
---- it just computed or remembered.
-function obj:_placeOnScreen(win, targetScreen)
-  local sourceScreen = win:screen()
-  local frame = win:frame()
-
-  -- The memory only ever learns of a placement through this one method, so recording the
-  -- frame the window is leaving happens here, before it moves, and nowhere else. A window
-  -- or a screen with no id is skipped rather than ever letting a nil key reach the table.
-  local windowId = win:id()
-  local sourceUUID = sourceScreen and sourceScreen:getUUID()
-  if windowId and sourceUUID then
-    self._lastFrames[windowId] = self._lastFrames[windowId] or {}
-    self._lastFrames[windowId][sourceUUID] = { x = frame.x, y = frame.y, w = frame.w, h = frame.h }
-    self:_pruneLastFrames()
-  end
-
-  local targetCanvas = self:getScreenFrame(targetScreen)
-  local targetUUID = targetScreen and targetScreen:getUUID()
-  local remembered = windowId and targetUUID and self._lastFrames[windowId] and self._lastFrames[windowId][targetUUID]
-
-  -- A remembered frame for the exact target answers the placement outright, but only once
-  -- every edge of it, left, top, right and bottom, is checked to still lie inside the target
-  -- canvas. The rect is absolute, so a canvas whose origin moved since the frame was recorded
-  -- can leave a rect the right size sitting fully off screen, and checking only the width and
-  -- height would miss exactly that.
-  local fits = remembered
-    and remembered.x >= targetCanvas.x
-    and remembered.y >= targetCanvas.y
-    and remembered.x + remembered.w <= targetCanvas.x + targetCanvas.w
-    and remembered.y + remembered.h <= targetCanvas.y + targetCanvas.h
-
-  if fits then
-    self:_applyFrame(win, {
-      x = math.floor(remembered.x),
-      y = math.floor(remembered.y),
-      w = math.floor(remembered.w),
-      h = math.floor(remembered.h),
-    })
-    return
-  end
-
-  local sourceCanvas = self:getScreenFrame(sourceScreen)
-
-  local newW = math.min(frame.w, targetCanvas.w)
-  local newH = math.min(frame.h, targetCanvas.h)
-
-  -- The centre as a fraction of the source canvas, guarded against a canvas with no real
-  -- width or height, where the middle is as good an answer as any and nothing sized like
-  -- that is worth locating exactly.
-  local cx, cy = 0.5, 0.5
-  if sourceCanvas.w > 0 then
-    cx = (frame.x + frame.w / 2 - sourceCanvas.x) / sourceCanvas.w
-  end
-  if sourceCanvas.h > 0 then
-    cy = (frame.y + frame.h / 2 - sourceCanvas.y) / sourceCanvas.h
-  end
-
-  local newX = targetCanvas.x + cx * targetCanvas.w - newW / 2
-  local newY = targetCanvas.y + cy * targetCanvas.h - newH / 2
-
-  -- clampBetween orders its own pair, so a window wider or taller than the target canvas
-  -- still gets a real range to slide along rather than being pinned to one edge.
-  newX = clampBetween(newX, targetCanvas.x, targetCanvas.x + targetCanvas.w - newW)
-  newY = clampBetween(newY, targetCanvas.y, targetCanvas.y + targetCanvas.h - newH)
-
-  self:_applyFrame(win, {
-    x = math.floor(newX),
-    y = math.floor(newY),
-    w = math.floor(newW),
-    h = math.floor(newH),
-  })
 end
 
 --- WindowManager:_pruneLastFrames()
@@ -437,187 +253,35 @@ end
 
 --- WindowManager:moveToDisplay(direction)
 --- Method
---- Move window to next or previous display
+--- Move window to next or previous display, keeping its size and its place, and onto the frame it
+--- had there when it has been there before, plan.lua's place
 function obj:moveToDisplay(direction)
-  local window = hs.window.focusedWindow()
-  if not window then return end
-
-  local screen = window:screen()
-  local nextScreen = nil
-
-  if direction == "next" then
-    nextScreen = screen:next()
-  elseif direction == "previous" then
-    nextScreen = screen:previous()
-  end
-
-  if nextScreen then
-    self:_placeOnScreen(window, nextScreen)
-  end
+  self:_do(direction == "next" and "nextDisplay" or "previousDisplay")
 end
 
 --- WindowManager:moveToScreen(screen)
 --- Method
 --- Move focused window to specific screen
 function obj:moveToScreen(screen)
-  local window = hs.window.focusedWindow()
-  if window and screen then
-    self:_placeOnScreen(window, screen)
-  end
-end
-
---- WindowManager:adjustSize(amount)
---- Method
---- Adjust window size, `amount` being what the canvas's LONG edge grows by, with the short
---- edge taking its proportional share, so a window grows in the shape of the screen it is
---- growing inside.
----
---- A screen is almost never square and an ultrawide is nowhere near it, so a step applied
---- equally to both axes spends the same pixels on the short axis as on the long one, and a
---- growing window reaches the top and bottom of the canvas long before it reaches the sides.
---- Each axis therefore takes the step scaled by its own share of the longest one.
----
---- The LONG edge is the reference rather than the width, and that is the part portrait makes
---- necessary. Scaling from the width instead would still be proportional, but the step would
---- then mean the long edge on a landscape screen and the short edge on a rotated one, so the
---- same key would cover very different ground before and after a rotation. Anchoring on the
---- longest axis means one press always moves the long edge by `amount` whichever way the
---- screen is turned, and a square screen is simply the case where both shares are one.
----
---- Both axes are taken to whole pixels per side, since a window edge on a half pixel lines up
---- with nothing beside it.
-function obj:adjustSize(amount)
-  amount = amount or 100
-
-  local win = hs.window.focusedWindow()
-  if not win then
-    if self._notify then self._notify("No focused window") end
-    return
-  end
-
-  local screen = win:screen()
-  local windowFrame = win:frame()
-  -- Clamp to the gap-inset canvas so growing a window stops at the same border
-  -- as maximize (rather than flushing to the raw screen edge). max(0, ...) keeps
-  -- a window that is already outside the canvas from inverting on growth.
-  local screenFrame = self:getScreenFrame(screen)
-
-  -- Each axis's share of the step, its own length over the longest, so the longest axis takes
-  -- the step whole and the other one takes less. A zero longest means there is no usable
-  -- canvas at all, where a share of one is as good an answer as any and nothing is about to be
-  -- resized regardless.
-  local longest = math.max(screenFrame.w, screenFrame.h)
-  local shareW = longest > 0 and (screenFrame.w / longest) or 1
-  local shareH = longest > 0 and (screenFrame.h / longest) or 1
-
-  -- To whole pixels, and by an even number, since half of the step goes to each of the two
-  -- opposing edges and a half pixel edge lines up with nothing beside it.
-  local function wholePair(value)
-    local half = value / 2
-    local rounded = half >= 0 and math.floor(half + 0.5) or -math.floor(-half + 0.5)
-    return rounded * 2
-  end
-
-  -- Growing has the canvas to stop at and shrinking has nothing, so it stops at a floor
-  -- instead. Without one a held key walks a window down to a sliver and there is no keystroke
-  -- that brings a lost window back. Per axis rather than one shared limit, since a window
-  -- already at the floor on its height should still be able to lose width.
-  local sizing = self._settings.windowSizing or {}
-  local amountW, amountH = wholePair(amount * shareW), wholePair(amount * shareH)
-  if amount < 0 then
-    amountW = -math.min(-amountW, math.max(0, windowFrame.w - (sizing.minWidth or 400)))
-    amountH = -math.min(-amountH, math.max(0, windowFrame.h - (sizing.minHeight or 300)))
-    if amountW == 0 and amountH == 0 then return end
-  end
-
-  local roomLeft = math.max(0, windowFrame.x - screenFrame.x)
-  local roomRight = math.max(0, (screenFrame.x + screenFrame.w) - (windowFrame.x + windowFrame.w))
-  local roomTop = math.max(0, windowFrame.y - screenFrame.y)
-  local roomBottom = math.max(0, (screenFrame.y + screenFrame.h) - (windowFrame.y + windowFrame.h))
-
-  local increaseLeft = math.min(amountW / 2, roomLeft)
-  local increaseRight = math.min(amountW / 2, roomRight)
-  local increaseTop = math.min(amountH / 2, roomTop)
-  local increaseBottom = math.min(amountH / 2, roomBottom)
-
-  local newWidth = windowFrame.w + increaseLeft + increaseRight
-  local newLeft = windowFrame.x - increaseLeft
-  if newLeft < screenFrame.x then
-    increaseRight = increaseRight + (screenFrame.x - newLeft)
-    increaseLeft = windowFrame.x - screenFrame.x
-  end
-
-  local newHeight = windowFrame.h + increaseTop + increaseBottom
-  local newTop = windowFrame.y - increaseTop
-  if newTop < screenFrame.y then
-    increaseBottom = increaseBottom + (screenFrame.y - newTop)
-    increaseTop = windowFrame.y - screenFrame.y
-  end
-
-  windowFrame.x = windowFrame.x - increaseLeft
-  windowFrame.y = windowFrame.y - increaseTop
-  windowFrame.w = windowFrame.w + increaseLeft + increaseRight
-  windowFrame.h = windowFrame.h + increaseTop + increaseBottom
-
-  win:setFrame(windowFrame)
-end
-
---- WindowManager:_holdStep(press, held, hold)
---- Method
---- How far one press travels, which is one of two amounts and never anything in between.
----
---- A key pressed on its own moves `press`, small enough to place a window by eye. A key that
---- is being held moves `held`, far enough that crossing a screen is a hold rather than an
---- errand. `hold` is the depth the engine calls a repeating action with, 0 for the press
---- itself, and the first `holdGrace` of them count as the press.
----
---- Two amounts rather than a ramp between them, deliberately. A distance that keeps growing
---- under a held finger is a distance you cannot aim with, since where the window ends up
---- depends on exactly when you let go, and the timing underneath is steady for the same
---- reason. So a hold has one speed, it just is not the speed of a single press.
-function obj:_holdStep(press, held, hold)
-  hold = hold or 0
-  local grace = (self._settings.windowSizing or {}).holdGrace or 1
-  if hold < grace then return press end
-  return held
-end
-
---- WindowManager:_moveStep(hold)
---- Method
---- The move step, movePixels for a press and movePixelsHeld while the key is held.
-function obj:_moveStep(hold)
-  local sizing = self._settings.windowSizing or {}
-  local press = sizing.movePixels or 20
-  return self:_holdStep(press, sizing.movePixelsHeld or (press * 2), hold)
-end
-
---- WindowManager:_resizeStep(hold)
---- Method
---- The resize step, resizePixels for a press and resizePixelsHeld while held.
----
---- Its own pair rather than the move's, and a larger one, because the two keys are not doing
---- the same amount of work with the same number. A move slides a window one distance, where a
---- resize spends its step across two axes and moves an edge rather than the whole window, so
---- the same figure covers less apparent ground. What the step means for each axis is
---- adjustSize's business, not this one's.
-function obj:_resizeStep(hold)
-  local sizing = self._settings.windowSizing or {}
-  local press = sizing.resizePixels or 30
-  return self:_holdStep(press, sizing.resizePixelsHeld or (press + 20), hold)
+  if screen then self:_do("toScreen", { target = uuidOf(screen) }) end
 end
 
 --- WindowManager:increaseSize(hold)
 --- Method
 --- Increase window size, by the held amount while the key is held
-function obj:increaseSize(hold)
-  self:adjustSize(self:_resizeStep(hold))
-end
+function obj:increaseSize(hold) self:_sized("increaseSize", hold) end
 
 --- WindowManager:decreaseSize(hold)
 --- Method
 --- Decrease window size, by the held amount while the key is held
-function obj:decreaseSize(hold)
-  self:adjustSize(-self:_resizeStep(hold))
+function obj:decreaseSize(hold) self:_sized("decreaseSize", hold) end
+
+function obj:_sized(action, hold)
+  if not hs.window.focusedWindow() then
+    if self._notify then self._notify("No focused window") end
+    return
+  end
+  self:_do(action, { depth = hold })
 end
 
 --- WindowManager:hideAllExceptFocused()
@@ -636,70 +300,16 @@ function obj:hideAllExceptFocused()
   end
 end
 
---- WindowManager:moveByPixels(direction, pixels)
+--- WindowManager:_moveStep(hold) and WindowManager:_resizeStep(hold)
 --- Method
---- Move window by pixels in direction, stopping at the gap-inset canvas.
----
---- The step stops flush against the same border maximize uses, so a window slides to the
---- edge and stays on screen. It used to walk as far as it was asked to, which nothing
---- noticed while one press was one step of twenty pixels, and a held key that keeps stepping
---- turns that into a window pushed off the display and then off the next one. Crossing to
---- another display is what the display switch keys are for, and they sit on adjacent keys.
-function obj:moveByPixels(direction, pixels)
-  local win = hs.window.focusedWindow()
-  if not win then return end
-
-  pixels = pixels or (self._settings.windowSizing and self._settings.windowSizing.movePixels) or 20
-  local frame = win:frame()
-  local canvas = self:getScreenFrame(win:screen())
-
-  -- Only the axis this key moved is clamped. Clamping both would let a press meant to move a
-  -- window right also pull it down onto the canvas, which reads as the window drifting on its
-  -- own, so a key changes the one thing it was pressed for and nothing else.
-  if direction == "left" or direction == "right" then
-    frame.x = frame.x + (direction == "right" and pixels or -pixels)
-    frame.x = clampBetween(frame.x, canvas.x, canvas.x + canvas.w - frame.w)
-  elseif direction == "up" or direction == "down" then
-    frame.y = frame.y + (direction == "down" and pixels or -pixels)
-    frame.y = clampBetween(frame.y, canvas.y, canvas.y + canvas.h - frame.h)
-  end
-
-  win:setFrame(frame)
-end
+--- How far one press travels, the press amount or the held one, plan.lua's own steps.
+function obj:_moveStep(hold) return Plan.moveStep((self._settings or {}).windowSizing or {}, hold) end
+function obj:_resizeStep(hold) return Plan.resizeStep((self._settings or {}).windowSizing or {}, hold) end
 
 --- WindowManager:screenRecording()
 --- Method
 --- Move to secondary screen and resize for screen recording
-function obj:screenRecording()
-  local screens = hs.screen.allScreens()
-  local targetScreen = screens[2] or screens[1]
-  local sizing = self._settings.windowSizing and self._settings.windowSizing.screenRecording or { width = 2400, height = 1350 }
-
-  self:moveToScreen(targetScreen)
-  self:resizeByPixels(sizing)
-end
-
---- WindowManager:resizeByPixels(dimensions)
---- Method
---- Resize window to specific pixel dimensions
-function obj:resizeByPixels(dimensions)
-  local win = hs.window.focusedWindow()
-  if not win then return end
-
-  local screen = win:screen()
-  local screenFrame = screen:frame()
-
-  local targetWidth = dimensions.width or screenFrame.w
-  local targetHeight = dimensions.height or screenFrame.h
-
-  local newWidth = math.min(targetWidth, screenFrame.w)
-  local newHeight = math.min(targetHeight, screenFrame.h)
-
-  local newX = screenFrame.x + (screenFrame.w - newWidth) / 2
-  local newY = screenFrame.y + (screenFrame.h - newHeight) / 2
-
-  win:setFrame(hs.geometry.rect(newX, newY, newWidth, newHeight))
-end
+function obj:screenRecording() self:_do("screenRecording") end
 
 --- WindowManager:exactSizePlan(width, height, screen)
 --- Method
@@ -708,7 +318,7 @@ end
 --- taken off it, and nothing else, since a caller wording a row needs those two facts and no
 --- geometry. Nil for a request that is not two usable numbers.
 ---
---- The ceiling is the screen's visible frame, which is the same frame resizeByPixels applies
+--- The ceiling is the screen's visible frame, which is the same frame exactSize applies
 --- against, so the answer and the action agree by reading one thing. A request taller than the
 --- space under the menu bar is therefore reported as trimmed rather than quietly placing a
 --- window edge behind it, which is the honest answer even though a person asking for a round
@@ -738,12 +348,8 @@ end
 
 --- WindowManager:smallSize()
 --- Method
---- Resize window to small size
-function obj:smallSize()
-  local sizing = self._settings.windowSizing and self._settings.windowSizing.smallSize or { width = 700, height = 800 }
-  self:resizeByPixels(sizing)
-  self:center()
-end
+--- Resize window to small size, centred on the canvas
+function obj:smallSize() self:_do("smallSize") end
 
 -- camelCase action name to a Title Case label, the words every surface shows for an action,
 -- the launcher row, the window sheet and the actions pane alike.
@@ -821,23 +427,23 @@ function obj:_handlers()
       if type(size) ~= "table" then return end
       local w, h = tonumber(size.width), tonumber(size.height)
       if not w or not h then return end
-      -- The one hard failure worth a message, the same shape adjustSize already uses. A chosen
+      -- The one hard failure worth a message, the same shape a resize with nothing focused uses. A chosen
       -- row that silently does nothing reads as a broken feature, and the ordinary way to get
       -- here with nothing focused is a desktop with no window on it.
       if not hs.window.focusedWindow() then
         if self._notify then self._notify("No focused window") end
         return
       end
-      self:resizeByPixels({ width = w, height = h })
+      self:_do("exactSize", { size = { width = w, height = h } })
     end,
     -- The four moves and the two resizes above take the hold depth the leader calls a
     -- repeating action with, and read their step off it, the press amount or the held one.
     -- Every other action here ignores the argument, since none of them repeats and a
     -- placement is the same wherever in a hold it is asked for.
-    moveLeft =             function(hold) self:moveByPixels("left", self:_moveStep(hold)) end,
-    moveRight =            function(hold) self:moveByPixels("right", self:_moveStep(hold)) end,
-    moveUp =               function(hold) self:moveByPixels("up", self:_moveStep(hold)) end,
-    moveDown =             function(hold) self:moveByPixels("down", self:_moveStep(hold)) end,
+    moveLeft =             function(hold) self:_do("moveLeft", { depth = hold }) end,
+    moveRight =            function(hold) self:_do("moveRight", { depth = hold }) end,
+    moveUp =               function(hold) self:_do("moveUp", { depth = hold }) end,
+    moveDown =             function(hold) self:_do("moveDown", { depth = hold }) end,
   }
 end
 

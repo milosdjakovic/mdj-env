@@ -146,7 +146,7 @@ Stage 5, keys
 Stage 6, the core in the app, one per step
 - [ ] 6.1 The launcher's catalog and its recency. The catalog in the app is built and flipped on 2026-11-20 behind `launcherCatalog`, `docs/DESIGN-APP-LAUNCHER.md` step 6.1, its shadow logging beside it. Recency, the memory and choosing move later
 - [ ] 6.2 The app toggler. Built and flipped on 2026-11-20 behind `appToggler`, `docs/DESIGN-APP-APPS.md`, on branch `olm-6.2-apptoggler` merged to main. Waits on Olm.app's Accessibility grant and a day of the shadow
-- [ ] 6.3 The window manager and window size
+- [ ] 6.3 The window manager and window size, `docs/DESIGN-APP-WINDOWS.md`. 6.3a, the geometry as one pure function in Lua and in Swift held to 72 recorded fixtures, done on 2026-11-23. 6.3b, the app placing the window, next
 - [ ] 6.4 Workspaces
 - [ ] 6.5 The clipboard, the monitor and the store together
 - [ ] 6.6 Emoji

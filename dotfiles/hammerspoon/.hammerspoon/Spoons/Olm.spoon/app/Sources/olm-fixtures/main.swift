@@ -6,6 +6,7 @@
 //   olm-fixtures DIR    every fixture file under DIR, test/fixtures in the spoon
 
 import Foundation
+import OlmApps
 import OlmCore
 import OlmKit
 import OlmLook
@@ -447,7 +448,82 @@ func runPrefix(_ file: String, _ doc: [String: Any]) {
   }
 }
 
+// windows.plan, where a window action puts the focused window, OlmApps' WindowPlan against what
+// plugins/windowmanager/plan.lua answered when test/windowplan-record.lua recorded it, every number
+// within a millionth.
+func windowRect(_ any: Any?) -> WindowRect? {
+  guard let o = any as? [String: Any] else { return nil }
+  func n(_ k: String) -> Double { (o[k] as? NSNumber)?.doubleValue ?? 0 }
+  return WindowRect(x: n("x"), y: n("y"), w: n("w"), h: n("h"))
+}
+
+func windowInput(_ o: [String: Any]) -> WindowInput {
+  var s = WindowInput()
+  s.window = windowRect(o["window"])
+  s.id = (o["id"] as? NSNumber).map { UInt32(truncating: $0) }
+  s.screen = o["screen"] as? String
+  s.screens = (o["screens"] as? [[String: Any]] ?? []).compactMap { sc in
+    guard let uuid = sc["uuid"] as? String, let f = windowRect(sc["frame"]) else { return nil }
+    return WindowScreen(uuid: uuid, frame: f)
+  }
+  if let m = o["margins"] as? [String: Any] {
+    func n(_ k: String) -> Double { (m[k] as? NSNumber)?.doubleValue ?? 0 }
+    s.margins = WindowMargins(top: n("top"), right: n("right"), bottom: n("bottom"), left: n("left"))
+  }
+  s.gap = (o["gap"] as? NSNumber)?.doubleValue ?? 0
+  if let z = o["sizing"] as? [String: Any] {
+    func n(_ k: String) -> Double? { (z[k] as? NSNumber)?.doubleValue }
+    func pair(_ k: String) -> (width: Double?, height: Double?)? {
+      guard let p = z[k] as? [String: Any] else { return nil }
+      return ((p["width"] as? NSNumber)?.doubleValue, (p["height"] as? NSNumber)?.doubleValue)
+    }
+    s.sizing.maxWidth = n("maxWidth"); s.sizing.maxHeight = n("maxHeight")
+    s.sizing.fullHeightMaxWidth = n("fullHeightMaxWidth")
+    s.sizing.movePixels = n("movePixels"); s.sizing.movePixelsHeld = n("movePixelsHeld")
+    s.sizing.resizePixels = n("resizePixels"); s.sizing.resizePixelsHeld = n("resizePixelsHeld")
+    s.sizing.holdGrace = n("holdGrace"); s.sizing.minWidth = n("minWidth"); s.sizing.minHeight = n("minHeight")
+    s.sizing.screenRecording = pair("screenRecording"); s.sizing.smallSize = pair("smallSize")
+  }
+  s.depth = (o["depth"] as? NSNumber)?.intValue ?? 0
+  if let z = o["size"] as? [String: Any], let w = z["width"] as? NSNumber, let h = z["height"] as? NSNumber,
+    !(z["width"] is String), !(z["height"] is String) {
+    s.size = (w.doubleValue, h.doubleValue)
+  }
+  s.target = o["target"] as? String
+  for (uuid, f) in o["memory"] as? [String: Any] ?? [:] { if let r = windowRect(f) { s.memory[uuid] = r } }
+  return s
+}
+
+func runWindowPlan(_ file: String, _ doc: [String: Any]) {
+  func near(_ a: WindowRect, _ b: WindowRect) -> Bool {
+    abs(a.x - b.x) < 1e-6 && abs(a.y - b.y) < 1e-6 && abs(a.w - b.w) < 1e-6 && abs(a.h - b.h) < 1e-6
+  }
+  for case let c as [String: Any] in (doc["cases"] as? [Any]) ?? [] {
+    let name = c["name"] as? String ?? "?"
+    let got = WindowPlan.plan(c["action"] as? String ?? "", windowInput(c["input"] as? [String: Any] ?? [:]))
+    guard let want = c["expect"] as? [String: Any] else {
+      if let got { fail(file, name, "wanted nothing, got \(got)") } else { passed += 1 }
+      continue
+    }
+    guard let got else { fail(file, name, "wanted \(show(want)), got nothing"); continue }
+    var problems: [String] = []
+    if let f = windowRect(want["frame"]), !near(f, got.frame) { problems.append("frame wanted \(f), got \(got.frame)") }
+    if want["screen"] as? String != got.screen { problems.append("screen wanted \(show(want["screen"])), got \(String(describing: got.screen))") }
+    if (want["verify"] as? Bool ?? false) != got.verify { problems.append("verify wanted \(show(want["verify"])), got \(got.verify)") }
+    let r = want["remember"] as? [String: Any]
+    let remembered: Bool
+    switch (windowRect(r?["frame"]), got.remember) {
+    case (nil, nil): remembered = true
+    case (let f?, let g?): remembered = r?["screen"] as? String == g.screen && near(f, g.frame)
+    default: remembered = false
+    }
+    if !remembered { problems.append("remember wanted \(show(r)), got \(String(describing: got.remember))") }
+    if problems.isEmpty { passed += 1 } else { fail(file, name, problems.joined(separator: "; ")) }
+  }
+}
+
 let runners: [String: (String, [String: Any]) -> Void] = [
+  "windows.plan": runWindowPlan,
   "stage.prefix": runPrefix,
   "filesearch.parse": runParse,
   "filesearch.narrows": runNarrows,

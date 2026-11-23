@@ -463,7 +463,27 @@ local function runRepeat(case)
   return {}
 end
 
+-- windows.plan, where a window action puts the focused window, plugins/windowmanager/plan.lua,
+-- recorded by test/windowplan-record.lua. Numbers compare within a millionth.
+local windowPlan = assert(loadfile(here .. "../plugins/windowmanager/plan.lua"))()
+local function near(a, b)
+  if a == null then a = nil end
+  if b == null then b = nil end
+  if type(a) == "number" and type(b) == "number" then return math.abs(a - b) < 1e-6 end
+  if type(a) ~= "table" or type(b) ~= "table" then return a == b end
+  for k, v in pairs(a) do if not near(v, b[k]) then return false end end
+  for k in pairs(b) do if a[k] == nil then return false end end
+  return true
+end
+local function runWindowPlan(case)
+  local got = windowPlan.plan(case.action, plain(case.input))
+  local want = case.expect ~= null and plain(case.expect) or nil
+  if not near(got, want) then return { "wanted " .. show(case.expect) .. ", got " .. show(got) } end
+  return {}
+end
+
 local KINDS = {
+  ["windows.plan"] = runWindowPlan,
   ["keys.repeat"] = runRepeat,
   ["stage.prefix"] = runPrefix,
   calls = function(case) return runCall(case) end,
