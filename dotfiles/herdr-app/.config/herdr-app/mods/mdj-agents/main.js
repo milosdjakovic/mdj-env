@@ -466,14 +466,15 @@ export default class Agents extends View {
           cx.notify();
         })
         .on_click(() => run("pane.focus", { pane: a.pane }))
-        // The agent's icon on a tile, as a tab draws it, with the other panes of its tab stacked behind in their order.
+        // The agent's icon on a tile, as a tab draws it, but never stacked. A row is one pane, and two agents can share
+        // a tab, so the tab's other panes say nothing about this one. Asked by Milos on 2026-11-23.
         .child(div().id(`agent-fold-${a.address}`).size(ICON_BOX).flex_none().relative()
           .when(subs.length > 0, el => el.on_click((_e, cx) => {
             cx.stop_propagation();
             this.folded.has(a.address) ? this.folded.delete(a.address) : this.folded.add(a.address);
             cx.notify();
           })).children(tiles(t, a.focused ? t.raised : this.hovered === a.address ? mixHalf(t.canvas.slice(0, 7), t.raised.slice(0, 7)) : t.canvas,
-            [a, ...panes().filter(p => p.tab === a.tab && p.pane !== a.pane)].map(p => p.program))))
+            [a.program])))
         .child(h_flex().flex_1().min_w(0).gap(5).items_center()
           .child(div().min_w(0).max_w(full && more ? 120 : 200).truncate().text_color(idle ? t.muted : t.foreground).child(name))
           .when(full && Boolean(more), el => el.child(div().flex_1().min_w(0).truncate().text_color(t.dim).child(`\u00b7 ${more}`))))
