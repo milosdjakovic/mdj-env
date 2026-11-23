@@ -325,6 +325,13 @@ says Not installed. The list and its icons are read as the window is prepared at
 made at once rather than as it scrolls into view, and an application that arrives later has its icon
 drawn when the page opens.
 
+**Applications, the fourth round, 2026-11-23.** Still not smooth to Milos. A row's mode and key are
+drawn by SwiftUI rather than as a pop-up button and a push button, a press on the mode opening the
+same menu from the pointer, so the page holds no AppKit control per row. The name takes the room the
+row has, the mode and the key stand at the right, and the key is flush with the row's right edge.
+Escape closes the window once the search is empty, and the window is activated a turn after the app
+becomes an ordinary one, so Command Tab orders it like any app.
+
 **Export and import, 2026-11-23.** Milos's aim is one Olm config, exported and imported, that makes
 another Mac's Olm the same, with Hammerspoon still behind the bridge until its behaviour moves. The
 store is that config. Export writes its values under the kind `olm.config` to a file the person

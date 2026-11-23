@@ -254,10 +254,18 @@ enum AppsPage {
   }
 }
 
-/// The widths of a row's two columns, so the mode and the key line up from row to row.
+/// The widths of a row's controls, so the mode and the key line up from row to row. The name takes
+/// every point the two leave, and the key stands flush with the row's right edge.
 enum AppColumns {
-  static let mode: CGFloat = 300
-  static let key: CGFloat = 130
+  /// The mode control and the key control themselves.
+  static let menu: CGFloat = 150
+  static let recorder: CGFloat = 110
+  /// A reset or a remove beside a control, kept in place when hidden so nothing moves.
+  static let mark: CGFloat = 16
+  /// The whole mode column, its reset, its control and its remove.
+  static let mode: CGFloat = mark * 2 + menu + Space.related * 2
+  /// The whole key column, its reset and its recorder.
+  static let key: CGFloat = mark + recorder + Space.related
 }
 
 struct AppsView: View {
@@ -341,11 +349,13 @@ struct AppsView: View {
   @ViewBuilder private func card(_ title: String, _ list: [AppEntry]) -> some View {
     if !list.isEmpty {
       VStack(alignment: .leading, spacing: Space.related) {
-        HStack {
-          Text(title).font(.headline)
-          Spacer()
-          Text("Mode").font(.caption).foregroundStyle(.secondary).frame(width: AppColumns.mode, alignment: .leading)
-          Text("Shortcut").font(.caption).foregroundStyle(.secondary).frame(width: AppColumns.key, alignment: .leading)
+        HStack(spacing: Space.pad) {
+          Text(title).font(.headline).frame(maxWidth: .infinity, alignment: .leading)
+          Text("Mode").font(.caption).foregroundStyle(.secondary)
+            .padding(.leading, AppColumns.mark + Space.related)
+            .frame(width: AppColumns.mode, alignment: .leading)
+          Text("Shortcut").font(.caption).foregroundStyle(.secondary)
+            .frame(width: AppColumns.key, alignment: .trailing)
         }
         .padding(.horizontal, Space.pad + 4)
         // Every row made at once, a few hundred at most, so none appears as it scrolls into view.
@@ -489,8 +499,12 @@ struct AppsView: View {
   }
 }
 
-/// One application: its icon and name with what Olm does with it, then its mode, then its key. A mode
-/// of its own is drawn in the accent with a reset beside it, and one it follows says what from.
+/// One application: its icon and name with what Olm does with it, stretching, then its mode, then its
+/// key flush at the right. A mode of its own is drawn in the accent with a reset beside it.
+///
+/// The mode and the key are drawn here rather than as a pop-up button and a push button, since a
+/// page of a few hundred rows of AppKit controls stuttered as it scrolled. A press opens the same
+/// menu a pop-up button would, from the pointer.
 struct AppRow: View {
   let entry: AppEntry
   let icon: NSImage?
@@ -503,7 +517,9 @@ struct AppRow: View {
   let record: () -> Void
   let resetKey: () -> Void
 
-  static func words(_ mode: String) -> String { mode == "hides" ? "Show and hide" : "Cycle windows" }
+  static let modes: [(tag: String, title: String)] = [
+    ("default", "Default"), ("cycle", "Cycle windows"), ("hides", "Show and hide"),
+  ]
 
   var body: some View {
     HStack(alignment: .center, spacing: Space.pad) {
@@ -520,9 +536,9 @@ struct AppRow: View {
         Text(entry.name)
         Text(detail).font(.caption).foregroundStyle(.secondary).lineLimit(1).truncationMode(.middle)
       }
-      Spacer(minLength: Space.pad)
+      .frame(maxWidth: .infinity, alignment: .leading)
       mode.frame(width: AppColumns.mode, alignment: .leading)
-      key.frame(width: AppColumns.key, alignment: .leading)
+      key.frame(width: AppColumns.key, alignment: .trailing)
     }
     .disabled(busy)
   }
@@ -530,47 +546,47 @@ struct AppRow: View {
   // The mode column: the reset and the remove keep their place when hidden, so nothing moves.
   private var mode: some View {
     HStack(spacing: Space.related) {
-      Button { choose("default") } label: { Image(systemName: "arrow.uturn.backward") }
-        .buttonStyle(.borderless)
-        .help("Back to the default")
-        .opacity(entry.overridden ? 1 : 0)
-        .disabled(!entry.overridden)
-      Picker(entry.name, selection: Binding(get: { entry.own?.mode ?? "default" }, set: choose)) {
-        Text("Default").tag("default")
-        Divider()
-        Text("Cycle windows").tag("cycle")
-        Text("Show and hide").tag("hides")
+      mark("arrow.uturn.backward", shown: entry.overridden, help: "Back to the default") { choose("default") }
+      let current = entry.own?.mode ?? "default"
+      Button {
+        RowMenu.show(Self.modes.map { ($0.tag, $0.title) }, selected: current, dividerAfterFirst: true, pick: choose)
+      } label: {
+        Field(width: AppColumns.menu, leading: true, accent: entry.overridden) {
+          Text(Self.modes.first { $0.tag == current }?.title ?? "Default")
+          Spacer(minLength: Space.related)
+          Image(systemName: "chevron.up.chevron.down").font(.caption)
+        }
       }
-      .labelsHidden()
-      .fixedSize()
-      .tint(entry.overridden ? .accentColor : nil)
-      Spacer(minLength: 0)
-      if entry.removable {
-        Button(action: remove) { Image(systemName: "minus.circle") }
-          .buttonStyle(.borderless)
-          .help("Remove \(entry.name) from Olm")
-      }
+      .buttonStyle(.plain)
+      .help("How \(entry.name)'s key acts")
+      mark("minus.circle", shown: entry.removable, help: "Remove \(entry.name) from Olm", action: remove)
     }
   }
 
-  // The key column, the recorder and its reset.
+  // The key column, the reset and then the recorder at the far right.
   private var key: some View {
     HStack(spacing: Space.related) {
+      mark("arrow.uturn.backward", shown: keyOwn, help: "Back to the key in the config files", action: resetKey)
       Button(action: record) {
-        Text(recording ? "Press a key" : (chord.map(KeyName.words) ?? "None"))
-          .foregroundStyle(keyOwn || recording ? AnyShapeStyle(.tint) : AnyShapeStyle(.primary))
-          .frame(minWidth: 70)
+        Field(width: AppColumns.recorder, leading: false, accent: keyOwn || recording) {
+          Text(recording ? "Press a key" : (chord.map(KeyName.words) ?? "None"))
+        }
       }
+      .buttonStyle(.plain)
       .help(recording ? "Press the key for Hyper and it, Delete for none, Escape to leave it" : "Record a key")
       .disabled(entry.action == nil)
-      Button(action: resetKey) { Image(systemName: "arrow.uturn.backward") }
-        .buttonStyle(.borderless)
-        .help("Back to the key in the config files")
-        .opacity(keyOwn ? 1 : 0)
-        .disabled(!keyOwn)
+      .opacity(entry.action == nil ? 0.5 : 1)
     }
   }
 
+  /// A small borderless button that keeps its place while hidden.
+  private func mark(_ symbol: String, shown: Bool, help: String, action: @escaping () -> Void) -> some View {
+    Button(action: action) { Image(systemName: symbol).frame(width: AppColumns.mark) }
+      .buttonStyle(.borderless)
+      .help(help)
+      .opacity(shown ? 1 : 0)
+      .disabled(!shown)
+  }
 
   private var detail: String {
     var parts: [String] = []
@@ -580,5 +596,56 @@ struct AppRow: View {
     if icon == nil { parts.append("Not installed") }
     if parts.isEmpty { parts.append(entry.bundle) }
     return parts.joined(separator: " · ")
+  }
+}
+
+/// A control's face drawn by SwiftUI, the fill and corner a pop-up button has, its text in the accent
+/// when the value is the row's own.
+private struct Field<Content: View>: View {
+  let width: CGFloat
+  let leading: Bool
+  let accent: Bool
+  @ViewBuilder let content: Content
+
+  var body: some View {
+    HStack(spacing: 0) { content }
+      .lineLimit(1)
+      .foregroundStyle(accent ? AnyShapeStyle(.tint) : AnyShapeStyle(.primary))
+      .padding(.horizontal, Space.pad - 4)
+      .frame(width: width, height: 24, alignment: leading ? .leading : .center)
+      .background(RoundedRectangle(cornerRadius: 6, style: .continuous).fill(.quaternary))
+      .contentShape(Rectangle())
+  }
+}
+
+/// The menu a row's mode opens, shown under the pointer with the value in force checked, as a pop-up
+/// button shows its own.
+@MainActor
+enum RowMenu {
+  private final class Target: NSObject {
+    let pick: (String) -> Void
+    init(_ pick: @escaping (String) -> Void) { self.pick = pick }
+    @objc func chosen(_ item: NSMenuItem) { if let tag = item.representedObject as? String { pick(tag) } }
+  }
+
+  static func show(_ items: [(String, String)], selected: String, dividerAfterFirst: Bool,
+    pick: @escaping (String) -> Void) {
+    guard let event = NSApp.currentEvent, let view = event.window?.contentView else { return }
+    let target = Target(pick)
+    let menu = NSMenu()
+    var current: NSMenuItem?
+    for (i, (tag, title)) in items.enumerated() {
+      let item = NSMenuItem(title: title, action: #selector(Target.chosen(_:)), keyEquivalent: "")
+      item.target = target
+      item.representedObject = tag
+      item.state = tag == selected ? .on : .off
+      if tag == selected { current = item }
+      menu.addItem(item)
+      if i == 0, dividerAfterFirst { menu.addItem(.separator()) }
+    }
+    // popUp runs the menu to its end, so the target lives as long as it is needed.
+    withExtendedLifetime(target) {
+      _ = menu.popUp(positioning: current, at: view.convert(event.locationInWindow, from: nil), in: view)
+    }
   }
 }

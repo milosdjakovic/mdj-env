@@ -1489,3 +1489,15 @@ file untouched until behaviour migrates. Editing the machine file from the windo
 once the aim was said, since an export would leave the keys behind. Export and Import carry the whole
 store, Import through the window's own checked change. The page's stutter was an icon read per row as
 it scrolled and a glass card under every list, both removed.
+
+**2026-11-23 12:14, the Applications page's rows drawn rather than AppKit controls, and Command Tab.**
+Milos found the page still far from smooth after the icons were drawn ahead and the glass card went,
+so the belief of 11:51 that those two were the stutter is corrected: they were part of it. Every row
+also carried a pop-up button and a push button, a few hundred AppKit controls in one scrolled
+SwiftUI stack. The mode and the key are drawn by SwiftUI now, a press opening the same menu a pop-up
+button would. That this is what remained is reasoned, not measured, since the screen was not driven;
+his scroll is the check. The name column stretches and the mode and the key stand at the right, the
+key flush with the edge, as he asked. Olm Settings sat last in Command Tab once another app came in
+front: the app was activated in the same turn it became an ordinary app, and macOS never counted it
+as the app in front. It is activated a turn later now, also reasoned, checked by `lsappinfo
+visibleProcessList` after his trial. Escape closes the window, after a search's text is cleared.

@@ -123,11 +123,39 @@ public final class SettingsWindow: NSObject, NSWindowDelegate {
       build()
     }
     if let window, !window.isVisible { Self.centre(window) }
+    let becoming = NSApp.activationPolicy() != .regular
     NSApp.setActivationPolicy(.regular)
     NSApp.mainMenu = Self.menu()
-    NSApp.activate()
     window?.makeKeyAndOrderFront(nil)
     alignToButtons()
+    // An app turned ordinary is activated once the change has taken, a turn of the run loop later.
+    // Activated in the same turn, macOS never counted it as the app in front, so Command Tab kept it
+    // last however recently it was used.
+    if becoming {
+      DispatchQueue.main.async {
+        NSApp.activate()
+        self.window?.makeKeyAndOrderFront(nil)
+      }
+    } else {
+      NSApp.activate()
+    }
+    watchEscape()
+  }
+
+  private var escape: Any?
+
+  /// Escape closes the window, unless the search has text, which Escape clears first, or a menu or
+  /// the key recorder is taking it.
+  private func watchEscape() {
+    guard escape == nil else { return }
+    escape = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
+      guard let self, let window = self.window, event.window === window, event.keyCode == 53,
+        event.modifierFlags.intersection(.deviceIndependentFlagsMask).subtracting([.capsLock, .function]).isEmpty,
+        self.model?.appsPage.recording == nil else { return event }
+      if let editor = window.firstResponder as? NSTextView, !editor.string.isEmpty { return event }
+      window.performClose(nil)
+      return nil
+    }
   }
 
   /// The sidebar's search and the app's row start where the close button does, read off the
