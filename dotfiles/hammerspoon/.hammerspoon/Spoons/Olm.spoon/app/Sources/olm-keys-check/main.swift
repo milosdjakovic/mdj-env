@@ -255,6 +255,18 @@ do {
   check(withLists.contains { $0.code == 38 && $0.mods == base }, "owner: a list key on the base set alone")
   check(withLists.contains { $0.code == 38 && $0.mods == base.union([.cmd]) }, "owner: a list key's own modifier added")
   check(!withLists.contains { $0.code == 40 }, "owner: a list key asking for a base modifier is left to the held key")
+  // The plain leader claims each row with no leader on exactly its own modifiers, and resolves it.
+  let plainMap = Keymap(leaders: [meta], rows: [
+    KeyRow(id: "clipboard.appendCopy", leader: nil, key: "c", keyCode: 8, mods: [.ctrl, .alt]),
+    KeyRow(id: "inputsources.cycle", leader: nil, key: "globe", keyCode: 179, mods: []),
+    KeyRow(id: "w.left", leader: "meta", key: "left", keyCode: 123, mods: nil),
+  ])
+  let plainCombos = KeyOwner.combinations(plainMap, leader: KeyLeader.plain, base: [])
+  check(plainCombos.count == 2, "owner: the plain leader claims only the rows with no leader, \(plainCombos)")
+  check(plainCombos.contains { $0.code == 8 && $0.mods == [.ctrl, .alt] }, "owner: a plain row on its own modifiers")
+  check(plainCombos.contains { $0.code == 179 && $0.mods.isEmpty }, "owner: a bare key on none")
+  let plainHit = Resolver(keymap: plainMap).resolve(code: 8, mods: [.ctrl, .alt], held: [], gate: { _ in true })
+  check(plainHit == .runs(plainMap.rows[0]), "owner: a plain claim resolves to its row")
   let share = #"{"version":1,"leaders":[],"rows":[],"appKeys":["meta"]}"#
   check((try? Keymap.parse(Data(share.utf8)))?.appKeys == ["meta"], "owner: the share names the leaders the app holds")
 }

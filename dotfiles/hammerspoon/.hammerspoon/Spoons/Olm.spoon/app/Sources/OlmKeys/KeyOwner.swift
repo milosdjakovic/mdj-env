@@ -105,13 +105,18 @@ public final class KeyOwner {
     let mine = take
     drop()
     resolver = Resolver(keymap: keymap)
-    let wanted = keymap.appKeys.filter { name in keymap.leaders.contains { $0.name == name && !($0.mods ?? []).isEmpty } }
+    // A leader of modifiers in use, and the plain leader where some row has no leader.
+    let wanted = keymap.appKeys.filter { name in
+      if name == KeyLeader.plainName { return keymap.rows.contains { $0.leader == nil } }
+      return keymap.leaders.contains { $0.name == name && !($0.mods ?? []).isEmpty }
+    }
     guard !wanted.isEmpty else { return }
     let released = await words.release(wanted)
     guard mine == take else { return }
     var refused: [String] = []
     for name in released.leaders {
-      guard let leader = keymap.leaders.first(where: { $0.name == name }), let base = leader.mods else { continue }
+      let found = name == KeyLeader.plainName ? KeyLeader.plain : keymap.leaders.first(where: { $0.name == name })
+      guard let leader = found, let base = leader.mods else { continue }
       var made: [UInt32] = []
       var failed = false
       let lists = released.lists[name] ?? []
@@ -166,7 +171,7 @@ public final class KeyOwner {
       let key = "\(code)|\(mods.map(\.rawValue).sorted())"
       if seen.insert(key).inserted { out.append((code, mods)) }
     }
-    for row in keymap.rows where row.leader == leader.name { add(row.keyCode, row.mods ?? []) }
+    for row in keymap.rows where row.leader == leader.rowName { add(row.keyCode, row.mods ?? []) }
     for combo in lists { add(combo.code, combo.mods) }
     return out
   }

@@ -700,14 +700,21 @@ do
         return code == 38, true
       end }
   end
-  local kb = fresh({ pieces = { olmapp = "on" }, deps = deps, app = APP, appKeys = { "META", "hyper" } })
+  local kb = fresh({ pieces = { olmapp = "on" }, deps = deps, app = APP, appKeys = { "META", "hyper", "plain" } })
   local ran = {}
-  kb:keyHost({ meta = leader("meta", true), hyper = leader("hyper", false, "it holds a list key") },
+  local plainAsked
+  local plainLeader = leader("plain", true)
+  local plainRelease = plainLeader.releaseModifiers
+  plainLeader.releaseModifiers = function(self, opts) plainAsked = opts and opts.plain; return plainRelease(self, opts) end
+  kb:keyHost({ meta = leader("meta", true), hyper = leader("hyper", false, "it holds a list key"), plain = plainLeader },
     { { owner = "windowmanager", action = "moveLeft", leader = "meta", run = function(d) ran[#ran + 1] = d end },
       { owner = "capture", action = "captureArea", leader = "meta", afterRelease = true,
         run = function() ran[#ran + 1] = "capture" end } })
   local methods = {}
   kb:_keyMethods(methods)
+  local plainAnswer = methods.releaseKeys.run({ leaders = { "plain" } })
+  eq(plainAnswer.released[1], "plain", "release: the plain leader is released by name")
+  eq(plainAsked, true, "release: and told it is the plain one")
   local answer = methods.releaseKeys.run({ leaders = { "meta", "hyper", "super" } })
   eq(#answer.released, 1, "release: one leader released")
   eq(answer.released[1], "meta", "release: the one the config names and that agreed")

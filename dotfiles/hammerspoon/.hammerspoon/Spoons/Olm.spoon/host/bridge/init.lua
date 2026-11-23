@@ -380,7 +380,8 @@ function obj:_keyMethods(methods)
       elseif not leader then
         refused[#refused + 1] = { leader = name, why = "it is not in use" }
       else
-        local ok, why = leader:releaseModifiers()
+        -- The plain leader, the rows with no leader on their own modifiers, is released by name.
+        local ok, why = leader:releaseModifiers({ plain = name == "plain" })
         if ok then
           released[#released + 1] = name
           lists[name] = type(leader.listCombos) == "function" and leader:listCombos() or {}

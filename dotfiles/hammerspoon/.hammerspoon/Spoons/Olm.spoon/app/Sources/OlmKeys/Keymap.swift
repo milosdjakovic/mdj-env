@@ -31,6 +31,13 @@ public struct KeyLeader: Sendable, Equatable {
 
   /// A held leader that also listens on modifiers, HYPER and META as they ship.
   public var composite: Bool { held && mods != nil }
+
+  /// The name the plain leader is handed over by, the rows with no leader on their own modifiers.
+  public static let plainName = "plain"
+  /// The plain leader, an empty base set, never in the share's leaders.
+  public static let plain = KeyLeader(name: plainName, held: false, keyCode: nil, mods: [], ranked: false)
+  /// The name its rows spell, none.
+  var rowName: String? { name == Self.plainName ? nil : name }
 }
 
 public struct KeyRow: Sendable, Equatable {

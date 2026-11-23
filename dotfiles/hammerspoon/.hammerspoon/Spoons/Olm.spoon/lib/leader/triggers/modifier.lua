@@ -307,10 +307,11 @@ function obj.new(spec)
     return true
   end
 
-  --- trigger.release() lets Olm.app hold this set's combinations, every hotkey disabled and every
-  --- one made later made disabled, step 5.3. Answers false for an empty base set, a plain combo.
-  function trigger.release()
-    if #baseMods == 0 then return false end
+  --- trigger.release(plain) lets Olm.app hold this set's combinations, every hotkey disabled and
+  --- every one made later made disabled, step 5.3. Answers false for an empty base set unless plain
+  --- says this is the plain leader, whose combinations are each row's own modifiers.
+  function trigger.release(plain)
+    if #baseMods == 0 and not plain then return false end
     released = true
     for _, held in pairs(claimed) do
       if held.hotkey then pcall(held.hotkey.disable, held.hotkey) end

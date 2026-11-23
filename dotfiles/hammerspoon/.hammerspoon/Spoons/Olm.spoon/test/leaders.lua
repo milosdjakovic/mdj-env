@@ -1032,7 +1032,8 @@ do
   eq((listed:runListKey(hs.keycodes.map.a, {}, 0)), false, "list key: a global key is never the list pass's")
   live.ctxA, live.ctxB = false, false
   local plain = newLeader({}, predicates, { trigger = modifier.new({ mods = {} }) })
-  eq((plain:releaseModifiers()), false, "release: the plain leader, an empty set, is refused")
+  eq((plain:releaseModifiers()), false, "release: the plain leader, an empty set, is refused unless named")
+  eq((plain:releaseModifiers({ plain = true })), true, "release: and released when the bridge names it plain")
 end
 
 print(string.format("leaders: %d checks, %d failed", checks, failures))

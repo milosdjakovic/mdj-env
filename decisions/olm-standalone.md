@@ -1428,3 +1428,9 @@ runKey, on the leader's isActive, which reads the live modifiers whoever claims 
 keys, the list keys over the launcher and the clipboard with their repeat, an app key over a list,
 a capture waiting for release, the password field and the sheet's motion. 5.3's META and Hyper are
 done, the plain combos left.
+
+**2026-11-23 09:44, the plain combinations go to the app, the last of 5.3's keys.** Three rows, the
+clipboard's append and paste next on Control and Option and Input Sources' cycle on the Globe key.
+The plain leader was refused by the release on purpose, an empty base set reading as no modifiers,
+so it is now released only when the bridge names it plain, and the app claims each of its rows on
+the row's own modifiers.

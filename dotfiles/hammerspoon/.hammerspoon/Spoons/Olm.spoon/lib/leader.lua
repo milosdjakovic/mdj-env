@@ -616,9 +616,10 @@ end
 --- held key and its sheet staying here. Refused for a leader with no modifiers. A list key the app
 --- claims comes back through runListKey and a row that waits for release through the bridge's
 --- runKey, which waits on isActive as a press here does.
-function obj:releaseModifiers()
+--- opts.plain releases the plain leader, an empty base set, which is otherwise refused.
+function obj:releaseModifiers(opts)
   if not (self._trigger and type(self._trigger.release) == "function") then return false, "it has no modifiers" end
-  if not self._trigger.release() then return false, "it has no modifiers" end
+  if not self._trigger.release(opts and opts.plain == true) then return false, "it has no modifiers" end
   return true
 end
 

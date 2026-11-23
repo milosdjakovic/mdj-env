@@ -162,6 +162,13 @@ when a sheet shows. The goldens of each sheet are compared with what the app dra
   pass open and closed, `test/bridge.lua`, `listKey` and a release wait through `runKey`, and
   `olm-keys-check`, the list combinations joining the rows'.
 
+**5.3, the plain combinations owned by the app, built 2026-11-23.** The rows with no leader, the
+clipboard's append and paste next on Control and Option and Input Sources' cycle on the Globe key.
+Hammerspoon hands its plain leader over as `plain`, the one leader released with an empty base set,
+and the app claims each row on exactly its own modifiers, the Globe key on none, and resolves it
+with the resolver's plain step. The switch is `appKeys`, `{ "meta", "hyper", "plain" }`. With this
+the app claims every global key, every row still run in Hammerspoon.
+
 ## Rejected
 
 - **Porting every list key to the app's share at Hyper's step.** 2026-11-23. The list layer is
