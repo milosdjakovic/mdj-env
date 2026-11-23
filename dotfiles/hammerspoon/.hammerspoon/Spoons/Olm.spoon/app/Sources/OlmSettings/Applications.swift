@@ -270,8 +270,8 @@ enum AppsPage {
 /// The widths of a row's controls, so the mode and the key line up from row to row. The name takes
 /// every point the two leave, and the key stands flush with the row's right edge.
 enum AppColumns {
-  /// The Customize button and the key control themselves.
-  static let menu: CGFloat = 200
+  /// The Customize button and the key control themselves, one width so the two read as a pair.
+  static let menu: CGFloat = 110
   static let recorder: CGFloat = 110
   /// A reset or a remove beside a control, kept in place when hidden so nothing moves.
   static let mark: CGFloat = 16
@@ -590,15 +590,15 @@ struct AppRow: View {
     HStack(spacing: Space.related) {
       mark("arrow.uturn.backward", shown: entry.customized, help: "Back to the default", action: reset)
       Button(action: customize) {
-        Field(width: AppColumns.menu, leading: true, set: entry.customized) {
-          Text(entry.customized ? AppCustomize.words(entry.own) : "Customize…")
-            .truncationMode(.tail)
-          Spacer(minLength: Space.related)
+        Field(width: AppColumns.menu, leading: false, set: entry.customized) {
           Image(systemName: "slider.horizontal.3").font(.caption)
+          Text("Customize").padding(.leading, Space.related)
         }
       }
       .buttonStyle(.plain)
-      .help("How \(entry.name)'s key acts and where its window goes")
+      .help(entry.customized
+        ? AppCustomize.words(entry.own)
+        : "How \(entry.name)'s key acts and where its window goes")
       mark("minus.circle", shown: entry.removable, help: "Remove \(entry.name) from Olm", action: remove)
     }
   }
@@ -753,19 +753,19 @@ struct CustomizeSheet: View {
                 Text("Points").tag(false)
                 Text("Percent of the display").tag(true)
               }
-              LabeledContent("Width") { pair(\.place.width, c.place.percent ? "%" : "pt") }
-              LabeledContent("Height") { pair(\.place.height, c.place.percent ? "%" : "pt") }
-              LabeledContent("Least") { optional(\.place.minWidth, \.place.minHeight) }
-              LabeledContent("Most") { optional(\.place.maxWidth, \.place.maxHeight) }
+              LabeledContent("Size") {
+                pair(field(\.place.width, "Width"), field(\.place.height, "Height"), c.place.percent ? "%" : "pt")
+              }
+              LabeledContent("At least") {
+                pair(optional(\.place.minWidth, "Width"), optional(\.place.minHeight, "Height"), "pt")
+              }
+              LabeledContent("At most") {
+                pair(optional(\.place.maxWidth, "Width"), optional(\.place.maxHeight, "Height"), "pt")
+              }
             }
             if c.place.sized || c.place.center {
-              LabeledContent("Padding") {
-                HStack(spacing: Space.related) {
-                  number(\.place.padX, "Sides")
-                  number(\.place.padY, "Top and bottom")
-                  Text("pt").foregroundStyle(.secondary)
-                }
-              }
+              LabeledContent("Padding at the sides") { single(field(\.place.padX, "Sides")) }
+              LabeledContent("Padding above and below") { single(field(\.place.padY, "Above and below")) }
             }
             Text(explain(c)).font(.caption).foregroundStyle(.secondary)
           } header: {
@@ -794,7 +794,7 @@ struct CustomizeSheet: View {
         }
       }
       .padding(Space.edge)
-      .frame(width: 520)
+      .frame(width: 560, height: 700)
     }
   }
 
@@ -807,7 +807,7 @@ struct CustomizeSheet: View {
     default: lines.append("It stays on the display it was last on, so moving it moves where it shows.")
     }
     if c.place.sized {
-      lines.append("The size is held between the least and the most, then to the display less the padding, which always wins.")
+      lines.append("The size is held between at least and at most, then to the display less the padding, which always wins.")
     }
     return lines.joined(separator: " ")
   }
@@ -817,10 +817,10 @@ struct CustomizeSheet: View {
     if p.width <= 0 || p.height <= 0 { return "The width and the height are more than nothing." }
     if p.percent && (p.width > 100 || p.height > 100) { return "A share of the display is at most 100 percent." }
     if [p.minWidth, p.minHeight, p.maxWidth, p.maxHeight].contains(where: { ($0 ?? 1) <= 0 }) {
-      return "A least or a most is more than nothing, or left empty."
+      return "At least and at most are more than nothing, or left empty."
     }
-    if let a = p.minWidth, let b = p.maxWidth, a > b { return "The least width is more than the most." }
-    if let a = p.minHeight, let b = p.maxHeight, a > b { return "The least height is more than the most." }
+    if let a = p.minWidth, let b = p.maxWidth, a > b { return "The width at least is more than at most." }
+    if let a = p.minHeight, let b = p.maxHeight, a > b { return "The height at least is more than at most." }
     return nil
   }
 
@@ -828,24 +828,34 @@ struct CustomizeSheet: View {
     Binding(get: { page.customizing![keyPath: path] }, set: { page.customizing?[keyPath: path] = $0 })
   }
 
-  private func number(_ path: WritableKeyPath<AppCustomize, Double>, _ prompt: String) -> some View {
-    TextField(prompt, value: bind(path), format: .number).frame(width: 80).multilineTextAlignment(.trailing)
-      .help(prompt)
+  /// A number field with its name as the prompt inside it and no label beside it, so a row of two
+  /// stays on one line.
+  private func field(_ path: WritableKeyPath<AppCustomize, Double>, _ name: String) -> some View {
+    TextField(name, value: bind(path), format: .number, prompt: Text(name))
+      .labelsHidden().frame(width: 72).multilineTextAlignment(.trailing).help(name)
   }
 
-  private func pair(_ path: WritableKeyPath<AppCustomize, Double>, _ unit: String) -> some View {
+  /// The same for a value left empty when it is not set, a least or a most.
+  private func optional(_ path: WritableKeyPath<AppCustomize, Double?>, _ name: String) -> some View {
+    TextField(name, value: bind(path), format: .number, prompt: Text(name))
+      .labelsHidden().frame(width: 72).multilineTextAlignment(.trailing).help(name)
+  }
+
+  /// One field and its unit.
+  private func single<A: View>(_ a: A) -> some View {
     HStack(spacing: Space.related) {
-      number(path, "Size")
-      Text(unit).foregroundStyle(.secondary).frame(width: 20, alignment: .leading)
+      a
+      Text("pt").foregroundStyle(.secondary).frame(width: 20, alignment: .leading)
     }
   }
 
-  private func optional(_ w: WritableKeyPath<AppCustomize, Double?>, _ h: WritableKeyPath<AppCustomize, Double?>) -> some View {
+  /// Two fields, the width first, a times sign between them and the unit after.
+  private func pair<A: View, B: View>(_ a: A, _ b: B, _ unit: String) -> some View {
     HStack(spacing: Space.related) {
-      TextField("Width", value: bind(w), format: .number).frame(width: 80).multilineTextAlignment(.trailing)
+      a
       Text("×").foregroundStyle(.secondary)
-      TextField("Height", value: bind(h), format: .number).frame(width: 80).multilineTextAlignment(.trailing)
-      Text("pt").foregroundStyle(.secondary).frame(width: 20, alignment: .leading)
+      b
+      Text(unit).foregroundStyle(.secondary).frame(width: 20, alignment: .leading)
     }
   }
 
