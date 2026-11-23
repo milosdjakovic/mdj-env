@@ -1501,3 +1501,8 @@ key flush with the edge, as he asked. Olm Settings sat last in Command Tab once 
 front: the app was activated in the same turn it became an ordinary app, and macOS never counted it
 as the app in front. It is activated a turn later now, also reasoned, checked by `lsappinfo
 visibleProcessList` after his trial. Escape closes the window, after a search's text is cleared.
+
+**2026-11-23 12:17, the Applications page's override inline.** Milos asked that an override
+show on its row rather than in a card of its own, and that a set key stand out as well. The
+Overridden card is gone, the 12:14 entry's layout otherwise kept. A set mode and a set key share one
+look, the accent text on a light tint with an outline, and a default mode and no key are muted.

@@ -7,9 +7,9 @@
 // utilities stay out, and an app that runs with no Dock icon, an agent or a background helper, is
 // left out too. One kept anywhere else is added with Add Application, a file picker.
 //
-// Each row is the app, then its mode, then its key at the far right. The mode an app follows is said in
-// words, and one it has of its own is drawn in the accent with a reset, and listed under Overridden,
-// so what is overridden reads apart from what is not. A key is Olm's own setting `keys`, an action
+// Each row is the app, then its mode, then its key at the far right. A mode of its own and a key that
+// is set are drawn in the accent, a light tint and an outline, and a default mode and no key are
+// muted, so a scroll down the list catches what is set. A key is Olm's own setting `keys`, an action
 // to its chord, laid over the keymap's, so it travels with Olm's config when it is exported. A change
 // goes to Hammerspoon as every setting's does, the whole table at once, and applies on the reload the
 // window's close runs.
@@ -275,8 +275,7 @@ struct AppsView: View {
 
   var body: some View {
     let all = entries
-    let overridden = all.filter(\.overridden)
-    let following = all.filter { $0.configured && !$0.overridden }
+    let known = all.filter(\.configured)
     let others = all.filter { !$0.configured }
     ScrollView {
       VStack(alignment: .leading, spacing: Space.group) {
@@ -296,8 +295,7 @@ struct AppsView: View {
           }
           .help("Add an application kept outside the Applications folders")
         }
-        card("Overridden", overridden)
-        card("Following the Default", following)
+        card("Olm's Applications", known)
         card("Other Applications", others)
         if !page.scanned || page.installed.isEmpty {
           ProgressView().frame(maxWidth: .infinity)
@@ -551,7 +549,7 @@ struct AppRow: View {
       Button {
         RowMenu.show(Self.modes.map { ($0.tag, $0.title) }, selected: current, dividerAfterFirst: true, pick: choose)
       } label: {
-        Field(width: AppColumns.menu, leading: true, accent: entry.overridden) {
+        Field(width: AppColumns.menu, leading: true, set: entry.overridden) {
           Text(Self.modes.first { $0.tag == current }?.title ?? "Default")
           Spacer(minLength: Space.related)
           Image(systemName: "chevron.up.chevron.down").font(.caption)
@@ -568,7 +566,7 @@ struct AppRow: View {
     HStack(spacing: Space.related) {
       mark("arrow.uturn.backward", shown: keyOwn, help: "Back to the key in the config files", action: resetKey)
       Button(action: record) {
-        Field(width: AppColumns.recorder, leading: false, accent: keyOwn || recording) {
+        Field(width: AppColumns.recorder, leading: false, set: chord != nil || recording) {
           Text(recording ? "Press a key" : (chord.map(KeyName.words) ?? "None"))
         }
       }
@@ -599,21 +597,24 @@ struct AppRow: View {
   }
 }
 
-/// A control's face drawn by SwiftUI, the fill and corner a pop-up button has, its text in the accent
-/// when the value is the row's own.
+/// A control's face drawn by SwiftUI, the corner a pop-up button has. A value that is set, a mode of
+/// the row's own or a key, is drawn in the accent on a light tint with an outline, and one left at
+/// the default, Default or None, is muted, so what is set is caught at a glance.
 private struct Field<Content: View>: View {
   let width: CGFloat
   let leading: Bool
-  let accent: Bool
+  let set: Bool
   @ViewBuilder let content: Content
 
   var body: some View {
+    let shape = RoundedRectangle(cornerRadius: 6, style: .continuous)
     HStack(spacing: 0) { content }
       .lineLimit(1)
-      .foregroundStyle(accent ? AnyShapeStyle(.tint) : AnyShapeStyle(.primary))
+      .foregroundStyle(set ? AnyShapeStyle(.tint) : AnyShapeStyle(.secondary))
       .padding(.horizontal, Space.pad - 4)
       .frame(width: width, height: 24, alignment: leading ? .leading : .center)
-      .background(RoundedRectangle(cornerRadius: 6, style: .continuous).fill(.quaternary))
+      .background(shape.fill(set ? AnyShapeStyle(.tint.opacity(0.12)) : AnyShapeStyle(.quaternary)))
+      .overlay(shape.strokeBorder(set ? AnyShapeStyle(.tint.opacity(0.55)) : AnyShapeStyle(.clear), lineWidth: 1))
       .contentShape(Rectangle())
   }
 }

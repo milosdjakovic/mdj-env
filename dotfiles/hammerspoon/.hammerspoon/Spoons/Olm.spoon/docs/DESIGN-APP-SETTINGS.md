@@ -332,6 +332,12 @@ row has, the mode and the key stand at the right, and the key is flush with the 
 Escape closes the window once the search is empty, and the window is activated a turn after the app
 becomes an ordinary one, so Command Tab orders it like any app.
 
+**Applications, the fifth round, 2026-11-23.** Milos asked for no separate Overridden card, the
+override seen inline instead. The applications Olm knows are one card, Olm's Applications, beside
+Other Applications. A mode of the row's own and a key that is set are drawn in the accent on a light
+tint with an outline, and Default and None are muted, so a scroll catches what is set. This replaces
+the Overridden and Following the Default cards of the second round.
+
 **Export and import, 2026-11-23.** Milos's aim is one Olm config, exported and imported, that makes
 another Mac's Olm the same, with Hammerspoon still behind the bridge until its behaviour moves. The
 store is that config. Export writes its values under the kind `olm.config` to a file the person
