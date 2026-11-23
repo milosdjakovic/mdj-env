@@ -188,7 +188,7 @@ machine already has, that is always done by hand.
 | `machine.sh` | Reads and writes which optional pieces this machine takes, `get`, `set` and `capture` |
 | `open-in-terminal.sh` | Opens a Terminal window running a command of this repository, for a step a person has to sit through |
 | `setup-kanata.sh` | Installs the Karabiner driver kanata needs and runs both as root daemons, where the kanata piece is on, with `--dry-run` and `--upgrade` |
-| `setup-olmapp.sh` | Builds Olm.app from the Olm spoon's sources into `~/.olm/app` and registers it for `olm://` URLs, where the olmapp piece is on |
+| `setup-olmapp.sh` | Builds Olm.app from the Olm spoon's sources into `/Applications` and registers it for `olm://` URLs, where the olmapp piece is on |
 | `setup-macos-shortcuts.sh` | Turns off the macOS keyboard shortcuts that take a chord Olm uses, Show Help menu on Command and ? today, where the hammerspoon piece is on |
 
 All scripts are idempotent (safe to re-run) and support both Apple Silicon and Intel Macs.

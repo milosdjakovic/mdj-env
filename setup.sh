@@ -263,7 +263,7 @@ step_if hammerspoon on "$SRC_DIR/setup-macos-shortcuts.sh"
 # ~/.hammerspoon/machine-apps.lua, where the config reads them. Writes only on a difference.
 step_if hammerspoon on "$SRC_DIR/setup-hammerspoon-apps.sh"
 
-# Build Olm.app from the spoon's own sources into ~/.olm/app and register it for olm:// URLs, where
+# Build Olm.app from the spoon's own sources into /Applications and register it for olm:// URLs, where
 # the olmapp piece is on. Nothing starts it yet, docs/PLAN-STANDALONE.md in the spoon, step 1.1.
 step_if olmapp on "$SRC_DIR/setup-olmapp.sh"
 

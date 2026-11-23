@@ -45,7 +45,7 @@ cleanup() {
 trap cleanup EXIT
 
 cleanup
-# Another copy of the app, the installed one in ~/.olm/app among them, shares the bundle id, so
+# Another copy of the app, the installed one in /Applications among them, shares the bundle id, so
 # LaunchServices would hand it the test's URLs and the checks below would be about that copy.
 others="$(pgrep -fl 'Olm\.app/Contents/MacOS/Olm$' | grep -vF "$exe" || true)"
 if [ -n "$others" ]; then

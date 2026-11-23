@@ -1591,3 +1591,11 @@ steps, the layouts, a named size, Hide Others and the sheet, and said all good. 
 frames placed and none refused, so the always size, position, size write showed no step worth a
 word. What stays in Hammerspoon from 6.3 is a window row chosen in the launcher and an exact size
 typed there, until the launcher's choosing moves.
+- **2026-11-23 15:30, Olm.app lives in `/Applications`.** Asked by Milos. This corrects the
+  2026-11-07 12:21 entry, which kept it in `~/.olm/app` as a part of Olm rather than an app a person
+  opens. It has Olm Settings now and is becoming what replaces Hammerspoon, so it sits where apps
+  do. `src/setup-olmapp.sh` builds it there and the bridge opens it there. A copy an older run left
+  in `~/.olm/app` shares the bundle id, so the step unregisters it from LaunchServices, keeping
+  `olm://` on the new copy, and leaves it on disk with a closing note, since nothing here removes
+  what a machine has. The signature's requirement names only the bundle id, so the move is expected
+  to keep the permissions already given.

@@ -233,7 +233,8 @@ Hammerspoon until stage 5 of the plan.
   `filesearch/previews` is only read, one owner each.
 - `~/.olm/state/<owner>/`, what cannot, frecency and each plugin's own store, one owner each, and
   a store whose owner is still Lua is only read by the app, 1.4d of the plan.
-- `~/.olm/app/`, the built app.
+- The built app is not under `~/.olm`. It is `/Applications/Olm.app`, an app a person opens like any
+  other, moved there on 2026-11-23.
 
 ## Diagnostics
 

@@ -291,7 +291,7 @@ since that sort. Recordings take 2.4 MB.
   (`LSUIElement`), keeps one instance, and answers `olm://ping?nonce=N` by writing N to
   `~/.olm/run/ping`. Any other URL is logged and dropped.
 - The `olmapp` machine piece, off by default. Where it is on, `src/setup-olmapp.sh` builds the
-  app into `~/.olm/app` and registers it for `olm://`. Its tools are declared in
+  app into `/Applications` (into `~/.olm/app` until 2026-11-23) and registers it for `olm://`. Its tools are declared in
   `src/DEPENDENCIES`.
 - `test/olmapp.sh`, eight checks.
 
@@ -935,7 +935,7 @@ other tool. Test, it starts and answers a test URL, and quitting it changes noth
 Hammerspoon. Where its code lives is open question 1, decided before this step. Done as `app/` in
 the spoon, a package depending on the swift chooser's, wrapped into a bundle by `app/build.sh`,
 built into `~/.olm/app` by `src/setup-olmapp.sh` where the piece is on, and checked by
-`test/olmapp.sh`.
+`test/olmapp.sh`. Since 2026-11-23 it is built into `/Applications`, asked by Milos.
 
 **1.2 The trigger.** A core action in `host/bridge` opens the app's file search through the URL,
 and only where the `olmapp` piece is on. It takes file search's open key on that machine, how it

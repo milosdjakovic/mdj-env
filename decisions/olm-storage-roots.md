@@ -20,7 +20,7 @@ left inside the config tree is DisplayProfiles, because a display arrangement is
 person edits and commits.
 
 Olm.app and the bridge to it are core rather than plugins and write beside those roots by fixed
-paths. `src/setup-olmapp.sh` builds the app into `~/.olm/app/Olm.app`, its build scratch in
+paths. `src/setup-olmapp.sh` builds the app into `/Applications/Olm.app`, since 2026-11-23, its build scratch in
 `~/.olm/cache/olmapp-package`. `host/bridge` writes the settings the app reads into `~/.olm/run`,
 where the app's socket `bridge.sock` also lives, and keeps the pictures it hands the app in
 `~/.olm/cache/bridge`. The app appends its shadow comparisons to `~/.olm/log/shadow-<tool>.jsonl`
@@ -85,3 +85,10 @@ the bridge now write `~/.olm/app`, `~/.olm/run`, `~/.olm/log` and `~/.olm/state`
 `src/setup-olmapp.sh`, `host/bridge/init.lua` and the app's own sources, and the compiled code in
 the cache is four helpers, the file index helper being the one missed, plus the swift chooser's
 library in `~/.olm/cache/swiftchooser`. Found by an audit against the repo on 2026-11-16.
+
+### 2026-11-23 15:30
+
+Olm.app moved out of `~/.olm/app` into `/Applications/Olm.app`, asked by Milos. The 2026-11-07
+reason for keeping it beside Olm's data, that it is a part of Olm rather than an app a person
+opens, no longer holds now that it has Olm Settings and takes over from Hammerspoon. The data
+roots are unchanged, only the bundle moved.

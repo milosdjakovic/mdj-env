@@ -43,7 +43,7 @@ local function urlFor(identity, mode)
   return "olm://" .. identity:lower() .. "?" .. screen .. "query="
 end
 
-local APP = os.getenv("HOME") .. "/.olm/app/Olm.app"
+local APP = "/Applications/Olm.app"
 local RUN = os.getenv("HOME") .. "/.olm/run"
 
 obj._pieces = {}
