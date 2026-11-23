@@ -37,15 +37,13 @@ if [ -n "$HERDR_PANE_ID" ]; then
   (herdr pane report-metadata "$HERDR_PANE_ID" --source claude-statusline "$@" >/dev/null 2>&1 &)
 fi
 
-# The chrome grey is slot 17, which dotfiles/ghostty/theme-map declares as the overlay role,
-# Aura's statusBar.foreground on the dark half and the light grey herdr's secondary line
-# carries on the light one. A slot is right here because Claude Code passes the escape
-# through to the terminal and the terminal paints it from whichever half it is on, so the
-# script never has to ask which that is. It used to, with two truecolour literals chosen by
-# reading AppleInterfaceStyle, because no slot among the sixteen holds a chrome grey, slot 8
-# being the comment grey at 3.54 to 1 on purpose so that comments recede, and a status bar is
-# the one thing that must not. Ghostty paints all 256, which is what ended that.
-gray="\033[38;5;17m"
+# The grey is the terminal's faint text, SGR 2, the ink drawn at the strength the terminal gives
+# faint, the way Claude Code draws its own secondary text. It names no colour, so it follows the
+# half in every terminal with nothing to ask and nothing to send, and an app restart cannot reset
+# it. It was slot 17 until 2026-11-16, which a Herdr theme cannot hold, so every bar in the Herdr
+# app turned xterm's navy when the app restarted under a running session.
+# decisions/herdr-app-colors.md has it.
+gray="\033[2m"
 
 yellow="\033[0;33m"
 red="\033[0;31m"

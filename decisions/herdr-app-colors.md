@@ -81,3 +81,41 @@ reads the file again when it is newer, and sends it, so a regenerated file reach
 at its next prompt. Checked in a test shell, the first prompt sending slot 20, a second sending
 nothing, and a prompt after `touch -h` on the link sending again. Shells started before this change
 run the old hook until they are restarted.
+
+**2026-11-16 12:20.** A see-through window was tried and abandoned at Milos's word. The layout's
+`window_blur` with `canvas` given an alpha by `theme-emit`, at 0.95, 0.5 and 0.35, and the pane
+cards moved onto `colors.border` at 0.7, since the theme's top-level `background` must be
+`#rrggbb` and an alpha there rejects the whole layout. Herdr reported no error, and Milos saw no
+desktop through the window at any level, before or after quitting and reopening the app, and the
+top bar drew broken. Everything was reverted. Worth trying again only if a Herdr release says
+`window_blur` changed, and starting from Herdr's own example rather than this layout.
+
+**2026-11-16 12:40.** After Milos quit and reopened the app, every Claude statusline turned navy
+and stayed. Quitting the app keeps the shells and Claude Code running in the core and gives each
+pane a fresh terminal, so slot 17 fell back to xterm's navy. The zsh hook did not send it again,
+since it sent only when the half or the file changed and neither had, and a pane running Claude
+Code shows no prompt anyway. The hook now sends at every prompt. The status line sends the same
+sequences to its pane's device, read off its parent with `ps`, because Claude Code runs it with no
+controlling terminal, measured by a probe writing `/dev/tty` that failed on every run, and at
+most every ten seconds per pane. Every open pane was sent the colours by hand once the same day.
+
+**2026-11-16 13:25.** Corrects the status line half of the 12:40 entry, at Milos's ask for a fix in
+the theming rather than in the terminal. The status line no longer writes the slots to its pane.
+In the Herdr app it writes its grey as a truecolour sequence from `~/.claude/statusline-colors.sh`,
+which the claude package's `theme-emit` generates from a `statusline.gray = overlay` key in its
+map, and picks the half from `AppleInterfaceStyle` at every refresh. Ghostty keeps slot 17. So
+Claude Code holds nothing above sixteen in Herdr, since its own interface paints hex from its
+theme, and an app restart cannot turn it navy. The zsh hook's send at every prompt stays, for fzf,
+lf and lazygit started from a shell. Checked by running the script with the Herdr bundle id, which
+wrote `38;2;114;113;124` on the light half, and with Ghostty's, which wrote slot 17.
+
+**2026-11-16 13:45.** Corrects the 13:25 entry, which never shipped. Its generated grey worked, and
+Milos asked whether it was the proper answer or a workaround, since it branched on the Herdr app's
+bundle id and asked macOS for the half at every refresh, where the slot had let the terminal
+decide. The status line now draws its grey as faint text, SGR 2, and names no colour. It follows
+the half in every terminal with nothing to ask or send, a restart cannot reset it, and Claude Code
+draws its own secondary text the same way. The cost, accepted, is that each terminal decides how
+faint, so the grey is near `overlay` rather than exactly it. The generated `statusline-colors.sh`,
+its map key and the `defaults` declaration are gone, and slot 17 is now fzf's footer only. The zsh
+hook's send at every prompt stays, for fzf, lf and lazygit. Not yet checked by eye in Ghostty or
+the Herdr app.

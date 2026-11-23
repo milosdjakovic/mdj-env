@@ -61,7 +61,7 @@ write_half "$dark"  "$OUT_DIR/mdj-dark.json"
 write_half "$light" "$OUT_DIR/mdj-light.json"
 
 # The five slots a Herdr theme cannot hold, 16 to 20,, as the escape sequences a pane sends to its own
-# terminal. Herdr reads exactly sixteen ansi slots, so slot 17, the Claude statusline's grey, is
+# terminal. Herdr reads exactly sixteen ansi slots, so slot 17, fzf's footer grey, is
 # the core's xterm navy unless the pane sets it. Everything else is left to Herdr, which answers a
 # page and ink query from the app's theme for the half it is on and sends a light and dark report
 # the moment the half changes, measured on herdr-app 0.1.16 with core 0.1.21. A colour a pane sets

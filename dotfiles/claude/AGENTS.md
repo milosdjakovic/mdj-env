@@ -24,6 +24,10 @@ apply live, restart once if `~/.claude/themes` did not exist at startup. `~/.cla
 in `NO-FOLD` because `/theme` writes new custom themes there. Whether the desktop app's Code
 tab reads these files is undocumented, check it in the app.
 
+The status line names no colour for its grey. It draws faint text, SGR 2, so it follows the half
+in every terminal and survives a Herdr app restart, where a slot above sixteen did not.
+`decisions/herdr-app-colors.md` has it.
+
 ## Skills, and how a new one reaches the machine
 
 `~/.claude/skills` is declared in `NO-FOLD`, because Claude Code installs skills of its own into

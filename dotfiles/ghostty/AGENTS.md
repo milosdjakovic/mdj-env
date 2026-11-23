@@ -16,7 +16,7 @@ checker, and commit what it regenerated.
 
 Ghostty reloads with `Cmd+Shift+,` and nothing outside Ghostty can send that reliably, so
 after regenerating, press it. Once Ghostty repaints, every program drawing in palette slots
-follows on its own, fzf, tmux, the Claude statusline and herdr, because none of
+follows on its own, fzf, tmux and herdr, because none of
 them carries a colour, only a slot number. That is why a wrong colour in one of those is
 usually Ghostty not yet reloaded, and the record of that mistake is in the theme decisions.
 
@@ -41,7 +41,7 @@ among the sixteen is the same neutral on both halves. Slot 16 is the neutral bar
 current window and session, per half, `surface` on light and `dim` on dark. Slot 17 is the
 secondary grey, `overlay`. Slot 18 is the quiet rule, `dim`. Slot 19 is the page, `background`,
 for text painted onto a signal colour. Slot 20 is the selection tint, `selection`, purple faded
-into the page, under fzf's current row since 2026-11-16. fzf, tmux and the Claude statusline
+into the page, under fzf's current row since 2026-11-16. fzf and tmux
 read them and have no map of their own, so before using one of those numbers anywhere, or
 claiming a sixth, read the comment above them in `theme-map`, since every other slot is claimed
 by a role that differs by half. The Herdr app's map declares the same five, which its popups and

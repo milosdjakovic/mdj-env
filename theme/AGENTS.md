@@ -157,10 +157,10 @@ program drawing in palette slots follows. Neovim re-sources its colorscheme on t
 
 Ghostty, both halves, sixteen slots and the six specials. Neovim, the twelve slots of
 `lua/aura/palette.lua`. herdr, its eighteen tokens in both `[theme.custom.*]` tables, and the
-three roles `highlight`, `subtext` and `fill` joined the vocabulary for it. fzf, tmux and the Claude statusline, entirely
+three roles `highlight`, `subtext` and `fill` joined the vocabulary for it. fzf and tmux, entirely
 through slots, since Ghostty paints all 256 and its map declares 16 to 20 for tmux's bar under a
-current row, the secondary grey, the quiet rule, the page and fzf's selection tint, so none of
-the three has a map of its own. lazygit, whose selected row takes only a colour name or a hex, is
+current row, the secondary grey, the quiet rule, the page and fzf's selection tint, so neither
+has a map of its own. lazygit, whose selected row takes only a colour name or a hex, is
 painted from `dotfiles/lazygit/theme-map` into one overlay per half, which its popup launchers add
 for the half macOS is on. Nothing stowed carries a hand copy, and the checker proves it across every file
 rather than the maps alone. The Herdr desktop app is painted, both halves of its JSON theme,
