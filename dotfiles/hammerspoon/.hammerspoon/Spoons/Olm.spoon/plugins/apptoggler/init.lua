@@ -162,7 +162,10 @@ function obj:configure(opts)
   self._appFocus = opts.appFocus
   -- What an app key does where its style and its entry say nothing, cycle or hides.
   self._mode = opts.mode == "hides" and "hides" or "cycle"
-  self:_build(self._apps, opts.styles or {}, opts.toggles or {})
+  -- Each application's own mode and the applications added from outside the catalog, by bundle id,
+  -- the Applications page of Olm Settings.
+  self._overrides = type(opts.overrides) == "table" and opts.overrides or {}
+  self:_build(self:_withAdded(self._apps, self._overrides), opts.styles or {}, opts.toggles or {})
   return self
 end
 
@@ -443,10 +446,67 @@ function obj:_styled(apps, styles, toggles)
       else
         out[entry.app] = {
           spec = resolve(style, entry),
+          styleName = type(entry.style) == "string" and entry.style or nil,
           description = type(entry.description) == "string" and entry.description or nil,
         }
       end
     end
+  end
+  return out
+end
+
+-- An action name for an application added by name, its letters and digits, so apptoggler.<name>
+-- reads as the catalog's own names do.
+local function actionName(name)
+  local out = tostring(name):gsub("[^%w]", "")
+  return out ~= "" and out or "App"
+end
+
+--- AppToggler:_withAdded(apps, overrides) -> catalog
+--- Method
+--- The catalog with every application an override names and the catalog lacks, under an action
+--- name of its own letters, a second app of the same name taking a number after it, so an app added
+--- on the Applications page has an action, its launcher row and a key a person may give it.
+function obj:_withAdded(apps, overrides)
+  local out, held = {}, {}
+  for name, bid in pairs(apps or {}) do
+    out[name] = bid
+    if type(bid) == "string" then held[bid] = true end
+  end
+  self._added = {}
+  local bundles = {}
+  for bid in pairs(overrides or {}) do
+    if type(bid) == "string" and not held[bid] then bundles[#bundles + 1] = bid end
+  end
+  table.sort(bundles)
+  for _, bid in ipairs(bundles) do
+    local o = overrides[bid]
+    local base = actionName(type(o) == "table" and o.name or bid:match("[^.]+$") or bid)
+    local name, n = base, 2
+    while out[name] ~= nil do
+      name = base .. n
+      n = n + 1
+    end
+    out[name] = bid
+    self._added[bid] = { name = name, path = type(o) == "table" and o.path or nil }
+  end
+  return out
+end
+
+--- AppToggler:catalog() -> list
+--- Method
+--- What this plugin knows of each application, for the Applications page of Olm Settings, sorted
+--- by name. Each is its action name, its bundle id, the style its toggles entry names, the hides
+--- that style and entry state, nil when neither does, whether it is placed, whether the page added
+--- it, its path then, and its own mode when it has one.
+function obj:catalog()
+  local out = {}
+  for _, entry in ipairs(self._catalog or {}) do
+    local copy = {}
+    for k, v in pairs(entry) do copy[k] = v end
+    local o = self._overrides and self._overrides[entry.bundle]
+    copy.mode = type(o) == "table" and o.mode or nil
+    out[#out + 1] = copy
   end
   return out
 end
@@ -467,6 +527,7 @@ function obj:_build(apps, styles, toggles)
     if type(name) == "string" and type(bid) == "string" then self._names[bid] = name end
   end
   local actions = {}
+  local catalog = {}
   for _, name in ipairs(sortedNames(apps)) do
     local bundleID = apps[name]
     if type(name) == "string" and type(bundleID) == "string" then
@@ -475,8 +536,20 @@ function obj:_build(apps, styles, toggles)
       -- The global mode answers hides wherever the style and the entry leave it unsaid, so an app
       -- may still say hides = false to cycle under a show and hide default.
       local spec = style and style.spec
+      local stated = spec and spec.hides
+      -- An application's own mode, set on the Applications page, wins over its style's.
+      local own = self._overrides and self._overrides[bundleID]
+      local mode = type(own) == "table" and own.mode or nil
+      if mode == "hides" or mode == "cycle" then
+        spec = spec or {}
+        spec.hides = mode == "hides"
+      end
       if spec and spec.hides == nil then spec.hides = self._mode == "hides" end
       if not spec and self._mode == "hides" then spec = { hides = true } end
+      local added = self._added and self._added[bundleID]
+      catalog[#catalog + 1] = { name = name, bundle = bundleID, style = style and style.styleName or nil,
+        hides = stated, placed = style ~= nil and style.spec.placement ~= nil,
+        added = added ~= nil, path = added and added.path or nil }
       actions[#actions + 1] = {
         name = name, app = bundleID, description = style and style.description or nil,
         group = function() return self_ref:_isRunning(bundleID) and RUNNING or DORMANT end,
@@ -486,6 +559,7 @@ function obj:_build(apps, styles, toggles)
     end
   end
   self._actions = actions
+  self._catalog = catalog
   return self
 end
 

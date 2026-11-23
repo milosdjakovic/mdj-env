@@ -347,6 +347,25 @@ do
   local _, unshipped = M.fromManifest("x", { { key = "m", at = { "m" }, section = "behaviour", title = "M",
     kind = "choice", shipped = "none", choices = { { value = "a", title = "A" }, { value = "b", title = "B" } } } })
   check("a choice shipping none of its choices is a problem", #unshipped, 1)
+  -- The Applications page's setting, a table of applications by bundle id, its catalog answered by
+  -- the plugin's member as the share is written.
+  local appsFiles, appsIo = disk()
+  local appsSettings = M.new({ store = newStore(appsFiles, appsIo, {}), log = { w = function() end } })
+  local appsData = {}
+  appsSettings.plugin("apps", { { key = "apps", at = { "overrides" }, section = "applications",
+    title = "Applications", kind = "apps", shipped = {}, extra = "catalog" } }, appsData,
+    function(member) return function() return { member = member, list = { "x" } } end end)
+  local appsDecl = appsSettings.declaration("apps.apps")
+  check("an applications table by bundle id is taken", (appsSettings.change("apps.apps",
+    { ["a.b"] = { mode = "hides" }, ["c.d"] = { name = "C", path = "/x/C.app" } })), true)
+  check("and laid over the data on the next load", appsSettings.value("apps.apps")["a.b"].mode, "hides")
+  check("a mode that is neither is refused", (appsSettings.change("apps.apps", { ["a.b"] = { mode = "spin" } })), false)
+  check("a list is refused", (M.check(appsDecl, { { mode = "hides" } })), false)
+  local appsShare
+  for _, section in ipairs(appsSettings.share().sections) do
+    if section.id == "applications" then appsShare = section.settings[1] end
+  end
+  check("the share carries the member's answer as extra", appsShare and appsShare.extra and appsShare.extra.member, "catalog")
   local _, wrong = M.fromManifest("x", "words")
   check("a settings field that is not a list is a problem", wrong[1], "settings is a string rather than a list")
 end

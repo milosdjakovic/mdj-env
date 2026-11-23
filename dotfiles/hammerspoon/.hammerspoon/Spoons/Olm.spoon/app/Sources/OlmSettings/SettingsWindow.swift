@@ -42,6 +42,8 @@ final class SettingsModel: ObservableObject {
   /// The permissions the Permissions page lists, and whether macOS gives each now.
   let permissions: [Permission]
   @Published var granted: [String: Bool] = [:]
+  /// The Applications page's own state, what is installed and the filter, kept across visits.
+  let appsPage = AppsPageModel()
 
   init(share: SettingsShare?, service: SettingsService?, permissions: [Permission] = []) {
     self.share = share
@@ -401,6 +403,9 @@ struct SettingsDetail: View {
     Group {
       if model.current?.id == PermissionsPage.id {
         PermissionsView(model: model)
+      } else if let section = model.current, let apps = AppsPage.setting(in: section) {
+        AppsView(setting: apps, model: model, page: model.appsPage)
+          .id(section.id)
       } else if model.share == nil {
         ContentUnavailableView("No settings yet", systemImage: "gearshape",
           description: Text("Hammerspoon writes them when it loads, with the olmapp piece on."))
@@ -619,6 +624,9 @@ struct SettingRow: View {
         }
       }
       .fixedSize()
+    case .apps:
+      // Drawn by its own page, AppsView, never as a row.
+      EmptyView()
     case .other:
       Text(String(describing: setting.value))
     }

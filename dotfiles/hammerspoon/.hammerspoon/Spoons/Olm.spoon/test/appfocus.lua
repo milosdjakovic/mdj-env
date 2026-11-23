@@ -185,5 +185,35 @@ cycling:configure({ apps = { Safari = "s.s" }, appFocus = appfocus, mode = "cycl
 cycling:actions()[1].run()
 eq(sent[4] and sent[4].hides, false, "under cycle a style saying nothing of hides cycles")
 
+-- The Applications page, each application's own mode over its style's and an application added
+-- from outside the catalog.
+sent = {}
+local paged = assert(loadfile(here .. "../plugins/apptoggler/init.lua"))()
+paged:configure({ apps = { Herdr = "h.h", Safari = "s.s" }, appFocus = appfocus, mode = "cycle",
+  styles = { popup = { hides = true, placement = { width = 10, height = 10 } } },
+  toggles = { { app = "Herdr", style = "popup" } },
+  overrides = { ["s.s"] = { mode = "hides" }, ["h.h"] = { mode = "cycle" },
+    ["z.added"] = { name = "Zed Editor", path = "/Volumes/x/Zed Editor.app", mode = "hides" } } })
+local pagedRuns = {}
+for _, a in ipairs(paged:actions()) do pagedRuns[a.name] = a.run end
+pagedRuns.Safari()
+eq(sent[1] and sent[1].hides, true, "an application's own mode wins over the global one")
+pagedRuns.Herdr()
+eq(sent[2] and sent[2].hides, false, "and over its style's")
+eq(sent[2] and sent[2].placement and sent[2].placement.width, 10, "keeping the style's placement")
+eq(type(pagedRuns.ZedEditor), "function", "an application added by name has an action of its letters")
+pagedRuns.ZedEditor()
+eq(sent[3] and sent[3].id, "apptoggler.ZedEditor", "under that name")
+eq(sent[3] and sent[3].hides, true, "with its own mode")
+local byBundle = {}
+for _, e in ipairs(paged:catalog()) do byBundle[e.bundle] = e end
+eq(byBundle["h.h"] and byBundle["h.h"].style, "popup", "the catalog names an application's style")
+eq(byBundle["h.h"] and byBundle["h.h"].hides, true, "and the hides it states")
+eq(byBundle["h.h"] and byBundle["h.h"].placed, true, "and whether it is placed")
+eq(byBundle["h.h"] and byBundle["h.h"].mode, "cycle", "and its own mode")
+eq(byBundle["s.s"] and byBundle["s.s"].hides, nil, "an application with no style states no hides")
+eq(byBundle["z.added"] and byBundle["z.added"].added, true, "an added application says so")
+eq(byBundle["z.added"] and byBundle["z.added"].path, "/Volumes/x/Zed Editor.app", "with its path")
+
 print(string.format("appfocus: %d checks, %d failures", checks, failures))
 os.exit(failures == 0 and 0 or 1)

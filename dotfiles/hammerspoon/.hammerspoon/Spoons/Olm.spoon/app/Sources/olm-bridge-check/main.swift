@@ -750,5 +750,43 @@ do {
   ok(o?["r"] as? Double == 12.5 && o?["r"] as? Int == nil, "json: a fraction reads as Double only")
 }
 
+do {
+  // The Applications page, its table and its catalog read from the share, a change written back as
+  // the same table, and the scan, each folder at its top only and an agent left out, 2026-11-23.
+  let doc = #"{"version":1,"sections":[{"id":"applications","title":"Applications","settings":[{"id":"apptoggler.apps","title":"Applications","kind":"apps","applies":"reload","default":[],"value":{"com.x.zed":{"name":"Zed","path":"/Volumes/x/Zed.app","mode":"hides"}},"extra":[{"name":"Herdr","bundle":"h.h","style":"popup","hides":true,"placed":true,"added":false}]}]}]}"#
+  let share = SettingsShare.parse(Data(doc.utf8))
+  let apps = share?.sections.first?.settings.first
+  ok(apps?.kind == .apps, "apps: the kind is read")
+  ok(apps?.value.apps?["com.x.zed"]?.mode == "hides" && apps?.value.apps?["com.x.zed"]?.path == "/Volumes/x/Zed.app",
+    "apps: the table by bundle id")
+  ok(apps?.defaultValue.apps?.isEmpty == true, "apps: an empty table written as an empty list reads as empty")
+  ok(apps?.catalog.first?.style == "popup" && apps?.catalog.first?.hides == true && apps?.catalog.first?.placed == true,
+    "apps: the catalog, its style, hides and placement")
+  let sent = (SettingValue.apps(["a.b": AppOverride(mode: "cycle")]).any as? [String: Any])?["a.b"] as? [String: Any]
+  ok(sent?["mode"] as? String == "cycle" && sent?["path"] == nil, "apps: a change sends the table, nothing unset")
+  let calculator = AppScan.read(URL(fileURLWithPath: "/System/Applications/Calculator.app"))
+  ok(calculator?.bundle == "com.apple.calculator", "apps: an application is read by its bundle id")
+  let tmp = FileManager.default.temporaryDirectory.appendingPathComponent("olm-appscan-\(getpid())")
+  let nested = tmp.appendingPathComponent("Suite/Helper.app/Contents")
+  let agent = tmp.appendingPathComponent("Agent.app/Contents")
+  try? FileManager.default.createDirectory(at: nested, withIntermediateDirectories: true)
+  try? FileManager.default.createDirectory(at: agent, withIntermediateDirectories: true)
+  func plist(_ dir: URL, _ o: [String: Any]) {
+    if let data = try? PropertyListSerialization.data(fromPropertyList: o, format: .xml, options: 0) {
+      try? data.write(to: dir.appendingPathComponent("Info.plist"))
+    }
+  }
+  plist(nested, ["CFBundleIdentifier": "x.helper", "CFBundleName": "Helper", "CFBundlePackageType": "APPL"])
+  plist(agent, ["CFBundleIdentifier": "x.agent", "CFBundleName": "Agent", "LSUIElement": true, "CFBundlePackageType": "APPL"])
+  let plain = tmp.appendingPathComponent("Plain.app/Contents")
+  try? FileManager.default.createDirectory(at: plain, withIntermediateDirectories: true)
+  plist(plain, ["CFBundleIdentifier": "x.plain", "CFBundleName": "Plain", "CFBundlePackageType": "APPL"])
+  let found = AppScan.scan([tmp]).map(\.bundle)
+  ok(found == ["x.plain"], "apps: an application at the top of a folder is found, \(found)")
+  ok(!found.contains("x.helper"), "apps: an application inside a folder is not looked for")
+  ok(!found.contains("x.agent"), "apps: an agent with no Dock icon is left out")
+  try? FileManager.default.removeItem(at: tmp)
+}
+
 print("olm-bridge-check, \(checks) checks, \(failures) failed")
 exit(failures == 0 ? 0 : 1)

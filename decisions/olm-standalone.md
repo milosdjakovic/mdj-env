@@ -1469,3 +1469,12 @@ leave hides unsaid takes it, so hides false keeps an app cycling under a show an
 plugin's own setting could be a number or a switch only, and a choice reads truer than a switch
 named for one of two modes, so lib/settings.lua's fromManifest reads a choice too, its choices
 checked and carried to the window.
+
+**2026-11-23 11:19, an Applications page in Olm Settings.** Milos asked for every application listed
+with Olm's settings for it, a mode of its own over the global one, Herdr shown overridden, and a way
+to add one kept outside the Applications folders, with no helper apps pulled in. It is one setting of
+the app toggler's, a table by bundle id, and the page draws it with the toggler's catalog, handed to
+the share through a member the manifest names, so the plugin never learns the window exists. The
+scan reads each Applications folder at its top only, which keeps a suite's helpers out, and leaves
+out an app with no Dock icon. An application's own mode wins over its style's, and an added one gets
+an action of its own.

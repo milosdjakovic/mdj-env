@@ -26,6 +26,7 @@ M.SECTIONS = {
   { id = "appearance", title = "Appearance", symbol = "paintbrush" },
   { id = "motion", title = "Motion", symbol = "wind" },
   { id = "behaviour", title = "Behaviour", symbol = "hand.tap" },
+  { id = "applications", title = "Applications", symbol = "square.grid.2x2" },
   { id = "windows", title = "Window Management", symbol = "macwindow" },
   { id = "plugins", title = "Plugins", symbol = "puzzlepiece.extension" },
 }
@@ -158,6 +159,22 @@ function M.check(decl, value)
   elseif kind == "switch" then
     if type(value) ~= "boolean" then return false, "is not on or off" end
     return true
+  elseif kind == "apps" then
+    -- Each application by its bundle id, with the mode its key takes, and the name and path of one
+    -- added from outside the catalog.
+    if type(value) ~= "table" then return false, "is not a table of applications" end
+    for bundle, o in pairs(value) do
+      if type(bundle) ~= "string" or type(o) ~= "table" then
+        return false, "holds an entry that is not an application by its bundle id"
+      end
+      if o.mode ~= nil and o.mode ~= "cycle" and o.mode ~= "hides" then
+        return false, "gives " .. bundle .. " a mode that is neither cycle nor hides"
+      end
+      if (o.name ~= nil and type(o.name) ~= "string") or (o.path ~= nil and type(o.path) ~= "string") then
+        return false, "gives " .. bundle .. " a name or a path that is not words"
+      end
+    end
+    return true
   elseif kind == "list" then
     if type(value) ~= "table" then return false, "is not a list of names" end
     for i, item in ipairs(value) do
@@ -172,7 +189,7 @@ end
 -- A plugin's own settings, its manifest's settings list
 --------------------------------------------------------------------------------
 
-local KINDS = { number = true, switch = true, choice = true }
+local KINDS = { number = true, switch = true, choice = true, apps = true }
 
 -- Whether a choice spec lists its choices, each a value and a title, and ships one of them.
 local function readChoices(spec)
@@ -234,6 +251,7 @@ function M.fromManifest(identity, specs)
         kind = spec.kind, target = target, min = spec.min, max = spec.max, step = spec.step,
         unit = spec.unit, shipped = copy(spec.shipped), keywords = copy(spec.keywords or {}),
         choices = spec.kind == "choice" and readChoices(spec) or nil,
+        extra = type(spec.extra) == "string" and spec.extra or nil,
         applies = "reload", owner = identity }
     end
   end
@@ -391,7 +409,10 @@ function M.new(opts)
   --- A plugin's manifest settings declared and laid over data, the plugin's own data before it is
   --- handed over, a group data leaves out made so a saved value still reaches it. Answers the
   --- problems M.fromManifest found, for the root to say.
-  function self.plugin(identity, specs, data)
+  --- resolve, optional, answers a function for a member name a spec's extra names, called as the
+  --- share is written, so a setting's page draws with what the plugin knows then, the app toggler's
+  --- catalog for the Applications page. The plugin never learns the window exists.
+  function self.plugin(identity, specs, data, resolve)
     local decls, problems = M.fromManifest(identity, specs)
     if #decls == 0 or type(data) ~= "table" then return problems end
     for _, decl in ipairs(decls) do
@@ -401,6 +422,7 @@ function M.new(opts)
         if type(node[word]) ~= "table" then node[word] = {} end
         node = node[word]
       end
+      if decl.extra and type(resolve) == "function" then decl.extraFrom = resolve(decl.extra) end
       self.declare(decl.id, decl)
     end
     self.overlay(identity, data)
@@ -511,6 +533,10 @@ function M.new(opts)
           locked = decl.locked,
           default = copy(defaults[decl.id]),
         }
+        if type(decl.extraFrom) == "function" then
+          local ok, extra = pcall(decl.extraFrom)
+          if ok and type(extra) == "table" then row.extra = extra end
+        end
         if decl.member then
           local off = self.value(decl.member.list) or {}
           local isOff = false

@@ -1439,7 +1439,13 @@ function obj.run(olm, cfg)
   for name, manifest in pairs(manifests) do
     if manifest.settings ~= nil then
       fannedData[name] = fannedData[name] or {}
-      for _, why in ipairs(olmSettings.plugin(name, manifest.settings, fannedData[name])) do
+      -- A setting naming extra is answered by that member of the plugin as the share is written.
+      for _, why in ipairs(olmSettings.plugin(name, manifest.settings, fannedData[name], function(member)
+        return function()
+          local m = modules[name]
+          if m and type(m[member]) == "function" then return m[member](m) end
+        end
+      end)) do
         log.e("Olm compose, " .. name .. " " .. why)
       end
     end

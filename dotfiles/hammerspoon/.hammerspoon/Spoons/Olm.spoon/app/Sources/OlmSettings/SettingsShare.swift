@@ -8,12 +8,35 @@
 
 import Foundation
 
-/// One setting's value as the share writes it, a name, a number, on or off, or a list of names.
+/// One application's own settings on the Applications page, its mode, and the name and path of one
+/// added from outside the catalog.
+public struct AppOverride: Equatable, Sendable {
+  public var mode: String?
+  public var name: String?
+  public var path: String?
+  public init(mode: String? = nil, name: String? = nil, path: String? = nil) {
+    self.mode = mode
+    self.name = name
+    self.path = path
+  }
+
+  var any: [String: Any] {
+    var o: [String: Any] = [:]
+    if let mode { o["mode"] = mode }
+    if let name { o["name"] = name }
+    if let path { o["path"] = path }
+    return o
+  }
+}
+
+/// One setting's value as the share writes it, a name, a number, on or off, a list of names, or the
+/// Applications page's table of applications by bundle id.
 public enum SettingValue: Equatable, Sendable {
   case text(String)
   case number(Double)
   case flag(Bool)
   case names([String])
+  case apps([String: AppOverride])
   case none
 
   init(_ any: Any?) {
@@ -22,6 +45,13 @@ public enum SettingValue: Equatable, Sendable {
     case let n as NSNumber: self = .number(n.doubleValue)
     case let s as String: self = .text(s)
     case let a as [Any]: self = .names(a.compactMap { $0 as? String })
+    case let o as [String: Any]:
+      var apps: [String: AppOverride] = [:]
+      for (bundle, entry) in o {
+        guard let e = entry as? [String: Any] else { continue }
+        apps[bundle] = AppOverride(mode: e["mode"] as? String, name: e["name"] as? String, path: e["path"] as? String)
+      }
+      self = .apps(apps)
     default: self = .none
     }
   }
@@ -33,6 +63,7 @@ public enum SettingValue: Equatable, Sendable {
     case .number(let n): return n
     case .flag(let b): return b
     case .names(let a): return a
+    case .apps(let o): return o.mapValues(\.any)
     case .none: return NSNull()
     }
   }
@@ -40,6 +71,24 @@ public enum SettingValue: Equatable, Sendable {
   public var text: String? { if case .text(let s) = self { return s }; return nil }
   public var number: Double? { if case .number(let n) = self { return n }; return nil }
   public var flag: Bool? { if case .flag(let b) = self { return b }; return nil }
+  /// The applications table, an empty one for the empty list a table with nothing in it is written as.
+  public var apps: [String: AppOverride]? {
+    if case .apps(let o) = self { return o }
+    if case .names(let a) = self, a.isEmpty { return [:] }
+    return nil
+  }
+}
+
+/// What the app toggler knows of one application, the Applications page's catalog. hides is what its
+/// style and entry state, nil when neither does, and mode its own, nil when it follows.
+public struct CatalogApp: Equatable, Sendable {
+  public let name: String
+  public let bundle: String
+  public let style: String?
+  public let hides: Bool?
+  public let placed: Bool
+  public let added: Bool
+  public let path: String?
 }
 
 public struct SettingChoice: Equatable, Sendable, Identifiable {
@@ -49,7 +98,7 @@ public struct SettingChoice: Equatable, Sendable, Identifiable {
 }
 
 public struct Setting: Equatable, Sendable, Identifiable {
-  public enum Kind: String, Sendable { case choice, number, font, `switch`, other }
+  public enum Kind: String, Sendable { case choice, number, font, `switch`, apps, other }
 
   public let id: String
   public let title: String
@@ -67,6 +116,8 @@ public struct Setting: Equatable, Sendable, Identifiable {
   public let locked: String?
   public let defaultValue: SettingValue
   public let value: SettingValue
+  /// The app toggler's catalog, for the Applications page, empty for every other setting.
+  public var catalog: [CatalogApp] = []
 
   public var needsReload: Bool { applies == "reload" }
   public var differs: Bool { defaultValue != .none && value != defaultValue }
@@ -111,12 +162,20 @@ public struct SettingsShare: Equatable, Sendable {
       return SettingChoice(value: value, title: c["title"] as? String ?? value)
     }
     func number(_ key: String) -> Double? { (r[key] as? NSNumber)?.doubleValue }
-    return Setting(id: id, title: title, detail: r["detail"] as? String,
+    let catalog = ((r["extra"] as? [Any]) ?? []).compactMap { any -> CatalogApp? in
+      guard let e = any as? [String: Any], let name = e["name"] as? String, let bundle = e["bundle"] as? String
+      else { return nil }
+      return CatalogApp(name: name, bundle: bundle, style: e["style"] as? String, hides: e["hides"] as? Bool,
+        placed: e["placed"] as? Bool ?? false, added: e["added"] as? Bool ?? false, path: e["path"] as? String)
+    }
+    var made = Setting(id: id, title: title, detail: r["detail"] as? String,
       kind: Setting.Kind(rawValue: r["kind"] as? String ?? "") ?? .other,
       keywords: r["keywords"] as? [String] ?? [], applies: r["applies"] as? String ?? "live",
       choices: choices, min: number("min"), max: number("max"), step: number("step"),
       unit: r["unit"] as? String, locked: r["locked"] as? String,
       defaultValue: SettingValue(r["default"]), value: SettingValue(r["value"]))
+    made.catalog = catalog
+    return made
   }
 
   /// The sections holding a setting every word of query finds, by its title, its detail, its

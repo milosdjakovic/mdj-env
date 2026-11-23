@@ -280,6 +280,26 @@ only once file search has asked about it, since probing one never answered raise
 and the probe opens it without listing it. The list is the composition root's,
 `AppDelegate.permissions()`, so a part that comes to need a permission adds its row there.
 
+**Applications, 2026-11-23.** Asked for by Milos, a page listing every application an app key can
+reach, what Olm does with each, and a mode of its own. It is one setting of the app toggler's,
+`apptoggler.apps`, a table of applications by bundle id, each with its mode, cycle or hides, and the
+name and path of one added from outside the catalog, checked by `lib/settings.lua` as the kind
+`apps`. An application's own mode wins over its style's, so Herdr's popup keeps its placement and
+may still cycle, and the style's wins over App Keys, the global mode in Behaviour. An application
+the table names and the catalog lacks gets an action of its own, `apptoggler.<its letters>`, so it
+has a launcher row and a key a person may give it in this machine's file.
+
+The page draws with the toggler's catalog, the setting's `extra`, a member of the plugin the
+manifest names and the root answers as the share is written, so the plugin never learns the window
+exists. The applications installed are the app's to find, read at the top of `/Applications`,
+`/System/Applications` and `~/Applications` and never inside a folder there, so a suite's helpers
+and an app's bundled utilities stay out, and one with `LSUIElement` or `LSBackgroundOnly` is left
+out as an agent. Add Application is a file picker, the chosen bundle registered with LaunchServices
+so it opens by its bundle id wherever it is kept. The catalog and every application given something
+of its own are listed first, under Configured, the rest under Other Applications, each with its
+icon, its key in words, its style and whether it is placed, and its mode, whose default names what
+it follows. A change sends the whole table and applies on the reload the window's close runs.
+
 ## Back out
 
 The four plugins keep their lists, so their launcher rows come back by putting `row` back under

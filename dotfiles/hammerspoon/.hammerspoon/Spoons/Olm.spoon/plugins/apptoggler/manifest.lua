@@ -61,6 +61,10 @@ return {
       -- Settings, reaching this plugin as `data.mode`.
       mode = { source = "user", policy = "optional",
                breaks = "every app with no hides of its own cycles its windows" },
+      -- Each application's own mode and the applications added from outside the catalog, by bundle
+      -- id, set on the Applications page of Olm Settings, reaching this plugin as `data.overrides`.
+      overrides = { source = "user", policy = "optional",
+                    breaks = "every app takes its style's mode or the global one, and none is added" },
     },
   },
 
@@ -82,6 +86,10 @@ return {
       shipped = "cycle", keywords = { "hyper", "toggle", "cycle", "hide", "show", "windows", "switch" },
       choices = { { value = "cycle", title = "Cycle through windows" },
                   { value = "hides", title = "Show and hide" } } },
+    -- Every application, its own mode over its style's and the global one, and those added from
+    -- outside the catalog, the Applications page drawing with catalog, what this plugin knows of each.
+    { key = "apps", at = { "overrides" }, section = "applications", title = "Applications", kind = "apps",
+      shipped = {}, extra = "catalog", keywords = { "app", "toggle", "hyper", "cycle", "hide", "show", "add" } },
   },
 
   defaults = {
@@ -98,6 +106,7 @@ return {
     toggles = {},
     -- Cycle round an app's windows, the default Milos chose on 2026-11-23, or hides, show and hide.
     mode = "cycle",
+    overrides = {},
     -- The one suggested key, Finder on the app leader, exactly what a fresh install with nothing
     -- else configured is meant to demonstrate. Every other key is the person's.
     bindings = {
