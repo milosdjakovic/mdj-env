@@ -19,6 +19,9 @@
 --   s.depth     how deep into a held key a repeating action is, 0 on the press
 --   s.size      { width, height }, the size exactSize asks for
 --   s.target    the uuid toScreen moves to
+--   s.named     a named size, { width, height, unit, anchor, display }, for namedSize
+--   s.pointer   the pointer's position, { x, y }, for a named size shown under the pointer
+--               (each screen may also say builtin, true for the Mac's own panel)
 --   s.memory    what the window remembers, the frame it last had on each screen by uuid
 --
 -- result.frame     the frame to write
@@ -198,6 +201,49 @@ end
 
 local MOVES = { moveLeft = "left", moveRight = "right", moveUp = "up", moveDown = "down" }
 
+-- Where a named size stands in its canvas, each anchor a fraction across and down the room it leaves.
+local ANCHORS = {
+  topLeft = { 0, 0 }, top = { 0.5, 0 }, topRight = { 1, 0 },
+  left = { 0, 0.5 }, center = { 0.5, 0.5 }, right = { 1, 0.5 },
+  bottomLeft = { 0, 1 }, bottom = { 0.5, 1 }, bottomRight = { 1, 1 },
+}
+M.ANCHORS = ANCHORS
+
+-- The screen a named size lands on: the built in panel, the first other screen, the one under the
+-- pointer, or where the window is, which is also the answer when the one asked for is not there.
+local function displayFor(s, current, choice)
+  for _, screen in ipairs(s.screens or {}) do
+    if choice == "builtin" and screen.builtin then return screen end
+    if choice == "external" and not screen.builtin then return screen end
+    if choice == "pointer" and s.pointer then
+      local f, p = screen.frame, s.pointer
+      if p.x >= f.x and p.x < f.x + f.w and p.y >= f.y and p.y < f.y + f.h then return screen end
+    end
+  end
+  return current
+end
+
+-- A named size on its screen: points or a share of the canvas, never past the canvas, stood at its
+-- anchor, and carried over with the window's memory when the screen is another.
+local function named(s, f, screen)
+  local z = s.named
+  if type(z) ~= "table" then return nil end
+  local w, h = tonumber(z.width), tonumber(z.height)
+  if not w or not h or w <= 0 or h <= 0 then return nil end
+  local target = displayFor(s, screen, z.display)
+  local c = M.canvas(target.frame, s.margins)
+  if z.unit == "percent" then w, h = c.w * w / 100, c.h * h / 100 end
+  w, h = math.min(w, c.w), math.min(h, c.h)
+  local a = ANCHORS[z.anchor] or ANCHORS.center
+  local result = { frame = { x = c.x + (c.w - w) * a[1], y = c.y + (c.h - h) * a[2], w = w, h = h } }
+  if target.uuid ~= screen.uuid then
+    result.screen = target.uuid
+    result.remember = s.id ~= nil and { screen = screen.uuid, frame = rect(f) } or nil
+    result.verify = true
+  end
+  return result
+end
+
 -- The layouts a press steps through, round robin, each a grid of columns and rows over the canvas
 -- and its tiles in order, a tile being its column, its row and how many of each it spans, all from
 -- zero. A press finds the tile the window stands on and takes the next one, the first when it stands
@@ -285,11 +331,8 @@ function M.plan(action, s)
     return next and { frame = next } or nil
   elseif MOVES[action] then
     return { frame = move(f, canvas, MOVES[action], M.moveStep(sizing, s.depth)) }
-  elseif action == "smallSize" then
-    -- Sized on the visible frame, then centred on the canvas, the two steps the action takes.
-    local small = sizing.smallSize or { width = 700, height = 800 }
-    local w = sized(screen.frame, small.width, small.height)
-    return { frame = { x = canvas.x + (canvas.w - w.w) / 2, y = canvas.y + (canvas.h - w.h) / 2, w = w.w, h = w.h } }
+  elseif action == "namedSize" then
+    return named(s, f, screen)
   elseif action == "exactSize" then
     local size = s.size
     if type(size) ~= "table" then return nil end
@@ -306,15 +349,6 @@ function M.plan(action, s)
     local target = find(s.screens, s.target)
     if not target then return nil end
     return place(s, f, screen, target)
-  elseif action == "screenRecording" then
-    -- Onto the second screen, or the first where there is one, then sized there.
-    local target = s.screens[2] or s.screens[1]
-    local moved = place(s, f, screen, target)
-    local sizes = sizing.screenRecording or { width = 2400, height = 1350 }
-    moved.frame = sized(target.frame, sizes.width, sizes.height)
-    -- Read back only where it crossed to another screen, the case a plain write can land short.
-    moved.verify = target.uuid ~= screen.uuid or nil
-    return moved
   end
   return nil
 end

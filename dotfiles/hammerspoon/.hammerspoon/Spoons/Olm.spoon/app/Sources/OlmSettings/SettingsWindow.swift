@@ -45,6 +45,8 @@ final class SettingsModel: ObservableObject {
   @Published var granted: [String: Bool] = [:]
   /// The Applications page's own state, what is installed and the filter, kept across visits.
   let appsPage = AppsPageModel()
+  /// The Window Management page's size being edited.
+  let sizeEditor = SizeEditor()
 
   init(share: SettingsShare?, service: SettingsService?, permissions: [Permission] = []) {
     self.share = share
@@ -442,6 +444,9 @@ struct SettingsDetail: View {
       } else if let section = model.current, let apps = AppsPage.setting(in: section) {
         AppsView(setting: apps, model: model, page: model.appsPage)
           .id(section.id)
+      } else if let section = model.current, let sizes = WindowsPage.setting(in: section) {
+        WindowsView(section: section, setting: sizes, model: model, page: model.appsPage, editor: model.sizeEditor)
+          .id(section.id)
       } else if model.share == nil {
         ContentUnavailableView("No settings yet", systemImage: "gearshape",
           description: Text("Hammerspoon writes them when it loads, with the olmapp piece on."))
@@ -724,7 +729,7 @@ struct SettingRow: View {
         }
       }
       .fixedSize()
-    case .apps, .keys:
+    case .apps, .keys, .sizes:
       // Drawn by their own page, AppsView, never as a row.
       EmptyView()
     case .other:

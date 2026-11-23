@@ -25,6 +25,8 @@ public struct WindowSnapshot: Sendable {
   public var id: UInt32?
   public var screen: String?
   public var screens: [WindowScreen] = []
+  /// The pointer, in the same top left space, for a named size shown under it.
+  public var pointer: (x: Double, y: Double)?
   /// The frontmost application's bundle id, and the regular apps showing besides it, the ones Hide
   /// Others would hide.
   public var bundle: String?
@@ -50,6 +52,7 @@ public enum WindowRead {
     var others: [String] = []
     var screens: [WindowScreen] = []
     var full: [WindowRect] = []
+    var pointer: (x: Double, y: Double)?
   }
 
   /// The whole read, on the caller's thread, which must not be the main one.
@@ -58,6 +61,7 @@ public enum WindowRead {
     let shown = DispatchQueue.main.sync { appKit() }
     var s = WindowSnapshot()
     s.screens = shown.screens
+    s.pointer = shown.pointer
     s.bundle = shown.bundle
     s.others = shown.others
     if let pid = shown.pid {
@@ -91,9 +95,13 @@ public enum WindowRead {
       WindowRect(x: r.origin.x, y: primary.maxY - r.origin.y - r.height, w: r.width, h: r.height)
     }
     for screen in screens {
-      out.screens.append(WindowScreen(uuid: uuid(screen), frame: flip(screen.visibleFrame)))
+      let number = screen.deviceDescription[NSDeviceDescriptionKey("NSScreenNumber")] as? NSNumber
+      out.screens.append(WindowScreen(uuid: uuid(screen), frame: flip(screen.visibleFrame),
+        builtin: CGDisplayIsBuiltin(CGDirectDisplayID(number?.uint32Value ?? 0)) != 0))
       out.full.append(flip(screen.frame))
     }
+    let p = NSEvent.mouseLocation
+    out.pointer = (p.x, primary.maxY - p.y)
     return out
   }
 

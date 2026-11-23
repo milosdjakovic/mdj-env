@@ -106,12 +106,16 @@ local function uuidOf(screen) return screen:getUUID() or tostring(screen:id()) e
 function obj:planInput(win, extra)
   local screens = {}
   for _, screen in ipairs(hs.screen.allScreens()) do
-    screens[#screens + 1] = { uuid = uuidOf(screen), frame = rectOf(screen:frame()) }
+    -- The Mac's own panel, which a named size may ask for, macOS naming it Built-in.
+    screens[#screens + 1] = { uuid = uuidOf(screen), frame = rectOf(screen:frame()),
+      builtin = (screen:name() or ""):find("Built%-in") ~= nil or nil }
   end
   local id = win:id()
   local screen = win:screen()
+  local pointer = hs.mouse.absolutePosition()
   local s = {
     window = rectOf(win:frame()), id = id, screen = screen and uuidOf(screen), screens = screens,
+    pointer = pointer and { x = pointer.x, y = pointer.y } or nil,
     margins = self:_resolvedMargins(), gap = self:_gap(), sizing = (self._settings or {}).windowSizing or {},
     memory = id and self._lastFrames[id] or nil,
   }
@@ -130,7 +134,7 @@ function obj:_do(action, extra)
   local result = Plan.plan(action, input)
   -- What this press read and planned, which the action's run hands back for Olm.app's shadow, step
   -- 6.3b, docs/DESIGN-APP-WINDOWS.md. Read before anything is written.
-  self._report = { input = input, result = result }
+  self._report = { action = action, input = input, result = result }
   if not result then return nil end
   local id = win:id()
   if result.remember and id then
@@ -322,10 +326,28 @@ end
 function obj:_moveStep(hold) return Plan.moveStep((self._settings or {}).windowSizing or {}, hold) end
 function obj:_resizeStep(hold) return Plan.resizeStep((self._settings or {}).windowSizing or {}, hold) end
 
---- WindowManager:screenRecording()
+--- WindowManager:sizes() -> list
 --- Method
---- Move to secondary screen and resize for screen recording
-function obj:screenRecording() self:_do("screenRecording") end
+--- The named sizes, Olm's setting windowSizes, each { id, name, width, height, unit, anchor,
+--- display }. Small and Recording ship, each an action of the name it had before it was a size,
+--- smallSize and screenRecording, and every other is size and its id.
+function obj:sizes()
+  return type((self._settings or {}).windowSizes) == "table" and self._settings.windowSizes or {}
+end
+
+local SIZE_ACTIONS = { small = "smallSize", recording = "screenRecording" }
+function obj.sizeAction(id) return SIZE_ACTIONS[id] or ("size" .. id:sub(1, 1):upper() .. id:sub(2)) end
+
+--- WindowManager:namedSize(id)
+--- Method
+--- Sizes and places the focused window as the named size id says, nothing when there is none.
+function obj:namedSize(id)
+  for _, z in ipairs(self:sizes()) do
+    if z.id == id then return self:_do("namedSize", { named = z }) end
+  end
+end
+
+function obj:screenRecording() self:namedSize("recording") end
 
 --- WindowManager:exactSizePlan(width, height, screen)
 --- Method
@@ -365,7 +387,7 @@ end
 --- WindowManager:smallSize()
 --- Method
 --- Resize window to small size, centred on the canvas
-function obj:smallSize() self:_do("smallSize") end
+function obj:smallSize() self:namedSize("small") end
 
 -- camelCase action name to a Title Case label, the words every surface shows for an action,
 -- the launcher row, the window sheet and the actions pane alike.
@@ -383,12 +405,12 @@ local ORDER = {
   { name = "previousDisplay", when = "multipleDisplays" },
   { name = "nextDisplay", when = "multipleDisplays" },
   { name = "leftHalf" }, { name = "rightHalf" }, { name = "fullHeight" },
-  { name = "reasonableSize" }, { name = "maximize" }, { name = "smallSize" },
+  { name = "reasonableSize" }, { name = "maximize" },
   { name = "increaseSize", repeats = true }, { name = "decreaseSize", repeats = true },
   { name = "moveLeft", repeats = true }, { name = "moveRight", repeats = true },
   { name = "moveUp", repeats = true }, { name = "moveDown", repeats = true },
   { name = "center" }, { name = "hideAllExceptFocused" },
-  { name = "exactSize", listed = false }, { name = "screenRecording", listed = false },
+  { name = "exactSize", listed = false },
   -- The layouts a press steps through, round robin, plan.lua's LAYOUTS, with no key of their own,
   -- found in the launcher by name, Milos's ask of 2026-11-23. A person gives one a key in
   -- config/keymap.lua like any action.
@@ -411,7 +433,15 @@ local ORDER = {
 function obj:actions()
   local handlers = self:_handlers()
   local out = {}
-  for _, a in ipairs(ORDER) do
+  -- Every named size an action of its own after the fixed ones, Small's keeping its key.
+  local order = {}
+  for _, a in ipairs(ORDER) do order[#order + 1] = a end
+  for _, z in ipairs(self:sizes()) do
+    local name, id = obj.sizeAction(z.id), z.id
+    handlers[name] = function() self:namedSize(id) end
+    order[#order + 1] = { name = name, description = z.name, size = id }
+  end
+  for _, a in ipairs(order) do
     local handler = handlers[a.name]
     out[#out + 1] = {
       -- The run answers what the press read and planned, { window = report }, for Olm.app's shadow,
@@ -430,6 +460,32 @@ function obj:actions()
   return out
 end
 
+-- Which part of Olm Settings' Window Management page lists an action, by its name.
+local GROUPS = {
+  previousDisplay = "display", nextDisplay = "display",
+  increaseSize = "step", decreaseSize = "step",
+  moveLeft = "step", moveRight = "step", moveUp = "step", moveDown = "step",
+  hideAllExceptFocused = "other",
+}
+
+--- WindowManager:catalog() -> list
+--- Method
+--- Every action the launcher lists, { action, title, group, size }, for the Window Management page,
+--- which a setting's extra hands the share: a layout, a display move, a step, a named size by its
+--- id, or other. The page never learns how an action works, only its name and where it belongs.
+function obj:catalog()
+  local out = {}
+  for _, a in ipairs(ORDER) do
+    if a.listed ~= false then
+      out[#out + 1] = { action = a.name, title = a.description or humanize(a.name), group = GROUPS[a.name] or "layout" }
+    end
+  end
+  for _, z in ipairs(self:sizes()) do
+    out[#out + 1] = { action = obj.sizeAction(z.id), title = z.name, group = "size", size = z.id }
+  end
+  return out
+end
+
 -- The handler for each action, keyed by name. A repeating action reads the hold depth it is
 -- called with, every other ignores the argument.
 function obj:_handlers()
@@ -440,13 +496,11 @@ function obj:_handlers()
     leftHalf =             function() self:leftHalf() end,
     rightHalf =            function() self:rightHalf() end,
     reasonableSize =       function() self:resizeDefault() end,
-    smallSize =            function() self:smallSize() end,
     increaseSize =         function(hold) self:increaseSize(hold) end,
     decreaseSize =         function(hold) self:decreaseSize(hold) end,
     nextDisplay =          function() self:moveToDisplay("next") end,
     previousDisplay =      function() self:moveToDisplay("previous") end,
     hideAllExceptFocused = function() self:hideAllExceptFocused() end,
-    screenRecording =      function() self:screenRecording() end,
     -- An exact size a surface parsed, sizing the window to it and centring it. The argument
     -- is a table and never the hold depth the repeating actions below take, so a non table is
     -- refused rather than read as a width. Nothing binds a key to this, since a size has to

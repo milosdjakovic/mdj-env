@@ -23,7 +23,7 @@ window	row	4	→	Right Half	-
 window	row	5	↑	Full Height	-
 window	row	6	↓	Reasonable Size	-
 window	row	7	↩	Maximize	-
-window	row	8	Z	Small Size	-
+window	row	8	Z	Small	-
 window	row	9	=	Increase Size	-
 window	row	10	-	Decrease Size	-
 window	row	11	A	Move Left	-

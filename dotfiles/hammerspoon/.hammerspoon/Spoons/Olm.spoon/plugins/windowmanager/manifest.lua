@@ -144,21 +144,20 @@ return {
     { key = "fullHeightMaxWidth", at = { "settings", "windowSizing", "fullHeightMaxWidth" }, section = "windows",
       title = "Full height width", kind = "number", min = 400, max = 8000, step = 50, unit = "pixels", shipped = 2400,
       keywords = { "full height", "tall", "column" } },
-    { key = "smallWidth", at = { "settings", "windowSizing", "smallSize", "width" }, section = "windows",
-      title = "Small width", kind = "number", min = 200, max = 4000, step = 50, unit = "pixels", shipped = 700,
-      keywords = { "small size", "compact" } },
-    { key = "smallHeight", at = { "settings", "windowSizing", "smallSize", "height" }, section = "windows",
-      title = "Small height", kind = "number", min = 200, max = 4000, step = 50, unit = "pixels", shipped = 800,
-      keywords = { "small size", "compact" } },
-    { key = "recordingWidth", at = { "settings", "windowSizing", "screenRecording", "width" }, section = "windows",
-      title = "Screen recording width", kind = "number", min = 400, max = 8000, step = 50, unit = "pixels", shipped = 2400,
-      keywords = { "recording", "capture", "video" } },
-    { key = "recordingHeight", at = { "settings", "windowSizing", "screenRecording", "height" }, section = "windows",
-      title = "Screen recording height", kind = "number", min = 300, max = 5000, step = 50, unit = "pixels", shipped = 1350,
-      keywords = { "recording", "capture", "video" } },
     { key = "holdGrace", at = { "settings", "windowSizing", "holdGrace" }, section = "windows",
       title = "Small steps before speeding up", kind = "number", min = 1, max = 10, step = 1, unit = "times", shipped = 1,
       detail = "How many presses of a held move or resize key use the step before the held step takes over",
       keywords = { "hold", "repeat", "grace", "speed" } },
+    -- The named sizes, each an action, Small and Recording shipped and kept, the rest added on the
+    -- Window Management page. A size is points or a share of the screen, stood at one of nine
+    -- anchors, on the screen the window is on, the built in one, the first other one or the one
+    -- under the pointer. extra hands the page every action with its title, catalog().
+    { key = "sizes", at = { "settings", "windowSizes" }, section = "windows", title = "Sizes", kind = "sizes",
+      extra = "catalog", keywords = { "size", "preset", "recording", "small" },
+      shipped = {
+        { id = "small", name = "Small", width = 700, height = 800, unit = "points", anchor = "center", display = "current" },
+        { id = "recording", name = "Recording", width = 2400, height = 1350, unit = "points", anchor = "center",
+          display = "external" },
+      } },
   },
 }

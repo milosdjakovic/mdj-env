@@ -610,7 +610,7 @@ struct AppRow: View {
 /// A control's face drawn by SwiftUI, the corner a pop-up button has. A value that is set, a mode of
 /// the row's own or a key, is drawn in the accent on a light tint with an outline, and one left at
 /// the default, Default or None, is muted, so what is set is caught at a glance.
-private struct Field<Content: View>: View {
+struct Field<Content: View>: View {
   let width: CGFloat
   let leading: Bool
   let set: Bool

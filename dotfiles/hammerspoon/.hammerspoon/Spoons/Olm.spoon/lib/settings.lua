@@ -143,6 +143,11 @@ local function equal(a, b)
   return true
 end
 
+-- A named size's anchors and displays, plugins/windowmanager/plan.lua's.
+local SIZE_ANCHORS = { topLeft = true, top = true, topRight = true, left = true, center = true, right = true,
+  bottomLeft = true, bottom = true, bottomRight = true }
+local SIZE_DISPLAYS = { current = true, builtin = true, external = true, pointer = true }
+
 --- M.check(decl, value) -> ok, why
 --- Whether value is one decl allows, and the reason in words when it is not.
 function M.check(decl, value)
@@ -192,6 +197,29 @@ function M.check(decl, value)
       end
     end
     return true
+  elseif kind == "sizes" then
+    -- The window manager's named sizes, each an id of letters and digits its action is named by,
+    -- a name, a width and a height in points or a percent of the screen, an anchor and a display.
+    if type(value) ~= "table" then return false, "is not a list of sizes" end
+    local seen = {}
+    for i, z in ipairs(value) do
+      if type(z) ~= "table" or type(z.id) ~= "string" or not z.id:match("^%l[%w]*$") then
+        return false, "holds size " .. i .. " with no id of letters and digits"
+      end
+      if seen[z.id] then return false, "holds the size " .. z.id .. " twice" end
+      seen[z.id] = true
+      if type(z.name) ~= "string" or z.name == "" then return false, "gives the size " .. z.id .. " no name" end
+      if type(z.width) ~= "number" or type(z.height) ~= "number" or z.width <= 0 or z.height <= 0 then
+        return false, "gives " .. z.name .. " a width or a height that is not a size"
+      end
+      if z.unit ~= "points" and z.unit ~= "percent" then return false, "gives " .. z.name .. " a unit that is neither points nor percent" end
+      if z.unit == "percent" and (z.width > 100 or z.height > 100) then
+        return false, "gives " .. z.name .. " more than all of the screen"
+      end
+      if not SIZE_ANCHORS[z.anchor] then return false, "gives " .. z.name .. " no anchor of the nine" end
+      if not SIZE_DISPLAYS[z.display] then return false, "gives " .. z.name .. " a display that is not one of four" end
+    end
+    return true
   elseif kind == "list" then
     if type(value) ~= "table" then return false, "is not a list of names" end
     for i, item in ipairs(value) do
@@ -206,7 +234,7 @@ end
 -- A plugin's own settings, its manifest's settings list
 --------------------------------------------------------------------------------
 
-local KINDS = { number = true, switch = true, choice = true, apps = true }
+local KINDS = { number = true, switch = true, choice = true, apps = true, sizes = true }
 
 -- Whether a choice spec lists its choices, each a value and a title, and ships one of them.
 local function readChoices(spec)

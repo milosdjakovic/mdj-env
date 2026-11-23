@@ -37,60 +37,61 @@
 37	window:fullHeight	Full Height	Window Manager · ◆↑	windows	windowmanager	-	Window Manager	40
 38	window:reasonableSize	Reasonable Size	Window Manager · ◆↓	windows	windowmanager	-	Window Manager	40
 39	window:maximize	Maximize	Window Manager · ◆↩	windows	windowmanager	-	Window Manager	40
-40	window:smallSize	Small Size	Window Manager · ◆Z	windows	windowmanager	-	Window Manager	40
-41	window:increaseSize	Increase Size	Window Manager · ◆=	windows	windowmanager	-	Window Manager	40
-42	window:decreaseSize	Decrease Size	Window Manager · ◆-	windows	windowmanager	-	Window Manager	40
-43	window:moveLeft	Move Left	Window Manager · ◆A	windows	windowmanager	-	Window Manager	40
-44	window:moveRight	Move Right	Window Manager · ◆D	windows	windowmanager	-	Window Manager	40
-45	window:moveUp	Move Up	Window Manager · ◆W	windows	windowmanager	-	Window Manager	40
-46	window:moveDown	Move Down	Window Manager · ◆S	windows	windowmanager	-	Window Manager	40
-47	window:center	Center	Window Manager · ◆C	windows	windowmanager	-	Window Manager	40
-48	window:hideAllExceptFocused	Hide All Except Focused	Window Manager · ◆H	windows	windowmanager	-	Window Manager	40
-49	window:cycleHalves	Halves, Left and Right	Window Manager	windows	windowmanager	-	Window Manager	40
-50	window:cycleHalvesStacked	Halves, Top and Bottom	Window Manager	windows	windowmanager	-	Window Manager	40
-51	window:cycleThirds	Thirds	Window Manager	windows	windowmanager	-	Window Manager	40
-52	window:cycleTwoThirds	Two Thirds	Window Manager	windows	windowmanager	-	Window Manager	40
-53	window:cycleFourths	Fourths	Window Manager	windows	windowmanager	-	Window Manager	40
-54	window:cycleQuarters	Quarters	Window Manager	windows	windowmanager	-	Window Manager	40
-55	settingsPane:x-apple.systempreferences:com.apple.wifi-settings-extension	Wi-Fi	System Settings	wifi	systemsettings	-	wifi, wireless, airport | System Settings	50
-56	settingsPane:x-apple.systempreferences:com.apple.BluetoothSettings	Bluetooth	System Settings	bluetooth	systemsettings	-	headphones, pairing | System Settings	50
-57	settingsPane:x-apple.systempreferences:com.apple.Network-Settings.extension	Network	System Settings	network	systemsettings	-	ethernet, vpn, dns, proxy, ip address | System Settings	50
-58	settingsPane:x-apple.systempreferences:com.apple.Battery-Settings.extension	Battery	System Settings	battery	systemsettings	-	power, energy saver, low power mode | System Settings	50
-59	settingsPane:x-apple.systempreferences:com.apple.systempreferences.GeneralSettings	General	System Settings	general	systemsettings	-	about this mac, airdrop, handoff | System Settings	50
-60	settingsPane:x-apple.systempreferences:com.apple.Accessibility-Settings.extension	Accessibility	System Settings	accessibility	systemsettings	-	a11y, vision, hearing, zoom, voiceover | System Settings	50
-61	settingsPane:x-apple.systempreferences:com.apple.Appearance-Settings.extension	Appearance	System Settings	appearance	systemsettings	-	dark mode, light mode, accent colour, theme | System Settings	50
-62	settingsPane:x-apple.systempreferences:com.apple.Siri-Settings.extension	Apple Intelligence & Siri	System Settings	siri	systemsettings	-	ai, assistant, hey siri | System Settings	50
-63	settingsPane:x-apple.systempreferences:com.apple.Desktop-Settings.extension	Desktop & Dock	System Settings	desktopDock	systemsettings	-	mission control, stage manager, hot corners | System Settings	50
-64	settingsPane:x-apple.systempreferences:com.apple.Displays-Settings.extension	Displays	System Settings	displays	systemsettings	-	monitor, resolution, brightness, night shift, true tone | System Settings	50
-65	settingsPane:x-apple.systempreferences:com.apple.ControlCenter-Settings.extension	Menu Bar	System Settings	menuBar	systemsettings	-	control center, status icons | System Settings	50
-66	settingsPane:x-apple.systempreferences:com.apple.Spotlight-Settings.extension	Spotlight	System Settings	spotlight	systemsettings	-	indexing | System Settings	50
-67	settingsPane:x-apple.systempreferences:com.apple.Wallpaper-Settings.extension	Wallpaper	System Settings	wallpaper	systemsettings	-	background, desktop picture, screensaver | System Settings	50
-68	settingsPane:x-apple.systempreferences:com.apple.Notifications-Settings.extension	Notifications	System Settings	notifications	systemsettings	-	alerts, badges, banners | System Settings	50
-69	settingsPane:x-apple.systempreferences:com.apple.Sound-Settings.extension	Sound	System Settings	sound	systemsettings	-	audio, alert sound, output device, input device | System Settings	50
-70	settingsPane:x-apple.systempreferences:com.apple.Focus-Settings.extension	Focus	System Settings	focus	systemsettings	-	do not disturb, dnd, quiet hours | System Settings	50
-71	settingsPane:x-apple.systempreferences:com.apple.Screen-Time-Settings.extension	Screen Time	System Settings	screenTime	systemsettings	-	downtime, app limits, parental controls | System Settings	50
-72	settingsPane:x-apple.systempreferences:com.apple.Lock-Screen-Settings.extension	Lock Screen	System Settings	lockScreen	systemsettings	-	screensaver, require password | System Settings	50
-73	settingsPane:x-apple.systempreferences:com.apple.settings.PrivacySecurity.extension	Privacy & Security	System Settings	privacy	systemsettings	-	permissions, filevault, firewall, camera access, microphone access, accessibility access | System Settings	50
-74	settingsPane:x-apple.systempreferences:com.apple.Touch-ID-Settings.extension	Touch ID & Password	System Settings	touchId	systemsettings	-	fingerprint, login password | System Settings	50
-75	settingsPane:x-apple.systempreferences:com.apple.systempreferences.AppleIDSettings	Apple Account	System Settings	appleAccount	systemsettings	-	apple id, icloud | System Settings	50
-76	settingsPane:x-apple.systempreferences:com.apple.Family-Settings.extension	Family	System Settings	family	systemsettings	-	family sharing, kids | System Settings	50
-77	settingsPane:x-apple.systempreferences:com.apple.Keyboard-Settings.extension	Keyboard	System Settings	keyboard	systemsettings	-	shortcuts, input sources, text replacement, dictation | System Settings	50
-78	settingsPane:x-apple.systempreferences:com.apple.Mouse-Settings.extension	Mouse	System Settings	mouse	systemsettings	-	pointer, scroll direction, tracking speed | System Settings	50
-79	settingsPane:x-apple.systempreferences:com.apple.Trackpad-Settings.extension	Trackpad	System Settings	trackpad	systemsettings	-	gestures, tap to click, natural scrolling | System Settings	50
-80	settingsPane:x-apple.systempreferences:com.apple.Print-Scan-Settings.extension	Printers & Scanners	System Settings	printers	systemsettings	-	add printer | System Settings	50
-81	settingsPane:x-apple.systempreferences:com.apple.Users-Groups-Settings.extension	Users & Groups	System Settings	users	systemsettings	-	accounts, guest user | System Settings	50
-82	settingsPane:x-apple.systempreferences:com.apple.Internet-Accounts-Settings.extension	Internet Accounts	System Settings	internetAccounts	systemsettings	-	mail accounts, google, exchange | System Settings	50
-83	settingsPane:x-apple.systempreferences:com.apple.Game-Center-Settings.extension	Game Center	System Settings	gameCenter	systemsettings	-	friends, achievements | System Settings	50
-84	settingsPane:x-apple.systempreferences:com.apple.Game-Controller-Settings.extension	Game Controllers	System Settings	gameControllers	systemsettings	-	gamepad, joystick | System Settings	50
-85	settingsPane:x-apple.systempreferences:com.apple.Date-Time-Settings.extension	Date & Time	System Settings	dateTime	systemsettings	-	clock, timezone, time zone | System Settings	50
-86	settingsPane:x-apple.systempreferences:com.apple.Localization-Settings.extension	Language & Region	System Settings	language	systemsettings	-	locale, date format, number format | System Settings	50
-87	settingsPane:x-apple.systempreferences:com.apple.Sharing-Settings.extension	Sharing	System Settings	sharing	systemsettings	-	screen sharing, file sharing, remote login, computer name | System Settings	50
-88	settingsPane:x-apple.systempreferences:com.apple.Time-Machine-Settings.extension	Time Machine	System Settings	timeMachine	systemsettings	-	backup | System Settings	50
-89	settingsPane:x-apple.systempreferences:com.apple.Startup-Disk-Settings.extension	Startup Disk	System Settings	startupDisk	systemsettings	-	boot | System Settings	50
-90	settingsPane:x-apple.systempreferences:com.apple.LoginItems-Settings.extension	Login Items & Extensions	System Settings	loginItems	systemsettings	-	startup apps, open at login, background items | System Settings	50
-91	settingsPane:x-apple.systempreferences:com.apple.Software-Update-Settings.extension	Software Update	System Settings	softwareUpdate	systemsettings	-	upgrade, macos update | System Settings	50
-92	settingsPane:x-apple.systempreferences:com.apple.settings.Storage	Storage	System Settings	storage	systemsettings	-	disk space, free space | System Settings	50
-93	settingsPane:x-apple.systempreferences:com.apple.Profiles-Settings.extension	Device Management	System Settings	deviceManagement	systemsettings	-	profiles, mdm | System Settings	50
-94	bridge:launcher	App Launcher	Olm	launcher	bridge	olmAppLauncher	Olm	-
-95	bridge:quit	Quit Olm App	Olm	quit	bridge	olmAppRunning	olm.app, stop, exit | Olm	-
-96	bridge:settings	Olm Settings	Olm	settings	bridge	olmAppReady	preferences, options, configure, theme, placement, chooser, plugins | Olm	-
+40	window:increaseSize	Increase Size	Window Manager · ◆=	windows	windowmanager	-	Window Manager	40
+41	window:decreaseSize	Decrease Size	Window Manager · ◆-	windows	windowmanager	-	Window Manager	40
+42	window:moveLeft	Move Left	Window Manager · ◆A	windows	windowmanager	-	Window Manager	40
+43	window:moveRight	Move Right	Window Manager · ◆D	windows	windowmanager	-	Window Manager	40
+44	window:moveUp	Move Up	Window Manager · ◆W	windows	windowmanager	-	Window Manager	40
+45	window:moveDown	Move Down	Window Manager · ◆S	windows	windowmanager	-	Window Manager	40
+46	window:center	Center	Window Manager · ◆C	windows	windowmanager	-	Window Manager	40
+47	window:hideAllExceptFocused	Hide All Except Focused	Window Manager · ◆H	windows	windowmanager	-	Window Manager	40
+48	window:cycleHalves	Halves, Left and Right	Window Manager	windows	windowmanager	-	Window Manager	40
+49	window:cycleHalvesStacked	Halves, Top and Bottom	Window Manager	windows	windowmanager	-	Window Manager	40
+50	window:cycleThirds	Thirds	Window Manager	windows	windowmanager	-	Window Manager	40
+51	window:cycleTwoThirds	Two Thirds	Window Manager	windows	windowmanager	-	Window Manager	40
+52	window:cycleFourths	Fourths	Window Manager	windows	windowmanager	-	Window Manager	40
+53	window:cycleQuarters	Quarters	Window Manager	windows	windowmanager	-	Window Manager	40
+54	window:smallSize	Small	Window Manager · ◆Z	windows	windowmanager	-	Window Manager	40
+55	window:screenRecording	Recording	Window Manager	windows	windowmanager	-	Window Manager	40
+56	settingsPane:x-apple.systempreferences:com.apple.wifi-settings-extension	Wi-Fi	System Settings	wifi	systemsettings	-	wifi, wireless, airport | System Settings	50
+57	settingsPane:x-apple.systempreferences:com.apple.BluetoothSettings	Bluetooth	System Settings	bluetooth	systemsettings	-	headphones, pairing | System Settings	50
+58	settingsPane:x-apple.systempreferences:com.apple.Network-Settings.extension	Network	System Settings	network	systemsettings	-	ethernet, vpn, dns, proxy, ip address | System Settings	50
+59	settingsPane:x-apple.systempreferences:com.apple.Battery-Settings.extension	Battery	System Settings	battery	systemsettings	-	power, energy saver, low power mode | System Settings	50
+60	settingsPane:x-apple.systempreferences:com.apple.systempreferences.GeneralSettings	General	System Settings	general	systemsettings	-	about this mac, airdrop, handoff | System Settings	50
+61	settingsPane:x-apple.systempreferences:com.apple.Accessibility-Settings.extension	Accessibility	System Settings	accessibility	systemsettings	-	a11y, vision, hearing, zoom, voiceover | System Settings	50
+62	settingsPane:x-apple.systempreferences:com.apple.Appearance-Settings.extension	Appearance	System Settings	appearance	systemsettings	-	dark mode, light mode, accent colour, theme | System Settings	50
+63	settingsPane:x-apple.systempreferences:com.apple.Siri-Settings.extension	Apple Intelligence & Siri	System Settings	siri	systemsettings	-	ai, assistant, hey siri | System Settings	50
+64	settingsPane:x-apple.systempreferences:com.apple.Desktop-Settings.extension	Desktop & Dock	System Settings	desktopDock	systemsettings	-	mission control, stage manager, hot corners | System Settings	50
+65	settingsPane:x-apple.systempreferences:com.apple.Displays-Settings.extension	Displays	System Settings	displays	systemsettings	-	monitor, resolution, brightness, night shift, true tone | System Settings	50
+66	settingsPane:x-apple.systempreferences:com.apple.ControlCenter-Settings.extension	Menu Bar	System Settings	menuBar	systemsettings	-	control center, status icons | System Settings	50
+67	settingsPane:x-apple.systempreferences:com.apple.Spotlight-Settings.extension	Spotlight	System Settings	spotlight	systemsettings	-	indexing | System Settings	50
+68	settingsPane:x-apple.systempreferences:com.apple.Wallpaper-Settings.extension	Wallpaper	System Settings	wallpaper	systemsettings	-	background, desktop picture, screensaver | System Settings	50
+69	settingsPane:x-apple.systempreferences:com.apple.Notifications-Settings.extension	Notifications	System Settings	notifications	systemsettings	-	alerts, badges, banners | System Settings	50
+70	settingsPane:x-apple.systempreferences:com.apple.Sound-Settings.extension	Sound	System Settings	sound	systemsettings	-	audio, alert sound, output device, input device | System Settings	50
+71	settingsPane:x-apple.systempreferences:com.apple.Focus-Settings.extension	Focus	System Settings	focus	systemsettings	-	do not disturb, dnd, quiet hours | System Settings	50
+72	settingsPane:x-apple.systempreferences:com.apple.Screen-Time-Settings.extension	Screen Time	System Settings	screenTime	systemsettings	-	downtime, app limits, parental controls | System Settings	50
+73	settingsPane:x-apple.systempreferences:com.apple.Lock-Screen-Settings.extension	Lock Screen	System Settings	lockScreen	systemsettings	-	screensaver, require password | System Settings	50
+74	settingsPane:x-apple.systempreferences:com.apple.settings.PrivacySecurity.extension	Privacy & Security	System Settings	privacy	systemsettings	-	permissions, filevault, firewall, camera access, microphone access, accessibility access | System Settings	50
+75	settingsPane:x-apple.systempreferences:com.apple.Touch-ID-Settings.extension	Touch ID & Password	System Settings	touchId	systemsettings	-	fingerprint, login password | System Settings	50
+76	settingsPane:x-apple.systempreferences:com.apple.systempreferences.AppleIDSettings	Apple Account	System Settings	appleAccount	systemsettings	-	apple id, icloud | System Settings	50
+77	settingsPane:x-apple.systempreferences:com.apple.Family-Settings.extension	Family	System Settings	family	systemsettings	-	family sharing, kids | System Settings	50
+78	settingsPane:x-apple.systempreferences:com.apple.Keyboard-Settings.extension	Keyboard	System Settings	keyboard	systemsettings	-	shortcuts, input sources, text replacement, dictation | System Settings	50
+79	settingsPane:x-apple.systempreferences:com.apple.Mouse-Settings.extension	Mouse	System Settings	mouse	systemsettings	-	pointer, scroll direction, tracking speed | System Settings	50
+80	settingsPane:x-apple.systempreferences:com.apple.Trackpad-Settings.extension	Trackpad	System Settings	trackpad	systemsettings	-	gestures, tap to click, natural scrolling | System Settings	50
+81	settingsPane:x-apple.systempreferences:com.apple.Print-Scan-Settings.extension	Printers & Scanners	System Settings	printers	systemsettings	-	add printer | System Settings	50
+82	settingsPane:x-apple.systempreferences:com.apple.Users-Groups-Settings.extension	Users & Groups	System Settings	users	systemsettings	-	accounts, guest user | System Settings	50
+83	settingsPane:x-apple.systempreferences:com.apple.Internet-Accounts-Settings.extension	Internet Accounts	System Settings	internetAccounts	systemsettings	-	mail accounts, google, exchange | System Settings	50
+84	settingsPane:x-apple.systempreferences:com.apple.Game-Center-Settings.extension	Game Center	System Settings	gameCenter	systemsettings	-	friends, achievements | System Settings	50
+85	settingsPane:x-apple.systempreferences:com.apple.Game-Controller-Settings.extension	Game Controllers	System Settings	gameControllers	systemsettings	-	gamepad, joystick | System Settings	50
+86	settingsPane:x-apple.systempreferences:com.apple.Date-Time-Settings.extension	Date & Time	System Settings	dateTime	systemsettings	-	clock, timezone, time zone | System Settings	50
+87	settingsPane:x-apple.systempreferences:com.apple.Localization-Settings.extension	Language & Region	System Settings	language	systemsettings	-	locale, date format, number format | System Settings	50
+88	settingsPane:x-apple.systempreferences:com.apple.Sharing-Settings.extension	Sharing	System Settings	sharing	systemsettings	-	screen sharing, file sharing, remote login, computer name | System Settings	50
+89	settingsPane:x-apple.systempreferences:com.apple.Time-Machine-Settings.extension	Time Machine	System Settings	timeMachine	systemsettings	-	backup | System Settings	50
+90	settingsPane:x-apple.systempreferences:com.apple.Startup-Disk-Settings.extension	Startup Disk	System Settings	startupDisk	systemsettings	-	boot | System Settings	50
+91	settingsPane:x-apple.systempreferences:com.apple.LoginItems-Settings.extension	Login Items & Extensions	System Settings	loginItems	systemsettings	-	startup apps, open at login, background items | System Settings	50
+92	settingsPane:x-apple.systempreferences:com.apple.Software-Update-Settings.extension	Software Update	System Settings	softwareUpdate	systemsettings	-	upgrade, macos update | System Settings	50
+93	settingsPane:x-apple.systempreferences:com.apple.settings.Storage	Storage	System Settings	storage	systemsettings	-	disk space, free space | System Settings	50
+94	settingsPane:x-apple.systempreferences:com.apple.Profiles-Settings.extension	Device Management	System Settings	deviceManagement	systemsettings	-	profiles, mdm | System Settings	50
+95	bridge:launcher	App Launcher	Olm	launcher	bridge	olmAppLauncher	Olm	-
+96	bridge:quit	Quit Olm App	Olm	quit	bridge	olmAppRunning	olm.app, stop, exit | Olm	-
+97	bridge:settings	Olm Settings	Olm	settings	bridge	olmAppReady	preferences, options, configure, theme, placement, chooser, plugins | Olm	-

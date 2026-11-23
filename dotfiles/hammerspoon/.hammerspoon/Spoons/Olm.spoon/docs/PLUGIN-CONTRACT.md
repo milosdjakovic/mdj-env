@@ -1620,7 +1620,9 @@ title, and for a number `min`, `max`, `step`, `unit` and `shipped`. `at` is a pa
 plugin's own data, its first word a `needs.data` field the plugin declares with source user, and
 `shipped` is the value the data takes when the person's file leaves the key out, filled in before
 `configure` since 2026-11-23, so the manifest is the one statement of a default. `section` is one of the window's sections in
-`lib/settings.lua`'s `SECTIONS`, and `kind` is `number` or `switch`.
+`lib/settings.lua`'s `SECTIONS`, and `kind` is `number`, `switch`, `choice`, `apps` or `sizes`,
+the last two drawn by a page of their own, Applications and Window Management. `extra` names a member
+of the plugin the root calls as the share is written, its answer handed to that page.
 
 The root reads the list with `lib/settings.lua`'s `fromManifest` once the plugin's data is merged
 and before `configure`, declares each entry as the identity, a dot and the key, and lays a value

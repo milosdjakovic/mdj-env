@@ -253,12 +253,17 @@ end
 local lastWindow = nCapture + 1 + nOwn + nWindows
 -- The layouts, which ship with no key, trail the bound window actions, Hide All Except Focused last
 -- among those.
-local nLayouts = 0
+-- The listed window actions after Hide All Except Focused, the layouts and the named sizes.
+local listed, after = {}, 0
 for _, d in ipairs(windows:actions()) do
-  if d.name:match("^cycle") then nLayouts = nLayouts + 1 end
+  if d.listed ~= false then listed[#listed + 1] = d.name end
 end
-local hideRow = lastWindow - nLayouts
-eq("the last window action precedes the panes", actionRows[lastWindow].title, "Quarters")
+for i, name in ipairs(listed) do
+  if name == "hideAllExceptFocused" then after = #listed - i end
+end
+local hideRow = lastWindow - after
+local lastItem = actionRows[lastWindow] and actionRows[lastWindow].item or {}
+eq("the last window action precedes the panes", lastItem.key or lastItem.name, listed[#listed])
 eq("the first pane follows every command", actionRows[lastWindow + 1].title, "Wi-Fi")
 eq("the last row is the last pane", actionRows[#actionRows].title, "Device Management")
 

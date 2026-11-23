@@ -80,7 +80,9 @@ public final class WindowShadow: @unchecked Sendable {
     if app.id != theirs.id { out.append("id") }
     if app.screen != theirs.screen { out.append("screen") }
     if app.screens.count != theirs.screens.count
-      || zip(app.screens, theirs.screens).contains(where: { $0.uuid != $1.uuid || !near($0.frame, $1.frame) }) {
+      || zip(app.screens, theirs.screens).contains(where: {
+        $0.uuid != $1.uuid || !near($0.frame, $1.frame) || $0.builtin != $1.builtin
+      }) {
       out.append("screens")
     }
     // The app's plan over its own read and its own settings, with Hammerspoon's depth and memory.
@@ -89,6 +91,7 @@ public final class WindowShadow: @unchecked Sendable {
     mine.id = app.id
     mine.screen = app.screen
     mine.screens = app.screens
+    if let p = app.pointer { mine.pointer = p }
     if let settings {
       if settings.margins != theirs.margins || settings.gap != theirs.gap || settings.sizing != theirs.sizing {
         out.append("settings")
@@ -97,7 +100,8 @@ public final class WindowShadow: @unchecked Sendable {
       mine.gap = settings.gap
       mine.sizing = settings.sizing
     }
-    let planned = WindowPlan.plan(action, mine)
+    // The plan Hammerspoon ran, namedSize for a named size whose key names the size.
+    let planned = WindowPlan.plan(report["action"] as? String ?? action, mine)
     let wanted = (report["result"] as? [String: Any]).flatMap(WindowResult.init(json:))
     switch (planned, wanted) {
     case (nil, nil): break

@@ -365,6 +365,19 @@ a plain combination with Command is likely an app's menu item; macOS keeps some 
 any app sees them, Hyper and slash among them; and a remapped key loses its own meaning in every
 app. The full list is written when the recorder is designed.
 
+**Window Management, a page of its own, 2026-11-23.** Milos asked where his layouts, his named
+sizes and their keys are. The section is drawn by `Windows.swift` as the Applications page is by its
+own: every window action the launcher lists, read from the window manager's `catalog()` through the
+sizes setting's `extra`, in cards, Layouts, Displays, Sizes, Moving and Resizing, Other, each with a
+shortcut recorder at the right, META implied, Delete for none, Escape to leave it, and the steps and
+sizes as numbers last. A named size is the setting `windowmanager.sizes`, kind `sizes`, a list of
+`{ id, name, width, height, unit, anchor, display }`: points or a percent of the screen, one of nine
+anchors picked on a three by three grid, and where it is, the built in display, the first external
+or the one under the pointer. Small and Recording ship, can be changed and not removed, and keep
+their actions, smallSize and screenRecording, so META and Z still reaches Small; a size added is the
+action size and its id. Adding, changing or removing one applies on the reload the window's close
+runs, so a new size takes a key once the window has closed once.
+
 **Export and import, 2026-11-23.** Milos's aim is one Olm config, exported and imported, that makes
 another Mac's Olm the same, with Hammerspoon still behind the bridge until its behaviour moves. The
 store is that config. Export writes its values under the kind `olm.config` to a file the person

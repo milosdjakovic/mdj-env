@@ -39,6 +39,8 @@ public enum SettingValue: Equatable, Sendable {
   case apps([String: AppOverride])
   /// Olm's own keys, an action id to its chord, nil for none.
   case keys([String: String?])
+  /// The window manager's named sizes, in order.
+  case sizes([WindowSize])
   case none
 
   init(_ any: Any?) {
@@ -71,6 +73,7 @@ public enum SettingValue: Equatable, Sendable {
     case .names(let a): return a
     case .apps(let o): return o.mapValues(\.any)
     case .keys(let o): return o.mapValues { $0 as Any? ?? false }
+    case .sizes(let list): return list.map(\.any)
     case .none: return NSNull()
     }
   }
@@ -82,6 +85,12 @@ public enum SettingValue: Equatable, Sendable {
   public var keys: [String: String?]? {
     if case .keys(let o) = self { return o }
     if case .names(let a) = self, a.isEmpty { return [:] }
+    return nil
+  }
+
+  /// The named sizes, none for anything else.
+  public var sizes: [WindowSize]? {
+    if case .sizes(let list) = self { return list }
     return nil
   }
 
@@ -105,6 +114,58 @@ public struct CatalogApp: Equatable, Sendable {
   public let path: String?
 }
 
+/// One named size of the window manager, plugins/windowmanager/plan.lua's named size: a name, a width
+/// and a height in points or a percent of the screen, one of nine anchors and a display. Its id names
+/// its action, small and recording shipped.
+public struct WindowSize: Equatable, Sendable, Identifiable {
+  public var id: String
+  public var name: String
+  public var width: Double
+  public var height: Double
+  public var percent: Bool
+  public var anchor: String
+  public var display: String
+
+  public init(id: String, name: String, width: Double, height: Double, percent: Bool = false,
+    anchor: String = "center", display: String = "current") {
+    self.id = id
+    self.name = name
+    self.width = width
+    self.height = height
+    self.percent = percent
+    self.anchor = anchor
+    self.display = display
+  }
+
+  init?(json any: Any) {
+    guard let o = any as? [String: Any], let id = o["id"] as? String, let name = o["name"] as? String,
+      let w = o["width"] as? NSNumber, let h = o["height"] as? NSNumber else { return nil }
+    self.init(id: id, name: name, width: w.doubleValue, height: h.doubleValue,
+      percent: o["unit"] as? String == "percent", anchor: o["anchor"] as? String ?? "center",
+      display: o["display"] as? String ?? "current")
+  }
+
+  static func list(_ any: Any?) -> [WindowSize] { (any as? [Any] ?? []).compactMap { WindowSize(json: $0) } }
+
+  var any: [String: Any] {
+    ["id": id, "name": name, "width": width, "height": height, "unit": percent ? "percent" : "points",
+      "anchor": anchor, "display": display]
+  }
+
+  /// The two sizes that ship, which can be changed and not removed.
+  public var shipped: Bool { id == "small" || id == "recording" }
+}
+
+/// One window action as the Window Management page lists it, the window manager's catalog: its name,
+/// its title, the part of the page it belongs to and, for a named size, the size's id.
+public struct WindowAction: Equatable, Sendable, Identifiable {
+  public let action: String
+  public let title: String
+  public let group: String
+  public let size: String?
+  public var id: String { action }
+}
+
 public struct SettingChoice: Equatable, Sendable, Identifiable {
   public let value: String
   public let title: String
@@ -112,7 +173,7 @@ public struct SettingChoice: Equatable, Sendable, Identifiable {
 }
 
 public struct Setting: Equatable, Sendable, Identifiable {
-  public enum Kind: String, Sendable { case choice, number, font, `switch`, apps, keys, other }
+  public enum Kind: String, Sendable { case choice, number, font, `switch`, apps, keys, sizes, other }
 
   public let id: String
   public let title: String
@@ -132,6 +193,8 @@ public struct Setting: Equatable, Sendable, Identifiable {
   public let value: SettingValue
   /// The app toggler's catalog, for the Applications page, empty for every other setting.
   public var catalog: [CatalogApp] = []
+  /// The window manager's actions, for the Window Management page, empty for every other setting.
+  public var windowActions: [WindowAction] = []
 
   public var needsReload: Bool { applies == "reload" }
   public var differs: Bool { defaultValue != .none && value != defaultValue }
@@ -182,13 +245,23 @@ public struct SettingsShare: Equatable, Sendable {
       return CatalogApp(name: name, bundle: bundle, style: e["style"] as? String, hides: e["hides"] as? Bool,
         placed: e["placed"] as? Bool ?? false, added: e["added"] as? Bool ?? false, path: e["path"] as? String)
     }
+    let kind = Setting.Kind(rawValue: r["kind"] as? String ?? "") ?? .other
+    // A list of sizes is read as sizes, since read by shape alone it is a list of names.
+    func value(_ any: Any?) -> SettingValue { kind == .sizes ? .sizes(WindowSize.list(any)) : SettingValue(any) }
     var made = Setting(id: id, title: title, detail: r["detail"] as? String,
-      kind: Setting.Kind(rawValue: r["kind"] as? String ?? "") ?? .other,
+      kind: kind,
       keywords: r["keywords"] as? [String] ?? [], applies: r["applies"] as? String ?? "live",
       choices: choices, min: number("min"), max: number("max"), step: number("step"),
       unit: r["unit"] as? String, locked: r["locked"] as? String,
-      defaultValue: SettingValue(r["default"]), value: SettingValue(r["value"]))
-    made.catalog = catalog
+      defaultValue: value(r["default"]), value: value(r["value"]))
+    made.catalog = kind == .sizes ? [] : catalog
+    if kind == .sizes {
+      made.windowActions = ((r["extra"] as? [Any]) ?? []).compactMap { any -> WindowAction? in
+        guard let e = any as? [String: Any], let action = e["action"] as? String, let title = e["title"] as? String
+        else { return nil }
+        return WindowAction(action: action, title: title, group: e["group"] as? String ?? "layout", size: e["size"] as? String)
+      }
+    }
     return made
   }
 

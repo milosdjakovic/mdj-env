@@ -14,11 +14,10 @@ local SIZING = {
   maxWidth = 2400, maxHeight = 1350, fullHeightMaxWidth = 2400,
   movePixels = 20, movePixelsHeld = 40, resizePixels = 30, resizePixelsHeld = 50,
   holdGrace = 1, minWidth = 400, minHeight = 300,
-  screenRecording = { width = 2400, height = 1350 }, smallSize = { width = 700, height = 800 },
 }
 -- The built in panel under its menu bar, an ultrawide to its right set higher, and a portrait
 -- screen to its left.
-local LAPTOP = { uuid = "LAPTOP", frame = { x = 0, y = 33, w = 1512, h = 949 } }
+local LAPTOP = { uuid = "LAPTOP", frame = { x = 0, y = 33, w = 1512, h = 949 }, builtin = true }
 local WIDE = { uuid = "WIDE", frame = { x = 1512, y = -400, w = 3440, h = 1415 } }
 local TALL = { uuid = "TALL", frame = { x = -1080, y = -500, w = 1080, h = 1895 } }
 
@@ -37,7 +36,7 @@ local function case(name, action, over)
 end
 
 for _, a in ipairs({ "maximize", "center", "fullHeight", "fullHeightReasonableWidth", "reasonableSize",
-  "leftHalf", "rightHalf", "smallSize" }) do
+  "leftHalf", "rightHalf" }) do
   case(a .. " on the laptop", a)
   case(a .. " with a gap of 12", a, { margins = margins(12), gap = 12 })
   case(a .. " on the ultrawide", a, { screen = "WIDE", screens = { LAPTOP, WIDE },
@@ -116,8 +115,33 @@ case("a window with no id remembers nothing and is not remembered", "nextDisplay
   memory = { WIDE = { x = 2100, y = -200, w = 2400, h = 1200 } } })
 case("to a screen by uuid", "toScreen", { screens = three, target = "TALL" })
 case("to a screen not among the screens does nothing", "toScreen", { screens = two, target = "GONE" })
-case("screen recording on the second screen", "screenRecording", { screens = two })
-case("screen recording on one screen", "screenRecording")
+-- Named sizes: points and a share of the screen, every anchor, too large for the screen, with a gap,
+-- and each display, the laptop being the built in one.
+local function size(over)
+  local z = { width = 700, height = 800, unit = "points", anchor = "center", display = "current" }
+  for k, v in pairs(over or {}) do z[k] = v end
+  return z
+end
+case("a named size centred", "namedSize", { named = size() })
+case("a named size with a gap of 12", "namedSize", { named = size(), margins = margins(12), gap = 12 })
+local anchorNames = {}
+for name in pairs(Plan.ANCHORS) do anchorNames[#anchorNames + 1] = name end
+table.sort(anchorNames)
+for _, a in ipairs(anchorNames) do
+  case("a named size at " .. a, "namedSize", { named = size({ anchor = a }) })
+end
+case("a named size as a share of the screen", "namedSize", { named = size({ unit = "percent", width = 60, height = 80 }) })
+case("a named size larger than the screen is trimmed", "namedSize", { named = size({ width = 3000, height = 2000 }) })
+case("a named size on the external screen", "namedSize", { screens = two, named = size({ display = "external", width = 2400, height = 1350 }) })
+case("a named size on the external screen with none attached stays", "namedSize", { named = size({ display = "external" }) })
+case("a named size on the built in screen from the ultrawide", "namedSize", { screens = two, screen = "WIDE",
+  window = { x = 2000, y = -300, w = 1200, h = 900 }, named = size({ display = "builtin" }) })
+case("a named size under the pointer", "namedSize", { screens = two, pointer = { x = 3000, y = 100 },
+  named = size({ display = "pointer" }) })
+case("a named size under no screen stays", "namedSize", { screens = two, pointer = { x = 9000, y = 100 },
+  named = size({ display = "pointer" }) })
+case("no named size does nothing", "namedSize")
+case("a named size of no width does nothing", "namedSize", { named = size({ width = 0 }) })
 
 -- false above stands for a field left out, since a Lua table cannot hold nil.
 for _, c in ipairs(cases) do

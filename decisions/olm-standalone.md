@@ -1566,3 +1566,13 @@ card's padding. The column is now built from its parts, Space.control, the reset
 every page's rows share one inset either side. Repeats before the held step became Small steps
 before speeding up with a line under it, since its title said nothing to him, and a plugin's setting
 may now carry that line, detail.
+
+**2026-11-23 15:06, the Window Management page, named sizes and their keys.** Milos asked where
+his layouts, his named sizes, Recording among them, and their keys are, and agreed to a page of its
+own. Every window action is listed from the plugin's catalog with a recorder, META implied, through
+the same keys setting the Applications page writes, so keys did not wait for META to move. Small and
+Recording became the first two named sizes, keeping their action names and so Z, the four numbers
+they had removed. A size is points or a percent of the screen, one of nine anchors and one of four
+displays. Rejected: a key recorder taking META itself, since Olm.app claims every META combination
+and the press would run the action; and a size id typed by the person, since it names an action and
+is made from the name instead.

@@ -73,6 +73,17 @@ quarters, each pressed again to step to the next tile, round robin. They are `LA
 and `WindowPlan.layouts`, a grid and its tiles, one rule for every layout, held to 41 recorded cases,
 from no tile, from each tile, with a gap, on the ultrawide and from a terminal a cell short of a tile.
 
+### Named sizes, 2026-11-23
+
+A size Milos names, Small, Recording or his own, is plan.lua's `namedSize` over `s.named`, `{ width,
+height, unit, anchor, display }`, and `WindowPlan`'s port, held to 20 recorded cases, every anchor, a
+share of the screen, trimmed to the canvas, each display and each display missing. The input gained
+`pointer` and each screen `builtin`, read in Lua from the screen's name and in the app from
+`CGDisplayIsBuiltin`. Small and Recording were two actions with numbers of their own and are now two
+sizes, Recording moving to the first external screen rather than the second in the list. The
+report Hammerspoon hands the shadow names the action it planned, so a size's press compares
+`namedSize`.
+
 ## Rejected
 
 - **Porting the plugin method by method into Swift with no shared statement.** 2026-11-23. The

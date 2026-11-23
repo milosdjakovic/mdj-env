@@ -30,6 +30,12 @@ window stands on, allowing a terminal its row and column of size, and a window o
 the first. They ship with no key and are found in the launcher by name, and a key is a line in
 config/keymap.lua. The gap parts the tiles as it parts the halves.
 
+Named sizes are a list in Olm Settings under Window Management, Small and Recording shipped and any
+number added there, each a width and a height in points or a percent of the screen, one of nine
+places on the screen and a display, the one the window is on, the built in one, the first external
+one or the one under the pointer. Each is an action of its own, listed in the launcher and given a key
+on the same page.
+
 There is no key of its own. Every action is bound under the window leader
 instead, a bare arrow key for resizing, WASD for moving, and letters and symbols
 for maximise, presets, growing, shrinking, centring, and switching displays.

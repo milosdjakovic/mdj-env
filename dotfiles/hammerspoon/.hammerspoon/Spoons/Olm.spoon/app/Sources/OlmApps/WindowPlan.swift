@@ -20,9 +20,27 @@ public struct WindowRect: Sendable, Equatable {
 public struct WindowScreen: Sendable, Equatable {
   public var uuid: String
   public var frame: WindowRect
-  public init(uuid: String, frame: WindowRect) {
+  /// The Mac's own panel, which a named size may ask for.
+  public var builtin: Bool
+  public init(uuid: String, frame: WindowRect, builtin: Bool = false) {
     self.uuid = uuid
     self.frame = frame
+    self.builtin = builtin
+  }
+}
+
+/// A named size, plan.lua's s.named: points or a percent of the canvas, an anchor and a display.
+public struct WindowNamedSize: Sendable, Equatable {
+  public var width: Double, height: Double
+  public var percent: Bool
+  public var anchor: String
+  public var display: String
+  public init(width: Double, height: Double, percent: Bool = false, anchor: String = "center", display: String = "current") {
+    self.width = width
+    self.height = height
+    self.percent = percent
+    self.anchor = anchor
+    self.display = display
   }
 }
 
@@ -67,6 +85,8 @@ public struct WindowInput: Sendable {
   public var depth: Int = 0
   public var size: (width: Double, height: Double)?
   public var target: String?
+  public var named: WindowNamedSize?
+  public var pointer: (x: Double, y: Double)?
   public var memory: [String: WindowRect] = [:]
   public init() {}
 }
@@ -192,6 +212,44 @@ public enum WindowPlan {
 
   static let moves = ["moveLeft": "left", "moveRight": "right", "moveUp": "up", "moveDown": "down"]
 
+  /// plan.lua's ANCHORS, each a fraction across and down the room a named size leaves.
+  public static let anchors: [String: (Double, Double)] = [
+    "topLeft": (0, 0), "top": (0.5, 0), "topRight": (1, 0), "left": (0, 0.5), "center": (0.5, 0.5),
+    "right": (1, 0.5), "bottomLeft": (0, 1), "bottom": (0.5, 1), "bottomRight": (1, 1),
+  ]
+
+  /// plan.lua's displayFor, the screen a named size lands on, the window's own when the one asked for
+  /// is not there.
+  static func display(_ s: WindowInput, _ current: WindowScreen, _ choice: String) -> WindowScreen {
+    for screen in s.screens {
+      if choice == "builtin" && screen.builtin { return screen }
+      if choice == "external" && !screen.builtin { return screen }
+      if choice == "pointer", let p = s.pointer {
+        let f = screen.frame
+        if p.x >= f.x && p.x < f.x + f.w && p.y >= f.y && p.y < f.y + f.h { return screen }
+      }
+    }
+    return current
+  }
+
+  /// plan.lua's named, a named size stood at its anchor on its screen.
+  static func named(_ s: WindowInput, _ f: WindowRect, _ screen: WindowScreen) -> WindowResult? {
+    guard let z = s.named, z.width > 0, z.height > 0 else { return nil }
+    let target = display(s, screen, z.display)
+    let c = canvas(target.frame, s.margins)
+    var w = z.width, h = z.height
+    if z.percent { w = c.w * w / 100; h = c.h * h / 100 }
+    w = min(w, c.w); h = min(h, c.h)
+    let a = anchors[z.anchor] ?? (0.5, 0.5)
+    var result = WindowResult(frame: WindowRect(x: c.x + (c.w - w) * a.0, y: c.y + (c.h - h) * a.1, w: w, h: h))
+    if target.uuid != screen.uuid {
+      result.screen = target.uuid
+      result.remember = s.id != nil ? (screen: screen.uuid, frame: f) : nil
+      result.verify = true
+    }
+    return result
+  }
+
   /// plan.lua's LAYOUTS, a grid of columns and rows and its tiles in order, each a column, a row and
   /// the columns and rows it spans, all from zero.
   public struct Layout: Sendable {
@@ -261,9 +319,8 @@ public enum WindowPlan {
     case "increaseSize", "decreaseSize":
       let step = resizeStep(sizing, s.depth)
       return adjust(f, c, sizing, action == "increaseSize" ? step : -step).map { WindowResult(frame: $0) }
-    case "smallSize":
-      let small = sized(screen.frame, sizing.smallSize?.width ?? 700, sizing.smallSize?.height ?? 800)
-      return WindowResult(frame: WindowRect(x: c.x + (c.w - small.w) / 2, y: c.y + (c.h - small.h) / 2, w: small.w, h: small.h))
+    case "namedSize":
+      return named(s, f, screen)
     case "exactSize":
       guard let size = s.size else { return nil }
       return WindowResult(frame: sized(screen.frame, size.width, size.height))
@@ -276,12 +333,6 @@ public enum WindowPlan {
     case "toScreen":
       guard let target = s.screens.first(where: { $0.uuid == s.target }) else { return nil }
       return place(s, f, screen, target)
-    case "screenRecording":
-      let target = s.screens.count > 1 ? s.screens[1] : s.screens[0]
-      var moved = place(s, f, screen, target)
-      moved.frame = sized(target.frame, sizing.screenRecording?.width ?? 2400, sizing.screenRecording?.height ?? 1350)
-      moved.verify = target.uuid != screen.uuid
-      return moved
     default:
       if let direction = moves[action] { return WindowResult(frame: move(f, c, direction, moveStep(sizing, s.depth))) }
       return nil
@@ -309,7 +360,15 @@ extension WindowInput {
     screen = o["screen"] as? String
     screens = (o["screens"] as? [[String: Any]] ?? []).compactMap { sc in
       guard let uuid = sc["uuid"] as? String, let f = WindowRect(json: sc["frame"]) else { return nil }
-      return WindowScreen(uuid: uuid, frame: f)
+      return WindowScreen(uuid: uuid, frame: f, builtin: sc["builtin"] as? Bool ?? false)
+    }
+    if let z = o["named"] as? [String: Any] {
+      named = WindowNamedSize(width: (z["width"] as? NSNumber)?.doubleValue ?? 0,
+        height: (z["height"] as? NSNumber)?.doubleValue ?? 0, percent: z["unit"] as? String == "percent",
+        anchor: z["anchor"] as? String ?? "center", display: z["display"] as? String ?? "current")
+    }
+    if let p = o["pointer"] as? [String: Any], let x = p["x"] as? NSNumber, let y = p["y"] as? NSNumber {
+      pointer = (x.doubleValue, y.doubleValue)
     }
     if let m = o["margins"] as? [String: Any] {
       func n(_ k: String) -> Double { (m[k] as? NSNumber)?.doubleValue ?? 0 }
