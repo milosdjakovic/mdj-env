@@ -370,6 +370,13 @@ end
 -- sheet down, as a press of the key does.
 function obj:_keyMethods(methods)
   methods.releaseKeys = { run = function(params)
+    -- The second pass of a reclaim, a second after a socket went, stops here, since an app that came
+    -- back within that second now claims the keys and the pass would fail on every combination it
+    -- holds exclusively, -9878, as each quick relaunch of the app did on 2026-11-23.
+    if self._keyTimer then
+      self._keyTimer:stop()
+      self._keyTimer = nil
+    end
     local allowed = {}
     for _, name in ipairs(self._appKeys or {}) do allowed[name] = true end
     local released, refused, lists = {}, {}, {}

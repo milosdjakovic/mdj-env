@@ -1532,3 +1532,10 @@ runKey, and the app compares both reads and both plans. Sharing the window setti
 left as a question, since the obvious answer adds five settings to Olm Settings and that is his.
 Reading the window in Hammerspoon and only comparing plans was turned down, since the reads are what
 the flip risks, the plan being held to 72 fixtures already.
+
+**2026-11-23 13:08, a reclaim's second pass raced a quick relaunch.** Reading the console
+after 6.3b's load found 57 RegisterEventHotKey -9878 errors at each of two quick relaunches of
+Olm.app earlier that day, none at the load itself. When the socket goes, Hammerspoon reclaims the
+keys at once and again a second later, and an app back within that second had already claimed them
+exclusively, so the second pass failed on each. Keys kept working, the app holding them. releaseKeys
+now stops the pending pass.
