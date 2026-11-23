@@ -57,6 +57,10 @@ return {
       -- The list saying which app takes which style, reaching this plugin as `data.toggles`.
       toggles = { source = "user", policy = "optional",
                   breaks = "every app keeps its plain focus or cycle" },
+      -- What an app key does where neither its style nor its entry says, cycle or hides, set in Olm
+      -- Settings, reaching this plugin as `data.mode`.
+      mode = { source = "user", policy = "optional",
+               breaks = "every app with no hides of its own cycles its windows" },
     },
   },
 
@@ -71,6 +75,15 @@ return {
     actions = "actions",
   },
 
+  -- The mode an app key takes where its style says nothing, in Olm Settings, docs/DESIGN-APP-SETTINGS.md
+  -- S.4. A style or an entry stating hides, Herdr's popup among them, keeps its own.
+  settings = {
+    { key = "mode", at = { "mode" }, section = "behaviour", title = "App Keys", kind = "choice",
+      shipped = "cycle", keywords = { "hyper", "toggle", "cycle", "hide", "show", "windows", "switch" },
+      choices = { { value = "cycle", title = "Cycle through windows" },
+                  { value = "hides", title = "Show and hide" } } },
+  },
+
   defaults = {
     -- The role the suggested key below lands on, the app leader.
     leader = "app",
@@ -83,6 +96,8 @@ return {
     },
     styles = {},
     toggles = {},
+    -- Cycle round an app's windows, the default Milos chose on 2026-11-23, or hides, show and hide.
+    mode = "cycle",
     -- The one suggested key, Finder on the app leader, exactly what a fresh install with nothing
     -- else configured is meant to demonstrate. Every other key is the person's.
     bindings = {

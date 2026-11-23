@@ -160,6 +160,8 @@ function obj:configure(opts)
   -- core split moved it into lib/appfocus.lua so the launcher's app rows name no plugin, and
   -- this plugin calls the same module rather than keeping a copy.
   self._appFocus = opts.appFocus
+  -- What an app key does where its style and its entry say nothing, cycle or hides.
+  self._mode = opts.mode == "hides" and "hides" or "cycle"
   self:_build(self._apps, opts.styles or {}, opts.toggles or {})
   return self
 end
@@ -470,10 +472,15 @@ function obj:_build(apps, styles, toggles)
     if type(name) == "string" and type(bundleID) == "string" then
       local appFocus = self._appFocus
       local style = styled[name]
+      -- The global mode answers hides wherever the style and the entry leave it unsaid, so an app
+      -- may still say hides = false to cycle under a show and hide default.
+      local spec = style and style.spec
+      if spec and spec.hides == nil then spec.hides = self._mode == "hides" end
+      if not spec and self._mode == "hides" then spec = { hides = true } end
       actions[#actions + 1] = {
         name = name, app = bundleID, description = style and style.description or nil,
         group = function() return self_ref:_isRunning(bundleID) and RUNNING or DORMANT end,
-        run = style and self:_buildAction(style.spec, bundleID)
+        run = spec and self:_buildAction(spec, bundleID)
           or function() appFocus.focusOrCycle(bundleID, "apptoggler." .. name) end,
       }
     end

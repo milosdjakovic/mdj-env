@@ -9,7 +9,9 @@
 -- config/apps.lua, so a key in config/keymap.lua names the app and never the style. An entry may
 -- override a field of its style, a placement naming only a width keeps the style's height and
 -- padding, and may add a `description`, the label Olm shows for the app's action. An app not
--- listed keeps the plain focus or cycle.
+-- listed, and a style that leaves `hides` unsaid, takes the mode App Keys sets in Olm Settings,
+-- cycling through its windows as shipped, so `hides = false` keeps an app cycling under a show and
+-- hide default.
 
 return {
   styles = {

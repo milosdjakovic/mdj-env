@@ -73,6 +73,10 @@ Named variants, each a second action for one app such as `GhosttyPlaced`, were
 the form before 2026-10-24. They needed a name per behaviour per app, and a
 style named once on the app's own action replaced them.
 
+An app key's mode where nothing says otherwise is App Keys in Olm Settings, under Behaviour,
+Cycle through windows as shipped or Show and hide. A style or an entry that states `hides` keeps
+its own, so `hides = false` cycles under a show and hide default.
+
 `hides` swaps the default focus-or-cycle behaviour for show and hide. Focused
 hides, visible but unfocused focuses, hidden or not running launches or shows.
 Absent means focus-or-cycle, first press showing the last focused window and

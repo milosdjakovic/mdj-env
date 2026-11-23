@@ -1460,3 +1460,12 @@ again at the first window. It steps from the app's own focused window now, or it
 the focused one is a popup or a sheet, in Lua and in the app alike, and both tests walk three
 windows round and wrap. Written by another session and left uncommitted, taken over here at
 Milos's word after review.
+
+**2026-11-23 11:07, app keys gain a global mode in Olm Settings.** Milos asked for two modes, show and
+hide as Herdr's popup has it, and cycling round an app's windows, the second the default, with one
+global setting and an app overriding it. The override was already a style's hides. App Keys, under
+Behaviour, is the global one, Cycle through windows as shipped, and an app whose style and entry
+leave hides unsaid takes it, so hides false keeps an app cycling under a show and hide default. A
+plugin's own setting could be a number or a switch only, and a choice reads truer than a switch
+named for one of two modes, so lib/settings.lua's fromManifest reads a choice too, its choices
+checked and carried to the window.

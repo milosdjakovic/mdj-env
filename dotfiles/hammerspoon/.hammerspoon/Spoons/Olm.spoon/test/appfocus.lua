@@ -162,5 +162,28 @@ runs.Fn()
 eq(#sent, 2, "a placement written as a function is never handed over")
 eq(did[1], "launch f.f", "and runs in Lua")
 
+-- The mode an app key takes where nothing says, Olm Settings' App Keys. Under show and hide an
+-- unstyled app shows and hides, a style stating hides keeps it, and an entry saying hides false
+-- still cycles.
+sent = {}
+appfocus.forwardTo(function(press) sent[#sent + 1] = press; return true end)
+local moded = assert(loadfile(here .. "../plugins/apptoggler/init.lua"))()
+moded:configure({ apps = { Ghostty = "g.g", Safari = "s.s", Chrome = "c.c" }, appFocus = appfocus, mode = "hides",
+  styles = { popup = { hides = true }, sized = { placement = { width = 100, height = 50 } } },
+  toggles = { { app = "Ghostty", style = "popup" }, { app = "Chrome", style = "sized", hides = false } } })
+local modeRuns = {}
+for _, a in ipairs(moded:actions()) do modeRuns[a.name] = a.run end
+modeRuns.Safari()
+eq(sent[1] and sent[1].hides, true, "under show and hide an unstyled app shows and hides")
+modeRuns.Chrome()
+eq(sent[2] and sent[2].hides, false, "an entry saying hides false still cycles")
+modeRuns.Ghostty()
+eq(sent[3] and sent[3].hides, true, "a style stating hides keeps it")
+local cycling = assert(loadfile(here .. "../plugins/apptoggler/init.lua"))()
+cycling:configure({ apps = { Safari = "s.s" }, appFocus = appfocus, mode = "cycle",
+  styles = { sized = { placement = { width = 100, height = 50 } } }, toggles = { { app = "Safari", style = "sized" } } })
+cycling:actions()[1].run()
+eq(sent[4] and sent[4].hides, false, "under cycle a style saying nothing of hides cycles")
+
 print(string.format("appfocus: %d checks, %d failures", checks, failures))
 os.exit(failures == 0 and 0 or 1)

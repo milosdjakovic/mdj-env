@@ -312,7 +312,7 @@ do
   local problems = settings.plugin("wm", specs, data)
   check("a spec naming no section is a problem", problems[1], "settings[4] names no section of the window, nowhere, so it is left out")
   check("a repeated key is a problem", problems[2], "settings[5] repeats the key movePixels, so it is left out")
-  check("a kind it cannot read is a problem", problems[3], "settings[6] has the kind choice, where a number or a switch is read, so it is left out")
+  check("a choice with no choices is a problem", problems[3], "settings[6] is a choice with no list of two or more, each a value and a title, shipping one of them, so it is left out")
   check("and the rest are declared", settings.declaration("wm.movePixels") ~= nil and settings.declaration("wm.bad") == nil, true)
   check("the id is the identity, a dot and the key", settings.declaration("wm.resizePixels").section, "windows")
   check("every one applies on reload", settings.declaration("wm.movePixels").applies, "reload")
@@ -330,6 +330,23 @@ do
   check("holding the declared three", windows and #windows.settings, 3)
   local noData = settings.plugin("other", specs, nil)
   check("no data still answers the problems", #noData, 3)
+  -- A choice, the app toggler's mode, its choices carried to the window and a change checked
+  -- against them.
+  local modeFiles, modeIo = disk()
+  local modeStore = newStore(modeFiles, modeIo, {})
+  modeStore.set("apps.mode", "hides")
+  local modeSettings = M.new({ store = modeStore, log = { w = function() end } })
+  local modeData = {}
+  local modeProblems = modeSettings.plugin("apps", { { key = "mode", at = { "mode" }, section = "behaviour",
+    title = "App Keys", kind = "choice", shipped = "cycle",
+    choices = { { value = "cycle", title = "Cycle through windows" }, { value = "hides", title = "Show and hide" } } } }, modeData)
+  check("a choice with its choices is declared", #modeProblems, 0)
+  check("its choices reach the window", #modeSettings.declaration("apps.mode").choices, 2)
+  check("a saved choice is laid over the data", modeData.mode, "hides")
+  check("a value not among its choices is refused", (modeSettings.change("apps.mode", "spin")), false)
+  local _, unshipped = M.fromManifest("x", { { key = "m", at = { "m" }, section = "behaviour", title = "M",
+    kind = "choice", shipped = "none", choices = { { value = "a", title = "A" }, { value = "b", title = "B" } } } })
+  check("a choice shipping none of its choices is a problem", #unshipped, 1)
   local _, wrong = M.fromManifest("x", "words")
   check("a settings field that is not a list is a problem", wrong[1], "settings is a string rather than a list")
 end

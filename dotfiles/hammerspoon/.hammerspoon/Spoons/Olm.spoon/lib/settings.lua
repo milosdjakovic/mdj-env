@@ -172,7 +172,19 @@ end
 -- A plugin's own settings, its manifest's settings list
 --------------------------------------------------------------------------------
 
-local KINDS = { number = true, switch = true }
+local KINDS = { number = true, switch = true, choice = true }
+
+-- Whether a choice spec lists its choices, each a value and a title, and ships one of them.
+local function readChoices(spec)
+  if type(spec.choices) ~= "table" or #spec.choices < 2 then return nil end
+  local out, shipped = {}, false
+  for _, c in ipairs(spec.choices) do
+    if type(c) ~= "table" or type(c.value) ~= "string" or type(c.title) ~= "string" then return nil end
+    if c.value == spec.shipped then shipped = true end
+    out[#out + 1] = { value = c.value, title = c.title }
+  end
+  return shipped and out or nil
+end
 
 --- M.fromManifest(identity, specs) -> declarations, problems
 --- A plugin's settings list read into declarations, docs/DESIGN-APP-SETTINGS.md S.4. Each spec is
@@ -200,7 +212,9 @@ function M.fromManifest(identity, specs)
     elseif type(spec.at) ~= "table" or #spec.at == 0 then why = "names no path into the plugin's data in at"
     elseif type(spec.title) ~= "string" or spec.title == "" then why = "has no title"
     elseif not sections[spec.section] then why = "names no section of the window, " .. tostring(spec.section)
-    elseif not KINDS[spec.kind] then why = "has the kind " .. tostring(spec.kind) .. ", where a number or a switch is read"
+    elseif not KINDS[spec.kind] then why = "has the kind " .. tostring(spec.kind) .. ", where a number, a switch or a choice is read"
+    elseif spec.kind == "choice" and not readChoices(spec) then
+      why = "is a choice with no list of two or more, each a value and a title, shipping one of them"
     elseif spec.kind == "number" and not (type(spec.min) == "number" and type(spec.max) == "number"
       and spec.min < spec.max and type(spec.step) == "number" and spec.step > 0) then
       why = "is a number with no range, min below max and a step above nothing"
@@ -219,6 +233,7 @@ function M.fromManifest(identity, specs)
       out[#out + 1] = { id = identity .. "." .. spec.key, section = spec.section, title = spec.title,
         kind = spec.kind, target = target, min = spec.min, max = spec.max, step = spec.step,
         unit = spec.unit, shipped = copy(spec.shipped), keywords = copy(spec.keywords or {}),
+        choices = spec.kind == "choice" and readChoices(spec) or nil,
         applies = "reload", owner = identity }
     end
   end
