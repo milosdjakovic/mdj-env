@@ -1599,3 +1599,7 @@ typed there, until the launcher's choosing moves.
   `olm://` on the new copy, and leaves it on disk with a closing note, since nothing here removes
   what a machine has. The signature's requirement names only the bundle id, so the move is expected
   to keep the permissions already given.
+- **2026-11-23 15:34, the old copy removed on this machine.** With Milos's go-ahead to move
+  the app, `~/.olm/app/Olm.app` and its folder were deleted here by hand, once, after
+  `/Applications/Olm.app` was built, started and connected to the bridge. Units ran 2180 of 2180
+  and the console showed no error.
