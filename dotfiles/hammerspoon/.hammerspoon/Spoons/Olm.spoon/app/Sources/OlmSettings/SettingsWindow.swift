@@ -318,11 +318,17 @@ enum Space {
   static let row: CGFloat = 2
   /// The height of a sidebar row and of the search, one line of text and its pad.
   static let rowHeight: CGFloat = 32
-  /// The column a row's control sits in, fixed, so a popup's width changing with its choice moves
-  /// nothing else in the row.
-  static let control: CGFloat = 300
   /// The width a number's value is shown in, the widest it can be, so dragging moves nothing.
   static let value: CGFloat = 76
+  /// A number's slider.
+  static let slider: CGFloat = 200
+  /// A reset beside a control, kept in place while hidden.
+  static let mark: CGFloat = 16
+  /// The column a row's control sits in, fixed, so a popup's width changing with its choice moves
+  /// nothing else in the row. Made of its widest content, a number's reset, slider and value with
+  /// a pad between each, since a column narrower than that let the value overflow it, centred, and
+  /// stand half the overflow nearer the card's right edge than the title stands to its left.
+  static let control: CGFloat = mark + pad + slider + pad + value
 }
 
 /// The search, the sections and the app's row. The sidebar's edge is where the window's close
@@ -632,7 +638,7 @@ struct SettingRow: View {
         Button {
           model.change(setting, to: .none, reset: true)
         } label: {
-          Image(systemName: "arrow.uturn.backward")
+          Image(systemName: "arrow.uturn.backward").frame(width: Space.mark)
         }
         .buttonStyle(.borderless)
         .help("Back to the value in the config files")
@@ -703,7 +709,7 @@ struct SettingRow: View {
               if v != setting.value.number { model.change(setting, to: .number(v)) } else { model.drafts[setting.id] = nil }
             }
           }
-          .frame(width: 200)
+          .frame(width: Space.slider)
         }
         Text(SettingFormat.number(model.drafts[setting.id] ?? setting.value.number ?? 0, step: setting.step,
           unit: setting.unit))

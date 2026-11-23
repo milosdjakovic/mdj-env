@@ -157,7 +157,8 @@ return {
       title = "Screen recording height", kind = "number", min = 300, max = 5000, step = 50, unit = "pixels", shipped = 1350,
       keywords = { "recording", "capture", "video" } },
     { key = "holdGrace", at = { "settings", "windowSizing", "holdGrace" }, section = "windows",
-      title = "Repeats before the held step", kind = "number", min = 0, max = 10, step = 1, unit = "repeats", shipped = 1,
-      keywords = { "hold", "repeat", "grace" } },
+      title = "Small steps before speeding up", kind = "number", min = 1, max = 10, step = 1, unit = "times", shipped = 1,
+      detail = "How many presses of a held move or resize key use the step before the held step takes over",
+      keywords = { "hold", "repeat", "grace", "speed" } },
   },
 }

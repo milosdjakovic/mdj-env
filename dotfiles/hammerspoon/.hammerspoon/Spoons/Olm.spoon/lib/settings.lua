@@ -222,7 +222,7 @@ end
 
 --- M.fromManifest(identity, specs) -> declarations, problems
 --- A plugin's settings list read into declarations, docs/DESIGN-APP-SETTINGS.md S.4. Each spec is
---- { key, at, title, section, kind, keywords, and for a number min, max, step, unit, shipped }. at
+--- { key, at, title, section, kind, keywords, detail, and for a number min, max, step, unit, shipped }, detail a line shown under the title. at
 --- is the path into the plugin's own data, its first word a need the manifest declares with source
 --- user, so the saved value is laid over what the plugin is handed and the plugin reads it with no
 --- word of its own. The id is the identity, a dot and the key, so no plugin can take another's or
@@ -265,7 +265,7 @@ function M.fromManifest(identity, specs)
       local target = { identity }
       for _, word in ipairs(spec.at) do target[#target + 1] = word end
       out[#out + 1] = { id = identity .. "." .. spec.key, section = spec.section, title = spec.title,
-        kind = spec.kind, target = target, min = spec.min, max = spec.max, step = spec.step,
+        detail = type(spec.detail) == "string" and spec.detail or nil, kind = spec.kind, target = target, min = spec.min, max = spec.max, step = spec.step,
         unit = spec.unit, shipped = copy(spec.shipped), keywords = copy(spec.keywords or {}),
         choices = spec.kind == "choice" and readChoices(spec) or nil,
         extra = type(spec.extra) == "string" and spec.extra or nil,

@@ -1558,3 +1558,11 @@ layout is one line in each language. A window's tile is found by a few points of
 terminal's cell of size, 4 and 24, since a terminal snaps its size to whole cells and would otherwise
 always start over. Rejected: remembering the last tile per window, since a window moved by hand
 would then step from where it no longer is.
+
+**2026-11-23 14:33, a setting row's value stood nearer the right edge than its title the left.**
+Milos saw it on Window Management. The control column was 300 points and a number's content, its
+reset, slider and value with pads, 316, so the value overflowed the column centred, 8 points past the
+card's padding. The column is now built from its parts, Space.control, the reset given its width, so
+every page's rows share one inset either side. Repeats before the held step became Small steps
+before speeding up with a line under it, since its title said nothing to him, and a plugin's setting
+may now carry that line, detail.

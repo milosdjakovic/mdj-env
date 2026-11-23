@@ -1615,10 +1615,11 @@ reaches for it, not a matter of preference between two ways of writing the same 
 ### settings
 
 A plugin's own settings, shown in Olm Settings, docs/DESIGN-APP-SETTINGS.md S.4. A list, each entry
-`{ key, at, section, title, kind, keywords }`, and for a number `min`, `max`, `step`, `unit` and
-`shipped`. `at` is a path into the plugin's own data, its first word a `needs.data` field the
-plugin declares with source user, and `shipped` is the value the plugin falls back to when the
-person's file leaves the key out. `section` is one of the window's sections in
+`{ key, at, section, title, kind, keywords }`, an optional `detail`, one line shown under the
+title, and for a number `min`, `max`, `step`, `unit` and `shipped`. `at` is a path into the
+plugin's own data, its first word a `needs.data` field the plugin declares with source user, and
+`shipped` is the value the data takes when the person's file leaves the key out, filled in before
+`configure` since 2026-11-23, so the manifest is the one statement of a default. `section` is one of the window's sections in
 `lib/settings.lua`'s `SECTIONS`, and `kind` is `number` or `switch`.
 
 The root reads the list with `lib/settings.lua`'s `fromManifest` once the plugin's data is merged
