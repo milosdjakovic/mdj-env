@@ -841,6 +841,14 @@ runs them from programs rather than `swift test`, decided at 1.1. A part moves
    step is finished when its checks pass, never when a measurement has run long enough. Something
    only a person can do, a grant or a look at the screen, is asked for once and the work goes on
    beside it.
+11. **A setting applies while the window stays open.** Stated by Milos on 2026-11-24. A setting
+   whose owner has moved into the app applies the moment it changes, with no reload of Hammerspoon,
+   no restart of the app and the Settings window left open, so a step that moves an owner also
+   turns its settings live. A reload stays only where Hammerspoon still owns the setting, and each
+   one left is listed below with the step that ends it. The applications, their keys, the Globe
+   key and the plugin switches, 6.2 and stage 4. The chooser, the fonts and the icon set, which the
+   Lua kit reads at load, once the app draws every list. A plugin's own settings, once its plugin
+   is the app's.
 
 ## How we test
 

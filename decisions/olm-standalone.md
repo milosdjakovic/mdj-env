@@ -1641,3 +1641,8 @@ typed there, until the launcher's choosing moves.
   and the number typed was never in what was saved. Done now ends the edit first and saves what the
   sheet holds on the next turn, and a binding read after the sheet has closed answers the value it
   was drawn with. Reported by Milos.
+
+- 2026-11-24 00:16, decision. Every setting applies while the Settings window stays open,
+  with no reload and no restart, once its owner is in the app, Milos's call after a Customize save
+  reloaded Hammerspoon on the window's close. Rule 11 of `docs/PLAN-STANDALONE.md` lists the
+  reloads left and the step that ends each.
