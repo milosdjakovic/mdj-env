@@ -401,6 +401,42 @@ local olmSettings = nil
 -- through the words that already apply them, and any other change waits for done, the window
 -- closing, which reloads once. deps holds overlay, appearance, reload and reshare, the last
 -- writing ~/.olm/run/settings.json again so the window opened next shows the change.
+-- The keymap with the keys saved in Olm Settings laid over it, the setting keys, an action id to
+-- its chord or false for none. Every chord the keymap gives a named action is dropped first, so a
+-- key set in the window replaces the file's rather than adding a second, and a chord another action
+-- holds in the file is refused with a line and the action keeps none. A function at file level so
+-- the root's own locals are untouched.
+local function savedKeys(keymap, settings)
+  local saved = settings and settings.value("keys")
+  if type(keymap) ~= "table" or type(saved) ~= "table" or next(saved) == nil then return keymap end
+  local out = {}
+  for k, v in pairs(keymap) do out[k] = v end
+  local keys, held = {}, {}
+  for chord, action in pairs(keymap.keys or {}) do
+    if saved[action] == nil then
+      keys[chord] = action
+      if type(chord) == "string" then held[chord:lower()] = action end
+    end
+  end
+  local actions = {}
+  for action in pairs(saved) do actions[#actions + 1] = action end
+  table.sort(actions)
+  for _, action in ipairs(actions) do
+    local chord = saved[action]
+    if type(chord) == "string" then
+      local other = held[chord:lower()]
+      if other and other ~= action then
+        log.w(string.format("Olm settings, the key %s saved for %s is %s's in the keymap, so it is left out", chord, action, tostring(other)))
+      else
+        keys[chord] = action
+        held[chord:lower()] = action
+      end
+    end
+  end
+  out.keys = keys
+  return out
+end
+
 local function settingsService(deps)
   local reloadDue = false
   local function appearanceSet(value)
@@ -427,6 +463,12 @@ local function settingsService(deps)
       return true
     end,
     share = function() return olmSettings.share() end,
+    -- An exported config taken whole, every value through change above, then one reload.
+    import = function(values, self)
+      local refused = olmSettings.import(values, function(id, value) return self.change(id, value) end)
+      reloadDue = true
+      return refused
+    end,
     done = function()
       if not reloadDue then return end
       reloadDue = false
@@ -673,7 +715,7 @@ function obj.run(olm, cfg)
   -- adapter, so a key Hammerspoon does not name is spelled the same way everywhere.
   local keyTable = keycodesLib.new(hs.keycodes.map)
   atoms.leader.keycodes = keyTable
-  local keymapConfig = keymapLib.readConfig(cfg.keymap, {
+  local keymapConfig = keymapLib.readConfig(savedKeys(cfg.keymap, olmSettings), {
     leaders = SHIPPED_LEADERS,
     sources = keyRemapAtom.sources(),
     allocate = keyRemapAtom.allocate,

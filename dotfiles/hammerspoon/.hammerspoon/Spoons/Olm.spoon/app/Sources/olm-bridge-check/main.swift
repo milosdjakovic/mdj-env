@@ -764,6 +764,16 @@ do {
     "apps: the catalog, its style, hides and placement")
   let sent = (SettingValue.apps(["a.b": AppOverride(mode: "cycle")]).any as? [String: Any])?["a.b"] as? [String: Any]
   ok(sent?["mode"] as? String == "cycle" && sent?["path"] == nil, "apps: a change sends the table, nothing unset")
+  let keysDoc = #"{"version":1,"sections":[{"id":"applications","title":"Applications","settings":[{"id":"keys","title":"Shortcuts","kind":"keys","default":[],"value":{"apptoggler.Chrome":"hyper+C","apptoggler.Mail":false}}]}]}"#
+  let keySetting = SettingsShare.parse(Data(keysDoc.utf8))?.sections.first?.settings.first
+  let keys = keySetting?.value ?? .none
+  ok(keySetting?.kind == .keys, "apps: the keys kind is read")
+  ok(keys.keys?["apptoggler.Chrome"] == .some("hyper+C") && keys.keys?["apptoggler.Mail"] == .some(nil),
+    "apps: a key per action, a chord or none")
+  let keysOut = keys.any as? [String: Any]
+  ok(keysOut?["apptoggler.Mail"] as? Bool == false && keysOut?["apptoggler.Chrome"] as? String == "hyper+C",
+    "apps: none is sent as false")
+  ok(KeyName.words("hyper+C") == "Hyper C" && KeyName.words("hyper+space") == "Hyper Space", "apps: a chord in words")
   let calculator = AppScan.read(URL(fileURLWithPath: "/System/Applications/Calculator.app"))
   ok(calculator?.bundle == "com.apple.calculator", "apps: an application is read by its bundle id")
   let tmp = FileManager.default.temporaryDirectory.appendingPathComponent("olm-appscan-\(getpid())")

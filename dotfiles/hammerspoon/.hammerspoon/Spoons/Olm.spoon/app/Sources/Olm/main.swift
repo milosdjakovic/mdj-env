@@ -146,6 +146,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
       }
     }, done: {
       _ = try? await bridge.request("settingsDone", .object([:]))
+    }, importValues: { data in
+      guard let values = JSON.decode(data),
+        let answer = try? await bridge.request("settingsImport", .object(["values": values])),
+        case .object(let o) = answer else { return (["values"], nil) }
+      let refused = (o["refused"]?.array ?? []).compactMap { r -> String? in
+        guard let id = r["id"].string else { return nil }
+        return id + (r["why"].string.map { " " + $0 } ?? "")
+      }
+      let share = o["share"].flatMap { try? JSONSerialization.data(withJSONObject: $0.any) }.flatMap(SettingsShare.parse)
+      return (refused, share)
     })
   }
 

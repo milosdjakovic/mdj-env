@@ -82,7 +82,7 @@ return {
   -- The mode an app key takes where its style says nothing, in Olm Settings, docs/DESIGN-APP-SETTINGS.md
   -- S.4. A style or an entry stating hides, Herdr's popup among them, keeps its own.
   settings = {
-    { key = "mode", at = { "mode" }, section = "behaviour", title = "App Keys", kind = "choice",
+    { key = "mode", at = { "mode" }, section = "applications", title = "App Keys", kind = "choice",
       shipped = "cycle", keywords = { "hyper", "toggle", "cycle", "hide", "show", "windows", "switch" },
       choices = { { value = "cycle", title = "Cycle through windows" },
                   { value = "hides", title = "Show and hide" } } },

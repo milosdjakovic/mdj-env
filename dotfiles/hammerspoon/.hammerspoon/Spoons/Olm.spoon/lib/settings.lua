@@ -118,6 +118,12 @@ M.DECLARED = {
   -- Window Management's steps and sizes are the window manager's, declared in its manifest and
   -- read by M.fromManifest, since only a plugin may name itself.
 
+  -- Every key set in Olm Settings, an action id to its chord, hyper+C, or false for none, laid over
+  -- config/keymap.lua and this machine's app keys by the root before the keymap is read, so a key
+  -- set on the Applications page travels with Olm's config when it is exported.
+  { id = "keys", section = "applications", title = "Shortcuts", kind = "keys", applies = "reload", shipped = {},
+    keywords = { "key", "shortcut", "hotkey", "chord", "hyper" } },
+
   { id = "plugins.off", section = "plugins", title = "Plugins switched off", kind = "list", applies = "reload",
     hidden = true, shipped = {} },
 }
@@ -158,6 +164,17 @@ function M.check(decl, value)
     return true
   elseif kind == "switch" then
     if type(value) ~= "boolean" then return false, "is not on or off" end
+    return true
+  elseif kind == "keys" then
+    if type(value) ~= "table" then return false, "is not a table of actions and their keys" end
+    for action, chord in pairs(value) do
+      if type(action) ~= "string" or not action:find(".", 1, true) then
+        return false, "holds an entry that is not an action by its id"
+      end
+      if chord ~= false and (type(chord) ~= "string" or not chord:find("+", 1, true)) then
+        return false, "gives " .. action .. " a key that is neither a chord nor none"
+      end
+    end
     return true
   elseif kind == "apps" then
     -- Each application by its bundle id, with the mode its key takes, and the name and path of one
@@ -388,6 +405,26 @@ function M.new(opts)
 
   --- settings.declaration(id) -> the declaration, or nil.
   function self.declaration(id) return byId[id] end
+
+  --- settings.import(values, change) -> refused
+  --- An exported config taken whole, docs/DESIGN-APP-SETTINGS.md Export and import. Each value is
+  --- handed to change, the service's, so it is checked and applied as one set in the window is, and
+  --- every saved value the file leaves out is reset, so the config is the file's. Answers each refused
+  --- id with why, the rest taken.
+  function self.import(values, change)
+    local refused = {}
+    if type(values) ~= "table" then return { { id = "values", why = "is not a table" } } end
+    for _, decl in ipairs(order) do
+      local value = values[decl.id]
+      if value == nil and self.saved(decl.id) ~= nil then
+        change(decl.id, nil)
+      elseif value ~= nil then
+        local ok, why = change(decl.id, value)
+        if not ok then refused[#refused + 1] = { id = decl.id, why = why } end
+      end
+    end
+    return refused
+  end
 
   --- settings.declare(id, fields) lays fields over a declaration, or adds one, the choices of the
   --- chooser and theme known only once their stores are built, a default, a plugin's switch.

@@ -233,8 +233,9 @@ do
   check("the share has its version", share.version, 1)
   local order = {}
   for _, section in ipairs(share.sections) do order[#order + 1] = section.id end
-  check("sections in order", table.concat(order, ","), "general,appearance,motion,behaviour,plugins")
-  check("an empty section is not shared", #share.sections, 5)
+  check("sections in order", table.concat(order, ","), "general,appearance,motion,behaviour,applications,plugins")
+  -- Applications holds Olm's own keys setting, Window Management only the window manager's.
+  check("an empty section is not shared", #share.sections, 6)
   local rows = {}
   for _, section in ipairs(share.sections) do
     for _, row in ipairs(section.settings) do rows[row.id] = row end
@@ -363,9 +364,23 @@ do
   check("a list is refused", (M.check(appsDecl, { { mode = "hides" } })), false)
   local appsShare
   for _, section in ipairs(appsSettings.share().sections) do
-    if section.id == "applications" then appsShare = section.settings[1] end
+    if section.id == "applications" then
+      for _, row in ipairs(section.settings) do if row.id == "apps.apps" then appsShare = row end end
+    end
   end
   check("the share carries the member's answer as extra", appsShare and appsShare.extra and appsShare.extra.member, "catalog")
+  -- Olm's own keys, an action to its chord or none, and an exported config taken whole, a saved
+  -- value the file leaves out reset.
+  check("a key per action is taken", (appsSettings.change("keys", { ["apptoggler.Chrome"] = "hyper+C",
+    ["apptoggler.Mail"] = false })), true)
+  check("a key that is no chord is refused", (appsSettings.change("keys", { ["apptoggler.Chrome"] = "C" })), false)
+  check("an action that is no id is refused", (appsSettings.change("keys", { Chrome = "hyper+C" })), false)
+  local imported = {}
+  local refused = appsSettings.import({ ["apps.apps"] = { ["a.b"] = { mode = "cycle" } }, rowLimit = 9999 },
+    function(id, value) imported[#imported + 1] = id; return appsSettings.change(id, value) end)
+  check("import hands each value to change", appsSettings.value("apps.apps")["a.b"].mode, "cycle")
+  check("and a value the declaration refuses is said", refused[1] and refused[1].id, "rowLimit")
+  check("and a saved value the file leaves out is reset", appsSettings.saved("keys"), nil)
   local _, wrong = M.fromManifest("x", "words")
   check("a settings field that is not a list is a problem", wrong[1], "settings is a string rather than a list")
 end

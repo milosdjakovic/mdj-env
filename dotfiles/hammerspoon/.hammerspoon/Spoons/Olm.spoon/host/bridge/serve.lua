@@ -807,6 +807,16 @@ function M.new(opts)
     return { ok = ok == true, why = why, share = settings.share() }
   end }
 
+  -- An exported config taken whole, docs/DESIGN-APP-SETTINGS.md Export and import, every value
+  -- checked as a change from the window is, and one reload once the window says it is done.
+  methods.settingsImport = { run = function(params)
+    local settings = opts.settings
+    if not settings or type(settings.import) ~= "function" then rpc.fail(rpc.PARAMS, "settings are not served here") end
+    if type(params.values) ~= "table" then rpc.fail(rpc.PARAMS, "settingsImport needs values") end
+    local refused = settings.import(params.values, settings)
+    return { ok = #refused == 0, refused = refused, share = settings.share() }
+  end }
+
   -- The window closed, so a change that waits for a reload is applied now, once.
   methods.settingsDone = { run = function()
     local settings = opts.settings

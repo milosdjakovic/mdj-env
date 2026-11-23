@@ -37,6 +37,8 @@ public enum SettingValue: Equatable, Sendable {
   case flag(Bool)
   case names([String])
   case apps([String: AppOverride])
+  /// Olm's own keys, an action id to its chord, nil for none.
+  case keys([String: String?])
   case none
 
   init(_ any: Any?) {
@@ -45,6 +47,10 @@ public enum SettingValue: Equatable, Sendable {
     case let n as NSNumber: self = .number(n.doubleValue)
     case let s as String: self = .text(s)
     case let a as [Any]: self = .names(a.compactMap { $0 as? String })
+    case let o as [String: Any] where !o.isEmpty && o.values.allSatisfy({ $0 is String || $0 is Bool }):
+      var keys: [String: String?] = [:]
+      for (action, chord) in o { keys[action] = chord as? String }
+      self = .keys(keys)
     case let o as [String: Any]:
       var apps: [String: AppOverride] = [:]
       for (bundle, entry) in o {
@@ -64,6 +70,7 @@ public enum SettingValue: Equatable, Sendable {
     case .flag(let b): return b
     case .names(let a): return a
     case .apps(let o): return o.mapValues(\.any)
+    case .keys(let o): return o.mapValues { $0 as Any? ?? false }
     case .none: return NSNull()
     }
   }
@@ -71,6 +78,13 @@ public enum SettingValue: Equatable, Sendable {
   public var text: String? { if case .text(let s) = self { return s }; return nil }
   public var number: Double? { if case .number(let n) = self { return n }; return nil }
   public var flag: Bool? { if case .flag(let b) = self { return b }; return nil }
+  /// Olm's own keys, an empty table for the empty list a table with nothing in it is written as.
+  public var keys: [String: String?]? {
+    if case .keys(let o) = self { return o }
+    if case .names(let a) = self, a.isEmpty { return [:] }
+    return nil
+  }
+
   /// The applications table, an empty one for the empty list a table with nothing in it is written as.
   public var apps: [String: AppOverride]? {
     if case .apps(let o) = self { return o }
@@ -98,7 +112,7 @@ public struct SettingChoice: Equatable, Sendable, Identifiable {
 }
 
 public struct Setting: Equatable, Sendable, Identifiable {
-  public enum Kind: String, Sendable { case choice, number, font, `switch`, apps, other }
+  public enum Kind: String, Sendable { case choice, number, font, `switch`, apps, keys, other }
 
   public let id: String
   public let title: String
@@ -245,10 +259,15 @@ public struct SettingAnswer: Sendable {
 public struct SettingsService: Sendable {
   public let change: @Sendable (_ id: String, _ value: SettingValue, _ reset: Bool) async -> SettingAnswer
   public let done: @Sendable () async -> Void
+  /// An exported config taken whole, its values as JSON, every value checked as a change is, answered with the ids
+  /// refused and why, and the share as it then stands.
+  public let importValues: @Sendable (_ values: Data) async -> (refused: [String], share: SettingsShare?)
 
   public init(change: @escaping @Sendable (String, SettingValue, Bool) async -> SettingAnswer,
-    done: @escaping @Sendable () async -> Void) {
+    done: @escaping @Sendable () async -> Void,
+    importValues: @escaping @Sendable (Data) async -> (refused: [String], share: SettingsShare?) = { _ in (["values"], nil) }) {
     self.change = change
     self.done = done
+    self.importValues = importValues
   }
 }

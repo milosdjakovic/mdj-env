@@ -17,6 +17,7 @@
 import AppKit
 import Combine
 import SwiftUI
+import UniformTypeIdentifiers
 
 /// What the window is showing, the section chosen, the search typed, a slider being dragged and the
 /// last refusal. A class the window owns rather than view state, since the command line tools the
@@ -314,7 +315,7 @@ struct SettingsSidebar: View {
         }
       }
       .scrollIndicators(.never)
-      AppIdentity().padding(.horizontal, Space.pad)
+      AppIdentity(model: model).padding(.horizontal, Space.pad)
     }
     .padding(.horizontal, model.leading)
     // The search a group's gap under the window's buttons, measured from the window's top rather
@@ -423,6 +424,8 @@ struct SettingsDetail: View {
 /// The app's icon, name and version at the foot of the sidebar, its icon's left edge in line with
 /// the sections' symbols.
 struct AppIdentity: View {
+  @ObservedObject var model: SettingsModel
+
   private var version: String {
     Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "?"
   }
@@ -438,6 +441,68 @@ struct AppIdentity: View {
         Text("Version \(version)").font(.subheadline).foregroundStyle(.secondary)
       }
       Spacer(minLength: 0)
+      // Olm's whole config, every value set in this window, written to a file and read back, so a
+      // second Mac takes the same Olm, docs/DESIGN-APP-SETTINGS.md Export and import.
+      Menu {
+        Button("Export Olm Config…") { OlmConfig.export(model) }
+        Button("Import Olm Config…") { OlmConfig.importInto(model) }
+      } label: {
+        Image(systemName: "square.and.arrow.up.on.square")
+      }
+      .menuStyle(.borderlessButton)
+      .fixedSize()
+      .help("Export or import Olm's config")
+    }
+  }
+}
+
+/// Olm's config as a file, the values of ~/.olm/state/settings.json, the one store, under a kind so
+/// an import knows it holds one.
+@MainActor
+enum OlmConfig {
+  static let kind = "olm.config"
+  static var store: URL {
+    FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent(".olm/state/settings.json")
+  }
+
+  static func export(_ model: SettingsModel) {
+    let doc = (try? Data(contentsOf: store)).flatMap { try? JSONSerialization.jsonObject(with: $0) as? [String: Any] }
+    let values = doc?["values"] as? [String: Any] ?? [:]
+    let panel = NSSavePanel()
+    panel.nameFieldStringValue = "Olm Config.json"
+    panel.allowedContentTypes = [.json]
+    guard panel.runModal() == .OK, let url = panel.url else { return }
+    let out: [String: Any] = ["kind": kind, "version": 1,
+      "exported": ISO8601DateFormatter().string(from: Date()), "values": values]
+    guard let data = try? JSONSerialization.data(withJSONObject: out, options: [.prettyPrinted, .sortedKeys]),
+      (try? data.write(to: url, options: .atomic)) != nil else {
+      model.refusal = "The config could not be written to \(url.lastPathComponent)."
+      return
+    }
+    model.refusal = nil
+  }
+
+  static func importInto(_ model: SettingsModel) {
+    let panel = NSOpenPanel()
+    panel.allowedContentTypes = [.json]
+    panel.allowsMultipleSelection = false
+    guard panel.runModal() == .OK, let url = panel.url,
+      let data = try? Data(contentsOf: url),
+      let doc = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+      let values = doc["values"] as? [String: Any],
+      let json = try? JSONSerialization.data(withJSONObject: values) else {
+      model.refusal = "That file holds no Olm config."
+      return
+    }
+    guard let service = model.service else {
+      model.refusal = "The config was not imported, Olm.app has no bridge to Hammerspoon."
+      return
+    }
+    Task { @MainActor in
+      let answer = await service.importValues(json)
+      if let share = answer.share { model.share = share }
+      model.reloadDue = true
+      model.refusal = answer.refused.isEmpty ? nil : "Imported, except \(answer.refused.joined(separator: "; "))."
     }
   }
 }
@@ -624,8 +689,8 @@ struct SettingRow: View {
         }
       }
       .fixedSize()
-    case .apps:
-      // Drawn by its own page, AppsView, never as a row.
+    case .apps, .keys:
+      // Drawn by their own page, AppsView, never as a row.
       EmptyView()
     case .other:
       Text(String(describing: setting.value))

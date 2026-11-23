@@ -1478,3 +1478,14 @@ the share through a member the manifest names, so the plugin never learns the wi
 scan reads each Applications folder at its top only, which keeps a suite's helpers out, and leaves
 out an app with no Dock icon. An application's own mode wins over its style's, and an added one gets
 an action of its own.
+
+**2026-11-23 11:51, app shortcuts and the whole config travel in Olm's store.** Milos asked for each
+app's shortcut on the Applications page. Keys have lived in one file since the keymap plan, and app
+keys in this machine's file since the machine profiles, so where a key set in the window is saved was
+asked. He chose this machine's file first, then said the aim is one Olm config exported and imported,
+with Hammerspoon behind the bridge until its behaviour moves, and chose Olm's store for the keys too.
+So keys is a core setting, an action to its chord, laid over the keymap before it is read, the machine
+file untouched until behaviour migrates. Editing the machine file from the window was turned down
+once the aim was said, since an export would leave the keys behind. Export and Import carry the whole
+store, Import through the window's own checked change. The page's stutter was an icon read per row as
+it scrolled and a glass card under every list, both removed.

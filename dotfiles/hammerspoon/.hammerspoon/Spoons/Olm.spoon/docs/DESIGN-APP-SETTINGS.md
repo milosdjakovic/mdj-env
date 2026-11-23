@@ -300,6 +300,33 @@ of its own are listed first, under Configured, the rest under Other Applications
 icon, its key in words, its style and whether it is placed, and its mode, whose default names what
 it follows. A change sends the whole table and applies on the reload the window's close runs.
 
+**Applications, the second round, 2026-11-23.** Milos found the page stuttering as it scrolled,
+missed the global mode on it, and could not tell an override from a default at a glance, and asked
+for each app's shortcut on its row, the shortcut at the far right and the override before it.
+
+- **Scrolling.** Each row asked macOS for its icon as it scrolled into view and every list sat on
+  one glass card, whose blur is redrawn under each row on every frame. The icons are drawn once off
+  the main thread into a 28 point bitmap, and the lists sit on a plain fill.
+- **The global mode,** App Keys, is the page's first card, moved from Behaviour.
+- **What is overridden** has a card of its own, Overridden, each row's mode marked in the accent
+  with the word and a reset, and the rest under Following the Default, each saying what it follows,
+  App Keys or its style.
+- **Shortcuts** are Olm's own setting, `keys`, an action id to its chord or false for none, laid over
+  `config/keymap.lua` and this machine's app keys by `savedKeys` in `root/compose.lua` before the
+  keymap is read, every chord the keymap gives that action dropped first. A chord another action
+  holds is refused on the page and again with a console line at load. The recorder takes one key,
+  Hyper implied, since Olm.app holds Hyper's combinations and pressing one would run it, Delete for
+  none and Escape to leave it.
+
+**Export and import, 2026-11-23.** Milos's aim is one Olm config, exported and imported, that makes
+another Mac's Olm the same, with Hammerspoon still behind the bridge until its behaviour moves. The
+store is that config. Export writes its values under the kind `olm.config` to a file the person
+picks, and Import hands a file's values to Hammerspoon as `settingsImport`, where `settings.import`
+passes each through the window's own change and resets every saved value the file leaves out, so
+the config is the file's, then one reload. Both sit in a menu beside Olm's name at the foot of the
+sidebar. Keys being in the config is why the shortcuts are Olm's setting rather than lines in this
+machine's file, which Milos chose over editing that file once the aim was said.
+
 ## Back out
 
 The four plugins keep their lists, so their launcher rows come back by putting `row` back under
