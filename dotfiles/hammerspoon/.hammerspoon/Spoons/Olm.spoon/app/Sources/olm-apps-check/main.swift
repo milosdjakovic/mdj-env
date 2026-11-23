@@ -157,5 +157,16 @@ eq(WindowShadow.differences(action: "leftHalf", app: snap, settings: own, lua: [
 eq(WindowShadow.differences(action: "leftHalf", app: snap, settings: WindowSettings(values: ["gap": 0]),
   lua: ["input": luaInput, "result": luaResult]), [], "the same settings differ by nothing")
 
+// Which window actions the app runs itself once the switch is on, 6.3b's flip.
+var withSizes = WindowSettings()
+withSizes.sizes["sizeWide"] = WindowNamedSize(width: 80, height: 90, percent: true, anchor: "top")
+eq(WindowRun.runs("leftHalf", withSizes), true, "a placement runs in the app")
+eq(WindowRun.runs("cycleQuarters", withSizes), true, "and a layout")
+eq(WindowRun.runs("moveLeft", withSizes), true, "and a step")
+eq(WindowRun.runs("hideAllExceptFocused", withSizes), true, "and Hide Others")
+eq(WindowRun.runs("sizeWide", withSizes), true, "and a named size the settings carry")
+eq(WindowRun.runs("sizeGone", withSizes), false, "a named size they do not stays in Hammerspoon")
+eq(WindowRun.runs("exactSize", withSizes), false, "and so does an exact size, which a key cannot carry")
+
 print("olm-apps-check: \(checks) checks, \(failures) failures")
 exit(failures == 0 ? 0 : 1)

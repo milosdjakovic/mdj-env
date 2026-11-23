@@ -56,8 +56,12 @@ public enum WindowRead {
   }
 
   /// The whole read, on the caller's thread, which must not be the main one.
-  static func read() -> WindowSnapshot {
+  static func read() -> WindowSnapshot { focused().snapshot }
+
+  /// The read and the focused window's element, which the runner writes the frame to.
+  static func focused() -> (snapshot: WindowSnapshot, window: AXUIElement?) {
     let start = DispatchTime.now()
+    var element: AXUIElement?
     let shown = DispatchQueue.main.sync { appKit() }
     var s = WindowSnapshot()
     s.screens = shown.screens
@@ -71,6 +75,7 @@ public enum WindowRead {
       if AXUIElementCopyAttributeValue(app, kAXFocusedWindowAttribute as CFString, &value) == .success,
         let value, CFGetTypeID(value) == AXUIElementGetTypeID() {
         let window = value as! AXUIElement
+        element = window
         s.window = frame(window)
         var id: CGWindowID = 0
         if axWindowID(window, &id) == .success { s.id = id }
@@ -78,7 +83,7 @@ public enum WindowRead {
       }
     }
     s.took = Double(DispatchTime.now().uptimeNanoseconds - start.uptimeNanoseconds) / 1_000_000
-    return s
+    return (s, element)
   }
 
   @MainActor private static func appKit() -> Shown {
@@ -126,7 +131,7 @@ public enum WindowRead {
     return best.map { shown.screens[$0.index].uuid }
   }
 
-  private static func frame(_ window: AXUIElement) -> WindowRect? {
+  static func frame(_ window: AXUIElement) -> WindowRect? {
     var p: CFTypeRef?, z: CFTypeRef?
     guard AXUIElementCopyAttributeValue(window, kAXPositionAttribute as CFString, &p) == .success,
       AXUIElementCopyAttributeValue(window, kAXSizeAttribute as CFString, &z) == .success, let p, let z else { return nil }

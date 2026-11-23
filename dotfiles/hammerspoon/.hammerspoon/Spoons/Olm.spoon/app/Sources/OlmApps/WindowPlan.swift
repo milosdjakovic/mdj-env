@@ -416,6 +416,8 @@ public struct WindowSettings: Sendable {
   public var margins = WindowMargins()
   public var gap: Double = 0
   public var sizing = WindowSizing()
+  /// The named sizes by the action each is, smallSize for Small.
+  public var sizes: [String: WindowNamedSize] = [:]
   public init() {}
 
   public init(values v: [String: Double]) {

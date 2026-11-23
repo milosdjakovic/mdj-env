@@ -74,6 +74,10 @@ return {
       -- config/plugins.lua, off by default.
       appToggler = { source = "user", policy = "optional",
         breaks = "every press on an app runs in Hammerspoon, as before" },
+      -- Whether the app runs the window manager's keys itself, step 6.3b, from config/plugins.lua,
+      -- off by default.
+      windowsInApp = { source = "user", policy = "optional",
+        breaks = "every window key runs in Hammerspoon, as before" },
       -- Whether a tool's own key opens its list in the app while its socket is up, step 3.8, from
       -- config/plugins.lua, off by default.
       keysFlip = { source = "user", policy = "optional",

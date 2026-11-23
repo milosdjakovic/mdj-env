@@ -78,6 +78,8 @@ local function sharedKeys(bridge, bound, leaderSpecs, keyTable, leaders, plain, 
     local share = keyShareLib.share(bound, leaderSpecs, { bindable = binderLib.bindable, keycodes = keyTable })
     -- The leaders whose modifier combinations the app claims, step 5.3.
     if type(bridge.appKeys) == "function" then share.appKeys = bridge:appKeys() end
+    -- Whether the app runs the window manager's keys itself, step 6.3b.
+    if type(bridge.windowsInApp) == "function" then share.windowsInApp = bridge:windowsInApp() end
     -- The keys the app claims without excluding macOS, so its own answer runs beside Olm's, the
     -- Globe key where Olm Settings lets macOS's input source picker show too.
     share.systemKeys = systemPicker == true and keyTable.globe and { keyTable.globe } or {}

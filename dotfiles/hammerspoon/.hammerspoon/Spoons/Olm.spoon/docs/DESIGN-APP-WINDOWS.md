@@ -84,6 +84,20 @@ sizes, Recording moving to the first external screen rather than the second in t
 report Hammerspoon hands the shadow names the action it planned, so a size's press compares
 `namedSize`.
 
+### 6.3b, the flip, 2026-11-23
+
+Milos tried the keys and asked for the flip; the shadow had logged no difference. With
+`windowsInApp` on in config/plugins.lua, shared in the keymap, and Accessibility held, a META window
+key runs in the app, `OlmApps/WindowRun.swift`: the read `WindowRead` makes, the plan `WindowPlan`
+answers with Olm's settings and named sizes from the settings share, read again only when the share's
+file changes, and the frame written size, position, size, which is hs.window's workaround and so
+always lands a display move. The frame is read back and one off by more than 20 points is a
+`refused` line in the shadow log, with `placed` and `refused` counted. The display memory lives in
+the app. Hide Others hides every regular app showing but the frontmost. Hammerspoon is told
+`keyRan` with the row's id, a notification, so META's sheet goes down. A key the app does not run,
+exactSize or a size the share lacks, and every launcher row, still runs in Hammerspoon. False is the
+way back, and with it the shadow compares again.
+
 ## Rejected
 
 - **Porting the plugin method by method into Swift with no shared statement.** 2026-11-23. The

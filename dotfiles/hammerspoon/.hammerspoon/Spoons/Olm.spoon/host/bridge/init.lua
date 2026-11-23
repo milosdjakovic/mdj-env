@@ -126,6 +126,7 @@ function obj:configure(opts)
   -- Whether a press on an app is run by the app, step 6.2, docs/DESIGN-APP-APPS.md, off unless the
   -- config says true, and even then only while the app has said it may act.
   if opts.appToggler ~= nil then self._appToggler = opts.appToggler == true end
+  if opts.windowsInApp ~= nil then self._windowsInApp = opts.windowsInApp == true end
   -- Whether a tool's own key opens its list in the app, step 3.8, off unless the config says true.
   if opts.keysFlip ~= nil then self._keysFlip = opts.keysFlip == true end
   if type(opts.shares) == "table" then self:_share(opts.shares) end
@@ -337,6 +338,11 @@ function obj:serveLauncher(provider)
   return conn
 end
 
+--- obj:windowsInApp() -> whether the app runs the window manager's keys itself, step 6.3b.
+function obj:windowsInApp()
+  return self._windowsInApp == true
+end
+
 --- obj:appKeys() -> the leaders whose modifier combinations the app may claim, step 5.3, a list.
 function obj:appKeys()
   return self._appKeys or {}
@@ -430,6 +436,14 @@ function obj:_keyMethods(methods)
     if type(answer) == "table" and type(answer.window) == "table" then
       return { ran = true, window = answer.window }
     end
+    return true
+  end }
+  -- A row the app ran itself, the window manager's since 6.3b, told so the row's leader takes its
+  -- sheet down as a press run here would. A notification, so the press waits on nothing.
+  methods.keyRan = { run = function(params)
+    local entry = (self._keyRuns or {})[tostring(params.id)]
+    local leader = entry and entry.leader and (self._keyLeaders or {})[entry.leader]
+    if leader then leader:conceal() end
     return true
   end }
   -- A press the app claimed on a list key's combination, run by the leader's list pass while a list

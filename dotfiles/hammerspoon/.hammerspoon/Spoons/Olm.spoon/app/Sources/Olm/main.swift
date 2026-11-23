@@ -81,15 +81,31 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
   // The window manager in shadow, step 6.3b, docs/DESIGN-APP-WINDOWS.md: each META window key read
   // here before Hammerspoon runs it, and compared with what Hammerspoon read and planned.
   private let windowShadow = WindowShadow(log: olm.appendingPathComponent("log"))
+  // The window manager run here once windowsInApp is on, step 6.3b, its refusals in the same log.
+  private lazy var windowRun = WindowRun(shadow: windowShadow)
   /// The window manager's settings as Olm's settings share holds them, by each setting's key.
+  /// The numbers by each setting's key, and the named sizes by the action each is, read again only
+  /// when the share's file changed, since a held key asks on every repeat.
   nonisolated static func windowSettings() -> WindowSettings? {
+    let stamp = (try? FileManager.default.attributesOfItem(atPath: SettingsShare.path.path))?[.modificationDate] as? Date
+    if let cached = WindowSettingsCache.shared.get(stamp) { return cached }
     guard let share = SettingsShare.read() else { return nil }
     var values: [String: Double] = [:]
+    var sized: Setting?
     let prefix = "windowmanager."
     for setting in share.sections.flatMap(\.settings) where setting.id.hasPrefix(prefix) {
       if let n = setting.value.number { values[String(setting.id.dropFirst(prefix.count))] = n }
+      if setting.kind == .sizes { sized = setting }
     }
-    return values.isEmpty ? nil : WindowSettings(values: values)
+    guard !values.isEmpty else { return nil }
+    var settings = WindowSettings(values: values)
+    for action in sized?.windowActions ?? [] {
+      guard let id = action.size, let z = sized?.value.sizes?.first(where: { $0.id == id }) else { continue }
+      settings.sizes[action.action] = WindowNamedSize(width: z.width, height: z.height, percent: z.percent,
+        anchor: z.anchor, display: z.display)
+    }
+    WindowSettingsCache.shared.set(stamp, settings)
+    return settings
   }
   private var appsTimer: Timer?
   // The leaders whose modifier combinations the app claims, step 5.3, docs/DESIGN-APP-KEYS.md.
@@ -282,6 +298,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
       // The keys the app claims, step 5.3. Asked each time a session opens and each time Hammerspoon
       // says its leaders started, the keymap read afresh, and every claim dropped as the session goes.
       let windowShadow = self.windowShadow
+      let windowRun = self.windowRun
       let owner = KeyOwner(words: KeyOwner.Words(
         release: { names in
           let answer = try? await bridgeForApps.request("releaseKeys", .object(["leaders": .array(names.map { .string($0) })]))
@@ -298,6 +315,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
           _ = try? await bridgeForApps.request("reclaimKeys", .object(["leaders": .array(names.map { .string($0) })]))
         },
         run: { id, depth in
+          // A window key the app runs itself once the switch is on and it may act, Hammerspoon told
+          // only so META's sheet goes down. Any other row, or the switch off, goes to Hammerspoon.
+          if let action = WindowShadow.action(id), WindowsSwitch.on, AppFocus.allowed,
+            let settings = Self.windowSettings(), WindowRun.runs(action, settings) {
+            await windowRun.run(action, depth: depth, settings: settings)
+            await bridgeForApps.notify("keyRan", .object(["id": .string(id)]))
+            return
+          }
           // A window action is read before Hammerspoon moves the window, and its report compared.
           let action = AppFocus.allowed ? WindowShadow.action(id) : nil
           let before = action == nil ? nil : await WindowRead.snapshot()
@@ -336,6 +361,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
       let takeKeys: @Sendable () -> Void = {
         Task { @MainActor in
           guard let keymap = try? Keymap.read(keymapURL) else { return }
+          WindowsSwitch.on = keymap.windowsInApp
           await owner.take(keymap)
         }
       }
@@ -483,3 +509,29 @@ let delegate = AppDelegate()
 app.delegate = delegate
 app.setActivationPolicy(.accessory)
 app.run()
+
+/// Whether the app runs the window manager's keys, the keymap's windowsInApp, set each time the keys
+/// are taken.
+enum WindowsSwitch {
+  nonisolated(unsafe) static var on = false
+}
+
+/// The window settings last read and the share's stamp they were read at.
+final class WindowSettingsCache: @unchecked Sendable {
+  static let shared = WindowSettingsCache()
+  private let lock = NSLock()
+  private var stamp: Date?
+  private var settings: WindowSettings?
+
+  func get(_ now: Date?) -> WindowSettings? {
+    lock.lock(); defer { lock.unlock() }
+    guard let now, now == stamp else { return nil }
+    return settings
+  }
+
+  func set(_ now: Date?, _ value: WindowSettings) {
+    lock.lock(); defer { lock.unlock() }
+    stamp = now
+    settings = value
+  }
+}

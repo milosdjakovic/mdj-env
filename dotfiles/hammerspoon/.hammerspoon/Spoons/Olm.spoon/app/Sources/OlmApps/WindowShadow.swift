@@ -11,6 +11,8 @@ import Foundation
 public final class WindowShadow: @unchecked Sendable {
   public struct Counts: Sendable, Equatable {
     public var ran = 0, same = 0, differs = 0, unanswered = 0
+    /// Since the flip, the presses the app ran itself, the frames that landed and those refused.
+    public var placed = 0, refused = 0
     /// The slowest read, in milliseconds, since it runs before the press goes on.
     public var slowest = 0.0
   }
@@ -57,6 +59,21 @@ public final class WindowShadow: @unchecked Sendable {
         counts.differs += 1
         write(["kind": "differs", "action": action, "depth": depth, "what": p, "app": Self.words(app),
           "lua": lua ?? NSNull()])
+      }
+      writeCounts()
+    }
+  }
+
+  /// A frame the app wrote, read back. Off by more than the slack a terminal's cell takes, 20 points
+  /// as Lua's read back allows, is a window that refused it.
+  public func placed(action: String, asked: WindowRect, got: WindowRect) {
+    queue.sync {
+      let off = [asked.x - got.x, asked.y - got.y, asked.w - got.w, asked.h - got.h].map(abs).max() ?? 0
+      if off > 20 {
+        counts.refused += 1
+        write(["kind": "refused", "action": action, "asked": Self.rect(asked), "got": Self.rect(got)])
+      } else {
+        counts.placed += 1
       }
       writeCounts()
     }
@@ -160,6 +177,7 @@ public final class WindowShadow: @unchecked Sendable {
     guard let countURL else { return }
     let o: [String: Any] = ["ran": counts.ran, "same": counts.same, "differs": counts.differs,
       "unanswered": counts.unanswered, "slowestRead": (counts.slowest * 10).rounded() / 10,
+      "placed": counts.placed, "refused": counts.refused,
       "updated": stamp.string(from: Date())]
     if let data = try? JSONSerialization.data(withJSONObject: o, options: [.sortedKeys]) {
       try? data.write(to: countURL, options: .atomic)

@@ -1576,3 +1576,12 @@ they had removed. A size is points or a percent of the screen, one of nine ancho
 displays. Rejected: a key recorder taking META itself, since Olm.app claims every META combination
 and the press would run the action; and a size id typed by the person, since it names an action and
 is made from the name instead.
+
+**2026-11-23 15:20, 6.3b flipped.** Milos said the Window Management page works and to flip.
+The shadow log held no difference and no unanswered press since it started, though its counts only
+cover the app's last launch, since each relaunch resets them; the log file survives them. META's
+window keys now run in the app behind windowsInApp, on, and Hammerspoon is told keyRan so the sheet
+goes down. The frame is always written size, position, size, rather than Lua's plain write first and
+the workaround only on a miss, since an Accessibility write is cheap and one path is simpler to hold;
+a visible step on a display move is the risk, and his trial answers it. Rejected: running a launcher
+row in the app too, since the launcher chooses in Lua until recency moves, as 6.2 left app rows.

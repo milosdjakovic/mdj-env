@@ -136,6 +136,12 @@ return {
     -- app runs one only once it holds Accessibility and has said so, and Lua runs it otherwise. False
     -- is the way back, every press run in Hammerspoon again.
     appToggler = true,
+    -- Whether META's window keys are run by the app itself, step 6.3b, docs/DESIGN-APP-WINDOWS.md, on
+    -- since 2026-11-23 after the shadow logged no difference. The app reads the window, plans with
+    -- Olm's own settings and sizes and writes the frame, Hide Others too, once it holds
+    -- Accessibility, and hands the key to Hammerspoon otherwise. A launcher row still runs here.
+    -- False is the way back.
+    windowsInApp = true,
     -- The tools whose own list the app shows inside its launcher, step 3.3, so the launcher's row
     -- for one replaces its rows in place in the app's window. A tool joins in the step that hosts
     -- it, and taking it out leaves its row put in the app's launcher, as before. Since step 3.6

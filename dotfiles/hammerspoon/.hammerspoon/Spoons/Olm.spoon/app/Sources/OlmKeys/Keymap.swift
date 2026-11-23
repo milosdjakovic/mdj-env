@@ -80,6 +80,8 @@ public struct Keymap: Sendable, Equatable {
   /// The key codes the app claims without excluding macOS, so its own answer runs too, the Globe
   /// key where Olm Settings lets macOS's input source picker show beside Olm's cycle.
   public var systemKeys: Set<Int> = []
+  /// Whether the app runs the window manager's keys itself, step 6.3b, the windowsInApp switch.
+  public var windowsInApp = false
 
   public init(leaders: [KeyLeader], rows: [KeyRow]) {
     self.leaders = leaders
@@ -113,6 +115,7 @@ public struct Keymap: Sendable, Equatable {
     }
     var keymap = Keymap(leaders: leaders, rows: rows)
     keymap.appKeys = o["appKeys"] as? [String] ?? []
+    keymap.windowsInApp = o["windowsInApp"] as? Bool ?? false
     keymap.systemKeys = Set((o["systemKeys"] as? [NSNumber] ?? []).map(\.intValue))
     return keymap
   }
