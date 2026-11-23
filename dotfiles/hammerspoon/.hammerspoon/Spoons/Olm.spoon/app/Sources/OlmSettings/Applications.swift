@@ -792,7 +792,7 @@ struct CustomizeSheet: View {
           }
           Spacer()
           Button("Cancel") { page.customizing = nil }.keyboardShortcut(.cancelAction)
-          Button("Done") { save(c) }
+          Button("Done") { done() }
             .keyboardShortcut(.defaultAction)
             .disabled(problem(c.place) != nil)
         }
@@ -828,8 +828,25 @@ struct CustomizeSheet: View {
     return nil
   }
 
+  /// Ends the edit of the field being typed in, so its number reaches the sheet, then saves what
+  /// the sheet holds on the next turn, once that number has landed. Saving the sheet as it was drawn
+  /// lost a number typed and not yet committed, and closed the sheet under the field still editing.
+  private func done() {
+    NSApp.keyWindow?.makeFirstResponder(nil)
+    DispatchQueue.main.async {
+      guard let now = page.customizing, problem(now.place) == nil else { return }
+      save(now)
+    }
+  }
+
+  /// A binding into the sheet. A field committing as the sheet closes reads it after `customizing`
+  /// is gone, so it answers the value the sheet was drawn with then rather than crashing.
   private func bind<T>(_ path: WritableKeyPath<AppCustomize, T>) -> Binding<T> {
-    Binding(get: { page.customizing![keyPath: path] }, set: { page.customizing?[keyPath: path] = $0 })
+    let drawn = page.customizing
+    return Binding(
+      // Only ever built inside the body's `if let`, so the sheet as drawn is always there.
+      get: { (page.customizing ?? drawn)![keyPath: path] },
+      set: { page.customizing?[keyPath: path] = $0 })
   }
 
   /// A number field with its name as the prompt inside it and no label beside it, so a row of two

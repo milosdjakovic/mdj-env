@@ -1633,3 +1633,11 @@ typed there, until the launcher's choosing moves.
   switcher could only append it. The flag is gone. The app still has no Dock icon at rest, since
   `main.swift` sets the accessory policy before it runs, and lsappinfo reads it as a UI element
   from that policy. The Launch Services fallback stays, harmless, for an activation turned down.
+
+- 2026-11-24 00:10, bug found. Olm.app crashed when Herdr's padding was changed from 4 to 20 and the
+  Customize sheet closed (Olm-2026-11-24-000715 and -000742, a nil unwrap in
+  `CustomizeSheet.bind`). Done saved the sheet as it was drawn and set `customizing` to nil while
+  the number field was still editing. The field then committed into a binding whose value was gone,
+  and the number typed was never in what was saved. Done now ends the edit first and saves what the
+  sheet holds on the next turn, and a binding read after the sheet has closed answers the value it
+  was drawn with. Reported by Milos.
