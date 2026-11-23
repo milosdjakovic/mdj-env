@@ -32,7 +32,10 @@ public enum JSON: Sendable, Equatable {
     switch self {
     case .null: return NSNull()
     case .bool(let b): return b
-    case .number(let n): return n.rounded() == n && abs(n) < 9e15 ? Int(n) as Any : n as Any
+    // An NSNumber, which reads back as Int when whole and as Double always. A Swift Int here was
+    // refused by every `as? Double`, so a sheet's whole-number frame, a placement's padding and an
+    // app's window number were all dropped without a word.
+    case .number(let n): return NSNumber(value: n)
     case .string(let s): return s
     case .array(let a): return a.map(\.any)
     case .object(let o): return o.mapValues(\.any)

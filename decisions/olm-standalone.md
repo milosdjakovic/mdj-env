@@ -1391,3 +1391,12 @@ hides the applications a person switches to, the ones in the Dock, other than th
 macOS's Hide Others does, read from the running applications in 33 ms. META worked inside a
 browser's password field in the same trial, so a Carbon hotkey does fire under secure input on macOS
 27, DESIGN-APP-KEYS.md open question 2 answered.
+
+**2026-11-23 09:12, no cheat sheet showed once 5.2 drew them in the app, and the 5.2 check never saw it.**
+Milos noticed neither META's nor Hyper's sheet appeared. The bridge turned a whole JSON number into a
+Swift Int, and the sheet host read its frame with `as? Double`, which refuses an Int, so every sheet,
+whose frame is whole points, was dropped before drawing and nothing said so. The 5.2 verification
+counted the elements that crossed on the Lua side and never asked whether a window came up, which
+is the gap. The same read lost an app placement's whole-number padding and every window number app
+focus was handed. The bridge now hands each number over as an NSNumber, which reads as Double always
+and as Int when whole, and olm-bridge-check holds both readings.

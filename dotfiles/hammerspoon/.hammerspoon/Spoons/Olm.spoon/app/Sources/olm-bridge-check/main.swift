@@ -742,5 +742,13 @@ do {
   ok(live == nil, "settings: a missing share is nil")
 }
 
+do {
+  // A whole number from the bridge reads as Double and Int both, since a Swift Int was refused by
+  // every `as? Double` and dropped each cheat sheet the app was sent, 2026-11-23.
+  let o = JSON.decode(Data(#"{"x":200,"r":12.5}"#.utf8))?.any as? [String: Any]
+  ok(o?["x"] as? Double == 200 && o?["x"] as? Int == 200, "json: a whole number reads as Double and Int")
+  ok(o?["r"] as? Double == 12.5 && o?["r"] as? Int == nil, "json: a fraction reads as Double only")
+}
+
 print("olm-bridge-check, \(checks) checks, \(failures) failed")
 exit(failures == 0 ? 0 : 1)
