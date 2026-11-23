@@ -1423,3 +1423,8 @@ Hammerspoon's list pass first, which runs it only while a list is open and other
 app then running the global row. Porting the list layer into the app's share was turned down, since
 its gates are Lua predicates only Hammerspoon answers. A release wait waits in Hammerspoon through
 runKey, on the leader's isActive, which reads the live modifiers whoever claims them.
+
+**2026-11-23 09:40, Milos tried Hyper in the app and the cheat sheets, and called both working.** The app
+keys, the list keys over the launcher and the clipboard with their repeat, an app key over a list,
+a capture waiting for release, the password field and the sheet's motion. 5.3's META and Hyper are
+done, the plain combos left.
