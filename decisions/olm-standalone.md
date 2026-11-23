@@ -1550,3 +1550,11 @@ value reached the data before and a removed file key would have fallen to the co
 Olm.app reads the settings from the share and its shadow plans with them. Rejected: keeping the
 values in config/settings.lua and the app reading Hammerspoon's per press, which leaves the app
 needing Hammerspoon and the export missing them.
+
+**2026-11-23 13:52, window layouts stepping round robin.** Milos asked for halves both ways,
+thirds, fourths and quarters, each stepping to the next tile on a second press, with no keys. One
+rule, a grid and its tiles, answers all six, two thirds added as the common one beside them, so a new
+layout is one line in each language. A window's tile is found by a few points of place and a
+terminal's cell of size, 4 and 24, since a terminal snaps its size to whole cells and would otherwise
+always start over. Rejected: remembering the last tile per window, since a window moved by hand
+would then step from where it no longer is.

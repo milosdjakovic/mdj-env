@@ -43,6 +43,27 @@ for _, a in ipairs({ "maximize", "center", "fullHeight", "fullHeightReasonableWi
   case(a .. " on the ultrawide", a, { screen = "WIDE", screens = { LAPTOP, WIDE },
     window = { x = 2000, y = -300, w = 1200, h = 900 } })
 end
+-- The layouts, round robin: from a window on no tile, from every tile in turn, with a gap and on the
+-- ultrawide, and from a window a terminal's cell short of a tile.
+local layoutNames = {}
+for name in pairs(Plan.LAYOUTS) do layoutNames[#layoutNames + 1] = name end
+table.sort(layoutNames)
+for _, name in ipairs(layoutNames) do
+  local layout = Plan.LAYOUTS[name]
+  local canvas = Plan.canvas(LAPTOP.frame, margins(0))
+  case(name .. " from no tile", name)
+  for i, t in ipairs(layout.tiles) do
+    case(name .. " from tile " .. i, name, { window = Plan.tile(canvas, layout, t, 0) })
+  end
+  local gapped = Plan.canvas(LAPTOP.frame, margins(12))
+  case(name .. " from its first tile with a gap of 12", name,
+    { margins = margins(12), gap = 12, window = Plan.tile(gapped, layout, layout.tiles[1], 12) })
+  case(name .. " on the ultrawide", name, { screen = "WIDE", screens = { LAPTOP, WIDE },
+    window = { x = 2000, y = -300, w = 1200, h = 900 } })
+  local first = Plan.tile(canvas, layout, layout.tiles[1], 0)
+  case(name .. " from a terminal a cell short of its first tile", name,
+    { window = { x = first.x, y = first.y, w = first.w - 9, h = first.h - 17 } })
+end
 case("no window does nothing", "maximize", { window = false })
 case("a screen not among the screens does nothing", "maximize", { screen = "GONE" })
 case("an unknown action does nothing", "spin")

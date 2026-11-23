@@ -389,6 +389,15 @@ local ORDER = {
   { name = "moveUp", repeats = true }, { name = "moveDown", repeats = true },
   { name = "center" }, { name = "hideAllExceptFocused" },
   { name = "exactSize", listed = false }, { name = "screenRecording", listed = false },
+  -- The layouts a press steps through, round robin, plan.lua's LAYOUTS, with no key of their own,
+  -- found in the launcher by name, Milos's ask of 2026-11-23. A person gives one a key in
+  -- config/keymap.lua like any action.
+  { name = "cycleHalves", description = "Halves, Left and Right" },
+  { name = "cycleHalvesStacked", description = "Halves, Top and Bottom" },
+  { name = "cycleThirds", description = "Thirds" },
+  { name = "cycleTwoThirds", description = "Two Thirds" },
+  { name = "cycleFourths", description = "Fourths" },
+  { name = "cycleQuarters", description = "Quarters" },
 }
 
 --- WindowManager:actions() -> list of descriptors
@@ -413,7 +422,7 @@ function obj:actions()
         local report = self._report
         self._report = nil
         return report and { window = report } or nil
-      end, description = humanize(a.name),
+      end, description = a.description or humanize(a.name),
       icon = "windows", kind = "window",
       when = a.when, repeats = a.repeats, listed = a.listed,
     }
@@ -465,6 +474,12 @@ function obj:_handlers()
     -- repeating action with, and read their step off it, the press amount or the held one.
     -- Every other action here ignores the argument, since none of them repeats and a
     -- placement is the same wherever in a hold it is asked for.
+    cycleHalves =          function() self:_do("cycleHalves") end,
+    cycleHalvesStacked =   function() self:_do("cycleHalvesStacked") end,
+    cycleThirds =          function() self:_do("cycleThirds") end,
+    cycleTwoThirds =       function() self:_do("cycleTwoThirds") end,
+    cycleFourths =         function() self:_do("cycleFourths") end,
+    cycleQuarters =        function() self:_do("cycleQuarters") end,
     moveLeft =             function(hold) self:_do("moveLeft", { depth = hold }) end,
     moveRight =            function(hold) self:_do("moveRight", { depth = hold }) end,
     moveUp =               function(hold) self:_do("moveUp", { depth = hold }) end,

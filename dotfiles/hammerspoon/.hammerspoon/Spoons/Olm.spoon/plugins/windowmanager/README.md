@@ -23,6 +23,13 @@ It is measured against the screen's visible frame rather than the gap inset canv
 an exact size means exactly that and a gap would quietly take pixels out of it, which the
 preset sizes beside it have always done too.
 
+Six layouts step through their tiles round robin, each press taking the window to the next tile
+and the last coming back to the first: halves left and right, halves top and bottom, thirds, two
+thirds, fourths, and quarters from the top left to the bottom right. A press finds the tile the
+window stands on, allowing a terminal its row and column of size, and a window on no tile goes to
+the first. They ship with no key and are found in the launcher by name, and a key is a line in
+config/keymap.lua. The gap parts the tiles as it parts the halves.
+
 There is no key of its own. Every action is bound under the window leader
 instead, a bare arrow key for resizing, WASD for moving, and letters and symbols
 for maximise, presets, growing, shrinking, centring, and switching displays.

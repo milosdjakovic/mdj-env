@@ -66,6 +66,13 @@ the gap unless `config/plugins.lua` states them. The app reads all of them from 
 `WindowSettings`, and the shadow plans with its own, naming `settings` when they differ from what
 Hammerspoon planned with. So the flip needs nothing from Hammerspoon but the press.
 
+### The layouts, 2026-11-23
+
+Milos asked for the common layouts with no key: halves both ways, thirds, two thirds, fourths and
+quarters, each pressed again to step to the next tile, round robin. They are `LAYOUTS` in plan.lua
+and `WindowPlan.layouts`, a grid and its tiles, one rule for every layout, held to 41 recorded cases,
+from no tile, from each tile, with a gap, on the ultrawide and from a terminal a cell short of a tile.
+
 ## Rejected
 
 - **Porting the plugin method by method into Swift with no shared statement.** 2026-11-23. The

@@ -198,6 +198,50 @@ end
 
 local MOVES = { moveLeft = "left", moveRight = "right", moveUp = "up", moveDown = "down" }
 
+-- The layouts a press steps through, round robin, each a grid of columns and rows over the canvas
+-- and its tiles in order, a tile being its column, its row and how many of each it spans, all from
+-- zero. A press finds the tile the window stands on and takes the next one, the first when it stands
+-- on none, so pressing again walks the tiles and comes back round.
+local LAYOUTS = {
+  cycleHalves = { columns = 2, rows = 1, tiles = { { 0, 0, 1, 1 }, { 1, 0, 1, 1 } } },
+  cycleHalvesStacked = { columns = 1, rows = 2, tiles = { { 0, 0, 1, 1 }, { 0, 1, 1, 1 } } },
+  cycleThirds = { columns = 3, rows = 1, tiles = { { 0, 0, 1, 1 }, { 1, 0, 1, 1 }, { 2, 0, 1, 1 } } },
+  cycleTwoThirds = { columns = 3, rows = 1, tiles = { { 0, 0, 2, 1 }, { 1, 0, 2, 1 } } },
+  cycleFourths = { columns = 4, rows = 1,
+    tiles = { { 0, 0, 1, 1 }, { 1, 0, 1, 1 }, { 2, 0, 1, 1 }, { 3, 0, 1, 1 } } },
+  cycleQuarters = { columns = 2, rows = 2,
+    tiles = { { 0, 0, 1, 1 }, { 1, 0, 1, 1 }, { 0, 1, 1, 1 }, { 1, 1, 1, 1 } } },
+}
+M.LAYOUTS = LAYOUTS
+
+-- A tile's frame in a canvas, the gap between every two columns and rows as between the halves.
+function M.tile(canvas, layout, t, gap)
+  gap = gap or 0
+  local cw = (canvas.w - gap * (layout.columns - 1)) / layout.columns
+  local ch = (canvas.h - gap * (layout.rows - 1)) / layout.rows
+  return {
+    x = canvas.x + t[1] * (cw + gap), y = canvas.y + t[2] * (ch + gap),
+    w = t[3] * cw + (t[3] - 1) * gap, h = t[4] * ch + (t[4] - 1) * gap,
+  }
+end
+
+-- Whether a window stands on a tile. A few points of place and a terminal's row and column of size,
+-- since an app that sizes in whole cells never lands on a tile exactly.
+local TILE_PLACE, TILE_SIZE = 4, 24
+local function onTile(f, t)
+  return math.abs(f.x - t.x) <= TILE_PLACE and math.abs(f.y - t.y) <= TILE_PLACE
+    and math.abs(f.w - t.w) <= TILE_SIZE and math.abs(f.h - t.h) <= TILE_SIZE
+end
+
+function M.cycle(layout, canvas, f, gap)
+  local n = #layout.tiles
+  local at = 0
+  for i, t in ipairs(layout.tiles) do
+    if onTile(f, M.tile(canvas, layout, t, gap)) then at = i break end
+  end
+  return M.tile(canvas, layout, layout.tiles[(at % n) + 1], gap)
+end
+
 function M.plan(action, s)
   s = s or {}
   local window = s.window
@@ -233,6 +277,8 @@ function M.plan(action, s)
     return { frame = { x = canvas.x, y = canvas.y, w = (canvas.w - gap) / 2, h = canvas.h } }
   elseif action == "rightHalf" then
     return { frame = { x = canvas.x + (canvas.w + gap) / 2, y = canvas.y, w = (canvas.w - gap) / 2, h = canvas.h } }
+  elseif LAYOUTS[action] then
+    return { frame = M.cycle(LAYOUTS[action], canvas, f, gap) }
   elseif action == "increaseSize" or action == "decreaseSize" then
     local step = M.resizeStep(sizing, s.depth)
     local next = adjust(f, canvas, sizing, action == "increaseSize" and step or -step)

@@ -192,6 +192,39 @@ public enum WindowPlan {
 
   static let moves = ["moveLeft": "left", "moveRight": "right", "moveUp": "up", "moveDown": "down"]
 
+  /// plan.lua's LAYOUTS, a grid of columns and rows and its tiles in order, each a column, a row and
+  /// the columns and rows it spans, all from zero.
+  public struct Layout: Sendable {
+    public let columns: Int, rows: Int
+    public let tiles: [(Int, Int, Int, Int)]
+  }
+
+  public static let layouts: [String: Layout] = [
+    "cycleHalves": Layout(columns: 2, rows: 1, tiles: [(0, 0, 1, 1), (1, 0, 1, 1)]),
+    "cycleHalvesStacked": Layout(columns: 1, rows: 2, tiles: [(0, 0, 1, 1), (0, 1, 1, 1)]),
+    "cycleThirds": Layout(columns: 3, rows: 1, tiles: [(0, 0, 1, 1), (1, 0, 1, 1), (2, 0, 1, 1)]),
+    "cycleTwoThirds": Layout(columns: 3, rows: 1, tiles: [(0, 0, 2, 1), (1, 0, 2, 1)]),
+    "cycleFourths": Layout(columns: 4, rows: 1, tiles: [(0, 0, 1, 1), (1, 0, 1, 1), (2, 0, 1, 1), (3, 0, 1, 1)]),
+    "cycleQuarters": Layout(columns: 2, rows: 2, tiles: [(0, 0, 1, 1), (1, 0, 1, 1), (0, 1, 1, 1), (1, 1, 1, 1)]),
+  ]
+
+  /// plan.lua's tile, a tile's frame in a canvas with the gap between every two columns and rows.
+  public static func tile(_ c: WindowRect, _ layout: Layout, _ t: (Int, Int, Int, Int), _ gap: Double) -> WindowRect {
+    let cw = (c.w - gap * Double(layout.columns - 1)) / Double(layout.columns)
+    let ch = (c.h - gap * Double(layout.rows - 1)) / Double(layout.rows)
+    return WindowRect(x: c.x + Double(t.0) * (cw + gap), y: c.y + Double(t.1) * (ch + gap),
+      w: Double(t.2) * cw + Double(t.2 - 1) * gap, h: Double(t.3) * ch + Double(t.3 - 1) * gap)
+  }
+
+  /// plan.lua's cycle, the tile after the one the window stands on, the first when it stands on none.
+  static func cycle(_ layout: Layout, _ c: WindowRect, _ f: WindowRect, _ gap: Double) -> WindowRect {
+    let at = layout.tiles.firstIndex { t in
+      let r = tile(c, layout, t, gap)
+      return abs(f.x - r.x) <= 4 && abs(f.y - r.y) <= 4 && abs(f.w - r.w) <= 24 && abs(f.h - r.h) <= 24
+    }
+    return tile(c, layout, layout.tiles[at.map { ($0 + 1) % layout.tiles.count } ?? 0], gap)
+  }
+
   /// plan.lua's plan, nil where the action does nothing now.
   public static func plan(_ action: String, _ s: WindowInput) -> WindowResult? {
     guard let window = s.window, let index = s.screens.firstIndex(where: { $0.uuid == s.screen }) else { return nil }
@@ -223,6 +256,8 @@ public enum WindowPlan {
       return WindowResult(frame: WindowRect(x: c.x, y: c.y, w: (c.w - s.gap) / 2, h: c.h))
     case "rightHalf":
       return WindowResult(frame: WindowRect(x: c.x + (c.w + s.gap) / 2, y: c.y, w: (c.w - s.gap) / 2, h: c.h))
+    case _ where layouts[action] != nil:
+      return WindowResult(frame: cycle(layouts[action]!, c, f, s.gap))
     case "increaseSize", "decreaseSize":
       let step = resizeStep(sizing, s.depth)
       return adjust(f, c, sizing, action == "increaseSize" ? step : -step).map { WindowResult(frame: $0) }
