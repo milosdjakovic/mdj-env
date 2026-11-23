@@ -243,7 +243,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     let appFocus = appFocus
     let bridgeForApps = bridge
     // The motion every surface shares, before any of them shows, Look.applyMotion.
-    Look.applyMotion()
+    applySharedMotion()
     if !appsAllowed { AppFocus.ask() }
     grants.tell("accessibility", appsAllowed)
     Task {
@@ -303,7 +303,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
       }
       // The motion every surface shares, read again as Hammerspoon connects, since a load may have
       // moved it, Look.applyMotion.
-      await bridgeForApps.onOpen { Task { @MainActor in Look.applyMotion() } }
+      await bridgeForApps.onOpen { Task { @MainActor in applySharedMotion() } }
     }
     appsTimer = Timer.scheduledTimer(withTimeInterval: 10, repeats: true) { [weak self] _ in
       MainActor.assumeIsolated {

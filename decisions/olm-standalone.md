@@ -1408,3 +1408,9 @@ every WindowMotion played with a duration of zero. The sheets already came and w
 PanePanel and WindowMotion as the launcher's own panes, so nothing about the motion was duplicated,
 only its tokens arrived late. Look.applyMotion now applies them for every surface as the app starts
 and as each session opens, and a list still applies them as it opens.
+
+**2026-11-23 09:23, the commit above did not build, and was pushed.** Look is internal to OlmCore and
+main.swift is another target, so the Olm product failed to compile. The checks run before it build
+the check products, never the Olm product, and test/olmapp.sh, which would have, declined since
+Olm.app was running. Fixed with a public applySharedMotion beside Look. Before committing a change to
+app/Sources/Olm, build that product itself, swift build --product Olm.

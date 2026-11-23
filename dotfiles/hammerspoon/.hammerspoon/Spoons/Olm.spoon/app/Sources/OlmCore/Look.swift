@@ -196,3 +196,6 @@ struct Look {
     return best ?? NSScreen.main
   }
 }
+
+// Look.applyMotion for the app's own target, which cannot see Look.
+@MainActor public func applySharedMotion() { Look.applyMotion() }
