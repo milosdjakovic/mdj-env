@@ -267,18 +267,17 @@ enum AppsPage {
   }
 }
 
-/// The widths of a row's controls, so the mode and the key line up from row to row. The name takes
-/// every point the two leave, and the key stands flush with the row's right edge.
+/// The widths of a row's columns, so the Customize button and the key line up from row to row. Each
+/// column is as wide as its control, the row's spacing standing between them, and the name takes
+/// every point they leave. The marks, the key's reset and the remove, close the row on the right.
 enum AppColumns {
-  /// The Customize button and the key control themselves, one width so the two read as a pair.
+  /// The Customize button and the key control, one width so the two read as a pair.
   static let menu: CGFloat = 110
   static let recorder: CGFloat = 110
-  /// A reset or a remove beside a control, kept in place when hidden so nothing moves.
+  /// A reset or a remove, kept in place when hidden so nothing moves.
   static let mark: CGFloat = 16
-  /// The whole mode column, its reset, its control and its remove.
-  static let mode: CGFloat = mark * 2 + menu + Space.related * 2
-  /// The whole key column, its reset and its recorder.
-  static let key: CGFloat = mark + recorder + Space.related
+  /// The marks column, the key's reset and the remove.
+  static let marks: CGFloat = mark * 2 + Space.related
 }
 
 struct AppsView: View {
@@ -363,10 +362,10 @@ struct AppsView: View {
         HStack(spacing: Space.pad) {
           Text(title).font(.headline).frame(maxWidth: .infinity, alignment: .leading)
           Text("Behaviour").font(.caption).foregroundStyle(.secondary)
-            .padding(.leading, AppColumns.mark + Space.related)
-            .frame(width: AppColumns.mode, alignment: .leading)
+            .frame(width: AppColumns.menu, alignment: .leading)
           Text("Shortcut").font(.caption).foregroundStyle(.secondary)
-            .frame(width: AppColumns.key, alignment: .trailing)
+            .frame(width: AppColumns.recorder, alignment: .leading)
+          Color.clear.frame(width: AppColumns.marks, height: 1)
         }
         .padding(.horizontal, Space.pad + 4)
         // Every row made at once, a few hundred at most, so none appears as it scrolls into view.
@@ -579,16 +578,20 @@ struct AppRow: View {
         Text(detail).font(.caption).foregroundStyle(.secondary).lineLimit(1).truncationMode(.middle)
       }
       .frame(maxWidth: .infinity, alignment: .leading)
-      mode.frame(width: AppColumns.mode, alignment: .leading)
-      key.frame(width: AppColumns.key, alignment: .trailing)
+      mode
+      key
+      HStack(spacing: Space.related) {
+        mark("arrow.uturn.backward", shown: keyOwn, help: "Back to the key in the config files", action: resetKey)
+        mark("minus.circle", shown: entry.removable, help: "Remove \(entry.name) from Olm", action: remove)
+      }
+      .frame(width: AppColumns.marks)
     }
     .disabled(busy)
   }
 
-  // The behaviour column: the reset and the remove keep their place when hidden, so nothing moves.
+  // The behaviour column. Its reset is the sheet's own Reset, and the button's menu.
   private var mode: some View {
-    HStack(spacing: Space.related) {
-      mark("arrow.uturn.backward", shown: entry.customized, help: "Back to the default", action: reset)
+    Group {
       Button(action: customize) {
         Field(width: AppColumns.menu, leading: false, set: entry.customized) {
           Image(systemName: "slider.horizontal.3").font(.caption)
@@ -599,14 +602,15 @@ struct AppRow: View {
       .help(entry.customized
         ? AppCustomize.words(entry.own)
         : "How \(entry.name)'s key acts and where its window goes")
-      mark("minus.circle", shown: entry.removable, help: "Remove \(entry.name) from Olm", action: remove)
+      .contextMenu {
+        Button("Back to the Default", action: reset).disabled(!entry.customized)
+      }
     }
   }
 
-  // The key column, the reset and then the recorder at the far right.
+  // The key column, the recorder alone, its reset among the marks.
   private var key: some View {
-    HStack(spacing: Space.related) {
-      mark("arrow.uturn.backward", shown: keyOwn, help: "Back to the key in the config files", action: resetKey)
+    Group {
       Button(action: record) {
         Field(width: AppColumns.recorder, leading: false, set: chord != nil || recording) {
           Text(recording ? "Press a key" : (chord.map(KeyName.words) ?? "None"))
