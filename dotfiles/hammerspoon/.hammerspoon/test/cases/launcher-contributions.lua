@@ -233,7 +233,11 @@ local launcher = buildLauncher(planWith())
 --------------------------------------------------------------------------------
 
 local actionRows = launcher._actionRows
-local nWindows = #windowManifest.defaults.bindings
+-- Every window action the launcher lists, the bound ones and the layouts that ship with no key.
+local nWindows = 0
+for _, d in ipairs(windows:actions()) do
+  if d.listed ~= false then nWindows = nWindows + 1 end
+end
 local nCapture = #captureManifest.defaults.bindings
 local nPanes = #settingsManifest.defaults.panes
 -- The launcher's own rows, Aliases, Olm Keys, Lock Screen and Sleep.
