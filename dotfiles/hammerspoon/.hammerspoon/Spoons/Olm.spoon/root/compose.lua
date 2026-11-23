@@ -72,12 +72,15 @@ local keyShareLib = load("lib/keyshare.lua")
 -- ~/.olm/run/keymap.json and the rows are wrapped so each run sends keyFired, which the app's shadow
 -- of the keys pairs with what it resolved itself, step 5.1, docs/DESIGN-APP-KEYS.md. With no bridge
 -- the rows are bound as they are.
-local function sharedKeys(bridge, bound, leaderSpecs, keyTable, leaders, plain)
+local function sharedKeys(bridge, bound, leaderSpecs, keyTable, leaders, plain, systemPicker)
   if not (bridge and type(bridge.share) == "function" and type(bridge.notify) == "function") then return bound end
   bridge:share("keymap", function()
     local share = keyShareLib.share(bound, leaderSpecs, { bindable = binderLib.bindable, keycodes = keyTable })
     -- The leaders whose modifier combinations the app claims, step 5.3.
     if type(bridge.appKeys) == "function" then share.appKeys = bridge:appKeys() end
+    -- The keys the app claims without excluding macOS, so its own answer runs beside Olm's, the
+    -- Globe key where Olm Settings lets macOS's input source picker show too.
+    share.systemKeys = systemPicker == true and keyTable.globe and { keyTable.globe } or {}
     return share
   end)
   local wrapped = keyShareLib.wrap(bound, function(method, params) bridge:notify(method, params) end)
@@ -3397,7 +3400,7 @@ function obj.run(olm, cfg)
   -- each run, sharedKeys above. A call rather than locals here, since this function is at Lua 5.4's
   -- limit of 200.
   for _, problem in ipairs(binderLib.bind(sharedKeys(forwardApps(atoms.appfocus, modules[plan.identity.bridge or "bridge"]), keymap.bound,
-    leaderSpecs, keyTable, leadersByName, plainLeader), {
+    leaderSpecs, keyTable, leadersByName, plainLeader, policy.globeSystemPicker), {
     engines = leadersByName,
     plain = plainLeader,
   })) do

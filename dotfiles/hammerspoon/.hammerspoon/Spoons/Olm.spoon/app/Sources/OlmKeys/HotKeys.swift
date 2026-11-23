@@ -24,14 +24,17 @@ public final class HotKeys {
   }
 
   /// Claims a key code on a set of modifiers, answering its number, or nil where another program
-  /// holds that combination already.
-  public func claim(code: Int, mods: Set<Mod>) -> UInt32? {
+  /// holds that combination already. Exclusive, as hs.hotkey claims every key, so no other program
+  /// and not macOS itself answers it too, a tap of fn showing macOS's own input source picker beside
+  /// Olm's cycle otherwise, Milos's report on 2026-11-23. A claim that is not exclusive lets macOS
+  /// answer as well, and a second program claim the same combination.
+  public func claim(code: Int, mods: Set<Mod>, exclusive: Bool = true) -> UInt32? {
     installIfNeeded()
     let id = next
     next += 1
     var ref: EventHotKeyRef?
     let status = RegisterEventHotKey(UInt32(code), Self.carbon(mods), EventHotKeyID(signature: Self.signature, id: id),
-      GetEventDispatcherTarget(), 0, &ref)
+      GetEventDispatcherTarget(), exclusive ? OptionBits(kEventHotKeyExclusive) : 0, &ref)
     guard status == noErr, let ref else { return nil }
     refs[id] = ref
     return id

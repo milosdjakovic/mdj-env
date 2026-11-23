@@ -77,6 +77,9 @@ public struct Keymap: Sendable, Equatable {
   public var rows: [KeyRow]
   /// The leaders whose modifier combinations the app claims, step 5.3, by the name a row spells each.
   public var appKeys: [String] = []
+  /// The key codes the app claims without excluding macOS, so its own answer runs too, the Globe
+  /// key where Olm Settings lets macOS's input source picker show beside Olm's cycle.
+  public var systemKeys: Set<Int> = []
 
   public init(leaders: [KeyLeader], rows: [KeyRow]) {
     self.leaders = leaders
@@ -110,6 +113,7 @@ public struct Keymap: Sendable, Equatable {
     }
     var keymap = Keymap(leaders: leaders, rows: rows)
     keymap.appKeys = o["appKeys"] as? [String] ?? []
+    keymap.systemKeys = Set((o["systemKeys"] as? [NSNumber] ?? []).map(\.intValue))
     return keymap
   }
 

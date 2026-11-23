@@ -267,6 +267,10 @@ do {
   check(plainCombos.contains { $0.code == 179 && $0.mods.isEmpty }, "owner: a bare key on none")
   let plainHit = Resolver(keymap: plainMap).resolve(code: 8, mods: [.ctrl, .alt], held: [], gate: { _ in true })
   check(plainHit == .runs(plainMap.rows[0]), "owner: a plain claim resolves to its row")
+  let systemShare = #"{"version":1,"leaders":[],"rows":[],"systemKeys":[179]}"#
+  check((try? Keymap.parse(Data(systemShare.utf8)))?.systemKeys == [179], "owner: the keys macOS answers too are read from the share")
+  check((try? Keymap.parse(Data(#"{"version":1,"leaders":[],"rows":[]}"#.utf8)))?.systemKeys.isEmpty == true,
+    "owner: and none by default, every claim exclusive")
   let share = #"{"version":1,"leaders":[],"rows":[],"appKeys":["meta"]}"#
   check((try? Keymap.parse(Data(share.utf8)))?.appKeys == ["meta"], "owner: the share names the leaders the app holds")
 }

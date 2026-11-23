@@ -121,7 +121,7 @@ public final class KeyOwner {
       var failed = false
       let lists = released.lists[name] ?? []
       for combo in Self.combinations(keymap, leader: leader, base: base, lists: lists) {
-        if let id = keys.claim(code: combo.code, mods: combo.mods) {
+        if let id = keys.claim(code: combo.code, mods: combo.mods, exclusive: !keymap.systemKeys.contains(combo.code)) {
           claims[id] = Claim(leader: name, code: combo.code, mods: combo.mods, sub: combo.mods.subtracting(base),
             list: lists.contains { $0.code == combo.code && base.union($0.mods) == combo.mods })
           made.append(id)

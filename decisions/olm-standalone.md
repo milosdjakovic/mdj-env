@@ -1434,3 +1434,13 @@ clipboard's append and paste next on Control and Option and Input Sources' cycle
 The plain leader was refused by the release on purpose, an empty base set reading as no modifiers,
 so it is now released only when the bridge names it plain, and the app claims each of its rows on
 the row's own modifiers.
+
+**2026-11-23 10:03, macOS's own input source picker showed beside Olm's cycle once the app held the
+Globe key.** Milos's report. Hammerspoon's hs.hotkey registers every key with
+kEventHotKeyExclusive, measured by binding one from the running config and seeing a second
+exclusive registration of the same combination refused with -9878, and freed again once it was
+deleted. The app registered with no option, so macOS answered the key too. The app now claims
+exclusively. The belief of 2026-11-20 that Carbon lets a second process claim a combination
+another holds was true only of a claim that is not exclusive, corrected here. Milos asked that
+showing macOS's picker too be a choice in Olm Settings, so it is the switch macOS Picker on the Globe
+Key, off as shipped, which leaves the Globe key's claim not exclusive.

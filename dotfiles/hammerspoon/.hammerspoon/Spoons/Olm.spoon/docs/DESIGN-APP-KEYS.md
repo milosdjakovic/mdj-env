@@ -138,6 +138,7 @@ when a sheet shows. The goldens of each sheet are compared with what the app dra
 - **The switch** is `appKeys` in `config/plugins.lua`, `{ "meta" }`, an empty list being the way back.
 - **What the app holds** is written to `~/.olm/run/keys-owned.json` after every take and drop, each
   leader with its count of combinations, since Carbon lets a second process claim a combination
+  another holds when either claim is not exclusive, which the app's were until 2026-11-23,
   another holds, so a probe from outside cannot tell, and the app's log is not readable from a shell.
 - **Checked** by `test/leaders.lua`, a released leader making its hotkeys disabled and reclaim
   enabling them, a leader with a list key refused, `test/bridge.lua`, the three words and the socket
@@ -168,6 +169,16 @@ Hammerspoon hands its plain leader over as `plain`, the one leader released with
 and the app claims each row on exactly its own modifiers, the Globe key on none, and resolves it
 with the resolver's plain step. The switch is `appKeys`, `{ "meta", "hyper", "plain" }`. With this
 the app claims every global key, every row still run in Hammerspoon.
+
+**Every claim is exclusive, 2026-11-23.** Hammerspoon's `hs.hotkey` registers with
+`kEventHotKeyExclusive`, measured by binding one and seeing a second exclusive claim refused with
+-9878, and the app registered with no option, so macOS answered a claimed key as well and a tap of
+fn showed its own input source picker beside Olm's cycle. The app claims exclusively now, so a
+claim is an ownership another program cannot share. The one way back is the Olm Settings switch
+macOS Picker on the Globe Key, `globeSystemPicker` in `lib/settings.lua`, off as shipped, which
+puts the Globe key in the share's `systemKeys`, the codes the app claims without the flag. It
+applies on the reload the window's close runs. Where the socket is down, Hammerspoon's own hotkey
+holds the key and is always exclusive, so the switch reads only while the app holds the keys.
 
 ## Rejected
 
