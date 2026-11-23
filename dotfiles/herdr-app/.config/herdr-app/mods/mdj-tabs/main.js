@@ -27,6 +27,30 @@ function expandSidebar() {
   run("layout.resize", { id: "sidebar", px: shared("sidebar.width") ?? 276 });
 }
 
+// mdj: a program icon is drawn on a tile, and a tab of more than one pane as a stack of them, in a 22px box, so the
+// icon is larger than the 14px it was while the 28px row keeps its height, 3px above and below. The front tile is
+// 18px with 3px corners and a 14px glyph, the shell's when the program has none, and up to three more tiles peek
+// out behind it up and to the right, 4/3px a step, each carrying its own pane's glyph. Every tile is opaque, mixed
+// from the row's own colour and `dim`, a step darker the further back it sits, so the layers read on the canvas,
+// a selected card and a hover alike. Written out in mdj-tabs and mdj-agents, since a mod cannot import from
+// another, so a change to one is a change to both. Asked by Milos on 2026-11-23.
+const ICON_BOX = 22;
+function tiles(t, fill, programs) {
+  const rgb = (h) => [1, 3, 5].map(k => parseInt(h.slice(k, k + 2), 16));
+  const blend = (a, b, k) => "#" + rgb(a).map((v, i) => Math.round(v + (rgb(b)[i] - v) * k).toString(16).padStart(2, "0")).join("");
+  const dim = t.dim.slice(0, 7);
+  const TILE = 18, STEP = 4 / 3, n = Math.min(programs.length, 4);
+  const span = TILE + (n - 1) * STEP, x0 = (ICON_BOX - span) / 2, y0 = (ICON_BOX - span) / 2 + (n - 1) * STEP;
+  const glyph = (p) => p?.icon ? (p.tint ? svg(p.icon).size(14) : image(p.icon).size(14)) : svg("icons/shell.svg").size(14);
+  const tile = (k) => div().absolute().size(TILE).left(x0 + k * STEP).top(y0 - k * STEP).rounded(3)
+    .bg(blend(fill.slice(0, 7), dim, 0.18 + 0.1 * k)).flex().items_center().justify_center().child(glyph(programs[k]));
+  return Array.from({ length: n }, (_, i) => tile(n - 1 - i));
+}
+const mixHalf = (a, b) => {
+  const rgb = (h) => [1, 3, 5].map(k => parseInt(h.slice(k, k + 2), 16));
+  return "#" + rgb(a).map((v, k) => Math.round((v + rgb(b)[k]) / 2).toString(16).padStart(2, "0")).join("");
+};
+
 export default class MdjTabs extends View {
   init() {
     this.pressed = null;
@@ -167,6 +191,28 @@ export default class MdjTabs extends View {
         .when(over || Boolean(status), el => el.child(slot)));
   }
 
+  // A tab's panes, the last focused first and the rest in the order they were focused before it, new panes at the
+  // end in the tab's own order. Only the shown tab has a focused pane, so each tab keeps its own order here and a tab
+  // in the background still shows the pane that was focused when it was left. Lost on a reload of the mod.
+  paneOrder(tab) {
+    const all = panes().filter(p => p.tab === tab);
+    const ids = new Set(all.map(p => p.pane));
+    const seen = ((this.focusOrder ??= {})[tab] ?? []).filter(id => ids.has(id));
+    for (const p of all) if (!seen.includes(p.pane)) seen.push(p.pane);
+    const now = all.find(p => p.focused)?.pane;
+    if (now && seen[0] !== now) seen.splice(seen.indexOf(now), 1), seen.unshift(now);
+    this.focusOrder[tab] = seen;
+    return seen.map(id => all.find(p => p.pane === id));
+  }
+
+  // Every tab shows its panes as a stack of tiles, one for a lone pane, so every icon has the same background and
+  // a split neither grows nor moves the tab. The front tile is the focused pane, or the one last focused in a tab
+  // not shown, and the rest follow in the order paneOrder keeps.
+  stack(c, t, over, order) {
+    const fill = c.active ? t.raised : over ? mixHalf(t.canvas.slice(0, 7), t.raised.slice(0, 7)) : t.canvas;
+    return div().size(ICON_BOX).flex_none().relative().children(tiles(t, fill, order.map(p => p.program)));
+  }
+
   render() {
     const t = theme();
     const space = spaces().find(p => p.active);
@@ -180,6 +226,7 @@ export default class MdjTabs extends View {
       .on_mouse_down("left", stop).on_click(action).child(label);
     const item = (c, i) => {
       const program = panes().find(p => p.tab === c.id && p.program?.agent)?.program ?? panes().find(p => p.tab === c.id)?.program;
+      const order = this.paneOrder(c.id);
       const name = /^tb\d+$/.test(c.name) ? program?.name ?? "Terminal" : c.name;
       // mdj: the tab's status, a spinner while its agent works or a dot, and the close button that takes its place
       // while the pointer is on the tab, take no width. They sit over the end of the name in an 18px slot 5px in,
@@ -189,7 +236,7 @@ export default class MdjTabs extends View {
       const over = this.hoverTab === c.id;
       const status = c.status === "working" ? svg("mods/workspace-chrome/spinner.svg").size(12).flex_none().text_color(t.working).spin(900)
         : c.status === "blocked" || c.status === "done" ? div().size(6).rounded(3).bg(t[c.status]) : null;
-      return h_flex().id(`tab-${c.id}`).h(ROW).min_w(ROW * 4).pl(9).pr(14).gap(8).rounded(RADIUS).items_center().flex_none().text_size(13.5).relative()
+      return h_flex().id(`tab-${c.id}`).h(ROW).min_w(ROW * 4).pl(7).pr(14).gap(6).rounded(RADIUS).items_center().flex_none().text_size(13.5).relative()
         .child(card(`tab-card-${c.id}`, c.active, t, RADIUS)).text_color(c.active ? t.foreground : t.muted)
         .when(!c.active, el => el.hover(s => s.bg(dimmed(t))))
         .on_size_change((s, cx) => { if ((this.widths ??= {})[c.id] !== s.width) { this.widths[c.id] = s.width; cx.notify(); } })
@@ -201,9 +248,11 @@ export default class MdjTabs extends View {
           else run("tab.select", { id: c.id });
         })
         .on_mouse_down("right", (_e, cx) => { cx.stop_propagation(); openOverlay({ mod: "mdj-menu", kind: "popup", frame: "none", width: 208, props: { tab: "tab", target: { id: c.id, space: space.id } } }); })
-        // The leading icon sits in an 18px box 5px in from the left, top and bottom, as on every side-list row.
-        .child(div().size(18).flex_none().flex().items_center().justify_center()
-          .when(Boolean(program?.icon), el => el.child(program.tint ? svg(program.icon).size(14) : image(program.icon).size(14))))
+        // The leading icon sits in a 22px box 7px in from the left and 3px from the top and bottom, its centre where
+        // a side-list row's 18px box has its own, drawn as a stack of tiles, one tile for a lone pane, see stack().
+        .child(order.length > 0 ? this.stack(c, t, over, order)
+          : div().size(18).flex_none().flex().items_center().justify_center()
+            .when(Boolean(program?.icon), el => el.child(program.tint ? svg(program.icon).size(14) : image(program.icon).size(14))))
         .child(div().flex_1().min_w(0).max_w(170).truncate().child(name))
         .when(over || Boolean(status) || Boolean(c.zoomed), el => el.child(this.trailing(c, t, over, status, RADIUS)));
     };

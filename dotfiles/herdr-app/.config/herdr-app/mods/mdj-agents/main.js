@@ -139,6 +139,30 @@ function icon(p, size, color) {
   return p.tint ? svg(p.icon).size(size).flex_none().text_color(color) : image(p.icon).w(size).h(size).flex_none();
 }
 
+// mdj: a program icon is drawn on a tile, and a tab of more than one pane as a stack of them, in a 22px box, so the
+// icon is larger than the 14px it was while the 28px row keeps its height, 3px above and below. The front tile is
+// 18px with 3px corners and a 14px glyph, the shell's when the program has none, and up to three more tiles peek
+// out behind it up and to the right, 4/3px a step, each carrying its own pane's glyph. Every tile is opaque, mixed
+// from the row's own colour and `dim`, a step darker the further back it sits, so the layers read on the canvas,
+// a selected card and a hover alike. Written out in mdj-tabs and mdj-agents, since a mod cannot import from
+// another, so a change to one is a change to both. Asked by Milos on 2026-11-23.
+const ICON_BOX = 22;
+function tiles(t, fill, programs) {
+  const rgb = (h) => [1, 3, 5].map(k => parseInt(h.slice(k, k + 2), 16));
+  const blend = (a, b, k) => "#" + rgb(a).map((v, i) => Math.round(v + (rgb(b)[i] - v) * k).toString(16).padStart(2, "0")).join("");
+  const dim = t.dim.slice(0, 7);
+  const TILE = 18, STEP = 4 / 3, n = Math.min(programs.length, 4);
+  const span = TILE + (n - 1) * STEP, x0 = (ICON_BOX - span) / 2, y0 = (ICON_BOX - span) / 2 + (n - 1) * STEP;
+  const glyph = (p) => p?.icon ? (p.tint ? svg(p.icon).size(14) : image(p.icon).size(14)) : svg("icons/shell.svg").size(14);
+  const tile = (k) => div().absolute().size(TILE).left(x0 + k * STEP).top(y0 - k * STEP).rounded(3)
+    .bg(blend(fill.slice(0, 7), dim, 0.18 + 0.1 * k)).flex().items_center().justify_center().child(glyph(programs[k]));
+  return Array.from({ length: n }, (_, i) => tile(n - 1 - i));
+}
+const mixHalf = (a, b) => {
+  const rgb = (h) => [1, 3, 5].map(k => parseInt(h.slice(k, k + 2), 16));
+  return "#" + rgb(a).map((v, k) => Math.round((v + rgb(b)[k]) / 2).toString(16).padStart(2, "0")).join("");
+};
+
 export default class Agents extends View {
   init(_props, cx) {
     if (props()?.sortMenu) return;
@@ -424,13 +448,13 @@ export default class Agents extends View {
       const name = full ? a.space_name || label(a) : more ?? (/^\d+$/.test(label(a)) ? a.program?.name || label(a) : label(a));
       return h_flex()
         .id(`ag-${a.address}`)
-        .pl(9)
+        .pl(7)
         .pr(9)
         .h(28)
         .flex_none()
         .rounded_full()
         .items_center()
-        .gap(8)
+        .gap(6)
         // The focused agent looks like the pane and the selected tab: the terminal's page, a soft shadow.
         .relative()
         .child(card(`ag-card-${a.address}`, a.focused, t, 14))
@@ -442,12 +466,14 @@ export default class Agents extends View {
           cx.notify();
         })
         .on_click(() => run("pane.focus", { pane: a.pane }))
-        .when(Boolean(pic), el => el.child(div().id(`agent-fold-${a.address}`).size(18).flex_none().flex().items_center().justify_center()
+        // The agent's icon on a tile, as a tab draws it, with the other panes of its tab stacked behind in their order.
+        .child(div().id(`agent-fold-${a.address}`).size(ICON_BOX).flex_none().relative()
           .when(subs.length > 0, el => el.on_click((_e, cx) => {
             cx.stop_propagation();
             this.folded.has(a.address) ? this.folded.delete(a.address) : this.folded.add(a.address);
             cx.notify();
-          })).child(pic)))
+          })).children(tiles(t, a.focused ? t.raised : this.hovered === a.address ? mixHalf(t.canvas.slice(0, 7), t.raised.slice(0, 7)) : t.canvas,
+            [a, ...panes().filter(p => p.tab === a.tab && p.pane !== a.pane)].map(p => p.program))))
         .child(h_flex().flex_1().min_w(0).gap(5).items_center()
           .child(div().min_w(0).max_w(full && more ? 120 : 200).truncate().text_color(idle ? t.muted : t.foreground).child(name))
           .when(full && Boolean(more), el => el.child(div().flex_1().min_w(0).truncate().text_color(t.dim).child(`\u00b7 ${more}`))))
