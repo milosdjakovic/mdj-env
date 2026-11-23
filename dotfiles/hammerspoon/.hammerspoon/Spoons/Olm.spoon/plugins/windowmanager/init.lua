@@ -84,7 +84,9 @@ end
 -- The margins as numbers, each one a number or a function answering one, and the gap on every side
 -- where none is stated, so one gap insets the canvas and parts tiled windows.
 function obj:_resolvedMargins()
-  if next(self._margins or {}) == nil then
+  local stated = false
+  for _ in pairs(self._margins or {}) do stated = true break end
+  if not stated then
     local gap = self:_gap()
     return { top = gap, right = gap, bottom = gap, left = gap }
   end
