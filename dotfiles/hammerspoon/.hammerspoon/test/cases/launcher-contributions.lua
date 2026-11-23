@@ -251,7 +251,14 @@ for i, title in ipairs(wantOrder) do
   eq("row " .. i .. " is " .. title, (actionRows[i] or {}).title, title)
 end
 local lastWindow = nCapture + 1 + nOwn + nWindows
-eq("the last window action precedes the panes", actionRows[lastWindow].title, "Hide All Except Focused")
+-- The layouts, which ship with no key, trail the bound window actions, Hide All Except Focused last
+-- among those.
+local nLayouts = 0
+for _, d in ipairs(windows:actions()) do
+  if d.name:match("^cycle") then nLayouts = nLayouts + 1 end
+end
+local hideRow = lastWindow - nLayouts
+eq("the last window action precedes the panes", actionRows[lastWindow].title, "Quarters")
 eq("the first pane follows every command", actionRows[lastWindow + 1].title, "Wi-Fi")
 eq("the last row is the last pane", actionRows[#actionRows].title, "Device Management")
 
@@ -286,7 +293,7 @@ expectRow("gated window row", actionRows[10], {
   iconOwner = "windowmanager", kind = "window", id = "previousDisplay", owner = "windowmanager",
   when = "multipleDisplays" })
 -- The key arrives in the keymap's one spelling, lowercased, and kbd draws a letter upper cased.
-expectRow("window row", actionRows[lastWindow], {
+expectRow("window row", actionRows[hideRow], {
   title = "Hide All Except Focused", subTitle = "Window Manager · \u{25C6}H", icon = "windows",
   iconOwner = "windowmanager", kind = "window", id = "hideAllExceptFocused",
   owner = "windowmanager" })
