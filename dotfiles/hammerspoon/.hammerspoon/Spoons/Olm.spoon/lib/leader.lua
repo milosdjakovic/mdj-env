@@ -474,6 +474,31 @@ function obj.afterAllReleased(leaders, fn)
   obj._allReleaseWait = hs.timer.waitUntil(function() return not anyHeld() end, fn, 0.02)
 end
 
+-- One ranked pass over the bindings accept lets through, answering the binding chosen and whether
+-- a matching one was gated off.
+local function rankedPassOf(self, list, present, accept)
+  local gated = false
+  local bestExact, bestExactP = nil, -math.huge
+  local bestCatch, bestCatchP = nil, -math.huge
+  for _, b in ipairs(list) do
+    if accept(b) and (b.mods == nil or modsMatch(b, present)) then
+      if not self:_passes(b) then
+        gated = true
+      else
+        local p = b.priority or 0
+        if b.mods then
+          if p > bestExactP then bestExact, bestExactP = b, p end
+        elseif p > bestCatchP then
+          bestCatch, bestCatchP = b, p
+        end
+      end
+    end
+  end
+  return bestExact or bestCatch, gated
+end
+local function isList(b) return b.when ~= nil end
+local function isGlobal(b) return b.when == nil end
+
 --- Leader:_resolve(list, flags) -> handler, repeats
 --- Method
 --- Pick the handler for the modifiers held. An exact match on the real modifiers beats a catch
@@ -503,30 +528,7 @@ function obj:_resolve(list, flags)
   if not list then return nil end
   local present = heldSet(flags or {})
 
-  -- One ranked pass over the bindings accept lets through, answering the binding chosen and whether
-  -- a matching one was gated off.
-  local function rankedPass(accept)
-    local gated = false
-    local bestExact, bestExactP = nil, -math.huge
-    local bestCatch, bestCatchP = nil, -math.huge
-    for _, b in ipairs(list) do
-      if accept(b) and (b.mods == nil or modsMatch(b, present)) then
-        if not self:_passes(b) then
-          gated = true
-        else
-          local p = b.priority or 0
-          if b.mods then
-            if p > bestExactP then bestExact, bestExactP = b, p end
-          elseif p > bestCatchP then
-            bestCatch, bestCatchP = b, p
-          end
-        end
-      end
-    end
-    return bestExact or bestCatch, gated
-  end
-  local function isList(b) return b.when ~= nil end
-  local function isGlobal(b) return b.when == nil end
+  local function rankedPass(accept) return rankedPassOf(self, list, present, accept) end
 
   -- The global layer by the leader's own tier rule, answering the binding chosen and whether a
   -- matching one was gated off. On a leader that is not ranked a gated exact match is swallowed
@@ -611,16 +613,61 @@ end
 --- Leader:releaseModifiers() -> ok, why
 --- Method
 --- Lets Olm.app hold this leader's modifier combinations, step 5.3, docs/DESIGN-APP-KEYS.md, its
---- held key and its sheet staying here. Refused for a leader with no modifiers, and for one holding a
---- list key or a row that waits for release, neither of which the app runs.
+--- held key and its sheet staying here. Refused for a leader with no modifiers. A list key the app
+--- claims comes back through runListKey and a row that waits for release through the bridge's
+--- runKey, which waits on isActive as a press here does.
 function obj:releaseModifiers()
   if not (self._trigger and type(self._trigger.release) == "function") then return false, "it has no modifiers" end
-  for _, b in ipairs(self._sequence or {}) do
-    if b.when then return false, "it holds a list key" end
-    if b.afterRelease then return false, "it holds a row that runs after release" end
-  end
   if not self._trigger.release() then return false, "it has no modifiers" end
   return true
+end
+
+--- Leader:listCombos() -> list
+--- Method
+--- The combinations this leader's list keys sit on, each { code, mods } with the modifiers a
+--- binding adds to the base set, so the app claims them beside the global rows', step 5.3. A
+--- binding asking for a modifier the base set holds is left out, since the modifier half of a
+--- composite leaves it to the held half.
+function obj:listCombos()
+  local base = {}
+  for _, m in ipairs((self._trigger and self._trigger.baseMods) or {}) do base[m] = true end
+  local seen, out = {}, {}
+  for _, b in ipairs(self._sequence or {}) do
+    if b.when and b.code then
+      local mods, overlap = {}, false
+      for _, m in ipairs(REAL_MODS) do
+        for _, own in ipairs(b.mods or {}) do
+          if own == m then
+            if base[m] then overlap = true end
+            mods[#mods + 1] = m
+          end
+        end
+      end
+      local id = tostring(b.code) .. "|" .. table.concat(mods, "+")
+      if not overlap and not seen[id] then
+        seen[id] = true
+        out[#out + 1] = { code = b.code, mods = mods }
+      end
+    end
+  end
+  return out
+end
+
+--- Leader:runListKey(code, flags, depth) -> ran, repeats
+--- Method
+--- A press the app claimed on a list key's combination, step 5.3. While a list is open on this
+--- leader its list bindings answer first, as _resolve ranks them, and the one chosen runs here with
+--- the depth on a leader that drives its repeat. Otherwise, and when no list binding answers, it
+--- runs nothing, so the app runs the global row, which is _resolve's order on both sides.
+function obj:runListKey(code, flags, depth)
+  if not self:_modal() then return false, false end
+  local list = self._bindings[code]
+  if not list then return false, false end
+  local chosen = rankedPassOf(self, list, heldSet(flags or {}), isList)
+  if not chosen then return false, false end
+  local fn = self:_handlerOf(chosen)
+  if self:_repeatMode() == "driven" then fn(depth or 0) else fn() end
+  return true, chosen.repeats == true
 end
 
 --- Leader:reclaimModifiers()

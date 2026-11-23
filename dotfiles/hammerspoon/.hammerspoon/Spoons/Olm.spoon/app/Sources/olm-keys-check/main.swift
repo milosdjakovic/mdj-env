@@ -246,6 +246,15 @@ do {
   check(combos.count == 2, "owner: one claim per combination, a row asking for a base modifier left to the held key, \(combos)")
   check(combos.contains { $0.code == 123 && $0.mods == base }, "owner: a catch all on the base set alone")
   check(combos.contains { $0.code == 123 && $0.mods == base.union([.cmd]) }, "owner: a row's own modifier added to the base set")
+  // A list key's combinations join the global rows', one already claimed by a row not claimed twice,
+  // and one asking for a base modifier left to the held key as a row's is.
+  let lists = [KeyOwner.ListCombo(code: 38, mods: []), KeyOwner.ListCombo(code: 123, mods: []),
+    KeyOwner.ListCombo(code: 38, mods: [.cmd]), KeyOwner.ListCombo(code: 40, mods: [.shift])]
+  let withLists = KeyOwner.combinations(km, leader: meta, base: base, lists: lists)
+  check(withLists.count == 4, "owner: list combinations join the rows', none twice, \(withLists)")
+  check(withLists.contains { $0.code == 38 && $0.mods == base }, "owner: a list key on the base set alone")
+  check(withLists.contains { $0.code == 38 && $0.mods == base.union([.cmd]) }, "owner: a list key's own modifier added")
+  check(!withLists.contains { $0.code == 40 }, "owner: a list key asking for a base modifier is left to the held key")
   let share = #"{"version":1,"leaders":[],"rows":[],"appKeys":["meta"]}"#
   check((try? Keymap.parse(Data(share.utf8)))?.appKeys == ["meta"], "owner: the share names the leaders the app holds")
 }

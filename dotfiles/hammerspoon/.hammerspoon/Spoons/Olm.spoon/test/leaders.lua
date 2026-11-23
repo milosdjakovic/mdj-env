@@ -988,8 +988,9 @@ do
 end
 
 -- Olm.app holding a leader's modifiers, step 5.3. Released before it starts, every combination is
--- made and none enabled, reclaim enables them, a leader holding a list key is refused, and the held
--- half of a composite is never touched.
+-- made and none enabled, reclaim enables them, a leader holding list keys hands their combinations
+-- over and runs a press on one through its list pass, and the held half of a composite is never
+-- touched.
 do
   local modifier = assert(loadfile(lib .. "leader/triggers/modifier.lua"))()
   hotkeysBound = {}
@@ -1002,11 +1003,34 @@ do
   eq(#hotkeysBound, 0, "release: released before it starts, no combination is enabled")
   m:reclaimModifiers()
   eq(#hotkeysBound, 2, "release: reclaim enables every combination")
-  local listed = newLeader({}, predicates, { trigger = modifier.new({ mods = { "shift", "ctrl", "alt" } }) })
-  listed:bind("c", function() end, nil, { when = "someListOpen" })
-  local ok2, why = listed:releaseModifiers()
-  eq(ok2, false, "release: a leader holding a list key is refused")
-  eq(why, "it holds a list key", "release: and says why")
+  -- A leader holding list keys and a row that waits for release may be released since Hyper's step,
+  -- its list combinations handed to the app and a press on one run by the list pass.
+  local ran = {}
+  local listed = newLeader({ ranked = true }, predicates,
+    { trigger = modifier.new({ mods = { "shift", "ctrl", "alt", "cmd" } }) })
+  listed:bind("c", function() ran[#ran + 1] = "listC" end, nil, { when = "ctxA", repeats = true })
+  listed:bind("c", function() ran[#ran + 1] = "listCB" end, nil, { when = "ctxB", priority = 5 })
+  listed:bind("b", function() ran[#ran + 1] = "listShiftB" end, { "cmd" }, { when = "ctxA" })
+  listed:bind("a", function() ran[#ran + 1] = "global" end, nil, { afterRelease = true })
+  eq((listed:releaseModifiers()), true, "release: a leader holding list keys and a release wait may be released")
+  local combos = listed:listCombos()
+  eq(#combos, 1, "release: a list key asking for a base modifier is left to the held half, and one combination per key")
+  eq(combos[1] and combos[1].code, hs.keycodes.map.c, "release: the list key's combination")
+  eq(combos[1] and #combos[1].mods, 0, "release: on the base set alone")
+  live.ctxA, live.ctxB = false, false
+  local r1 = listed:runListKey(hs.keycodes.map.c, {}, 0)
+  eq(r1, false, "list key: with no list open the list pass runs nothing")
+  eq(#ran, 0, "list key: and nothing ran")
+  live.ctxA = true
+  local r2, rep2 = listed:runListKey(hs.keycodes.map.c, {}, 0)
+  eq(r2, true, "list key: with its list open the list binding runs")
+  eq(rep2, true, "list key: and says it repeats")
+  eq(ran[1], "listC", "list key: the open list's binding")
+  live.ctxB = true
+  listed:runListKey(hs.keycodes.map.c, {}, 0)
+  eq(ran[2], "listCB", "list key: ranked by priority as _resolve ranks them")
+  eq((listed:runListKey(hs.keycodes.map.a, {}, 0)), false, "list key: a global key is never the list pass's")
+  live.ctxA, live.ctxB = false, false
   local plain = newLeader({}, predicates, { trigger = modifier.new({ mods = {} }) })
   eq((plain:releaseModifiers()), false, "release: the plain leader, an empty set, is refused")
 end

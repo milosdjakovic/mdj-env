@@ -688,15 +688,24 @@ end
 -- and a socket gone takes every released leader back.
 do
   local log = {}
+  local waits = {}
   local function leader(name, ok, why)
     return { releaseModifiers = function() log[#log + 1] = "release " .. name; return ok, why end,
       reclaimModifiers = function() log[#log + 1] = "reclaim " .. name end,
-      conceal = function() log[#log + 1] = "conceal " .. name end }
+      conceal = function() log[#log + 1] = "conceal " .. name end,
+      listCombos = function() return { { code = 38, mods = {} } } end,
+      afterRelease = function(_, fn) waits[#waits + 1] = fn end,
+      runListKey = function(_, code, flags, depth)
+        log[#log + 1] = "list " .. name .. " " .. tostring(code) .. " " .. tostring(flags.cmd) .. " " .. tostring(depth)
+        return code == 38, true
+      end }
   end
   local kb = fresh({ pieces = { olmapp = "on" }, deps = deps, app = APP, appKeys = { "META", "hyper" } })
   local ran = {}
   kb:keyHost({ meta = leader("meta", true), hyper = leader("hyper", false, "it holds a list key") },
-    { { owner = "windowmanager", action = "moveLeft", leader = "meta", run = function(d) ran[#ran + 1] = d end } })
+    { { owner = "windowmanager", action = "moveLeft", leader = "meta", run = function(d) ran[#ran + 1] = d end },
+      { owner = "capture", action = "captureArea", leader = "meta", afterRelease = true,
+        run = function() ran[#ran + 1] = "capture" end } })
   local methods = {}
   kb:_keyMethods(methods)
   local answer = methods.releaseKeys.run({ leaders = { "meta", "hyper", "super" } })
@@ -707,6 +716,18 @@ do
   eq(ran[1], 3, "runKey: with its depth")
   eq(log[#log], "conceal meta", "runKey: and its leader's sheet is taken down")
   eq(methods.runKey.run({ id = "nobody.nothing" }), false, "runKey: an unknown id runs nothing")
+  eq(answer.lists and answer.lists.meta and answer.lists.meta[1].code, 38, "release: each released leader's list combinations")
+  methods.runKey.run({ id = "capture.captureArea" })
+  eq(#waits, 1, "runKey: a row that waits for release waits on its leader")
+  eq(ran[2], nil, "runKey: and has not run yet")
+  waits[1]()
+  eq(ran[2], "capture", "runKey: and runs once released")
+  local la = methods.listKey.run({ leader = "meta", code = 38, mods = { "cmd" }, depth = 2 })
+  eq(la.ran and la.repeats, true, "listKey: a list key the list pass ran, and repeats")
+  eq(log[#log - 1], "list meta 38 true 2", "listKey: with the key, the modifiers beyond the base and the depth")
+  eq(log[#log], "conceal meta", "listKey: and the sheet taken down")
+  eq(methods.listKey.run({ leader = "meta", code = 0, mods = {} }).ran, false, "listKey: one no list ran says so")
+  eq(methods.listKey.run({ leader = "super", code = 38 }).ran, false, "listKey: a leader not released runs nothing")
   kb:_reclaimKeys()
   local reclaimed = 0
   for _, line in ipairs(log) do if line == "reclaim meta" then reclaimed = reclaimed + 1 end end

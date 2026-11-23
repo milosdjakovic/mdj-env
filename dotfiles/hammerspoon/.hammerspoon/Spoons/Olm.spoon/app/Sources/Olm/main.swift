@@ -261,13 +261,26 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
       let owner = KeyOwner(words: KeyOwner.Words(
         release: { names in
           let answer = try? await bridgeForApps.request("releaseKeys", .object(["leaders": .array(names.map { .string($0) })]))
-          return answer?["released"].array?.compactMap(\.string) ?? []
+          var lists: [String: [KeyOwner.ListCombo]] = [:]
+          for (name, combos) in answer?["lists"].object ?? [:] {
+            lists[name] = (combos.array ?? []).compactMap { c in
+              guard let code = c["code"].number else { return nil }
+              return KeyOwner.ListCombo(code: Int(code), mods: Set((c["mods"].array ?? []).compactMap { $0.string.flatMap(Mod.init(rawValue:)) }))
+            }
+          }
+          return KeyOwner.Released(leaders: answer?["released"].array?.compactMap(\.string) ?? [], lists: lists)
         },
         reclaim: { names in
           _ = try? await bridgeForApps.request("reclaimKeys", .object(["leaders": .array(names.map { .string($0) })]))
         },
         run: { id, depth in
           _ = try? await bridgeForApps.request("runKey", .object(["id": .string(id), "depth": .number(Double(depth))]))
+        },
+        list: { leader, code, mods, depth in
+          let answer = try? await bridgeForApps.request("listKey", .object(["leader": .string(leader),
+            "code": .number(Double(code)), "mods": .array(mods.map(\.rawValue).sorted().map { .string($0) }),
+            "depth": .number(Double(depth))]))
+          return KeyOwner.ListAnswer(ran: answer?["ran"].bool ?? false, repeats: answer?["repeats"].bool ?? false)
         }),
         gate: { name in
           guard name == "multipleDisplays" else { return true }

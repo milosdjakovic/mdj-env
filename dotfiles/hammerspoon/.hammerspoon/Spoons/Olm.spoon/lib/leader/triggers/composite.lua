@@ -80,6 +80,11 @@ function obj.new(spec)
     return true
   end
 
+  -- The modifier half's base set, the one half that has one.
+  for _, half in ipairs(halves) do
+    if half.baseMods then trigger.baseMods = half.baseMods end
+  end
+
   function trigger.bound(host, binding)
     for _, half in ipairs(halves) do half.bound(host, binding) end
   end

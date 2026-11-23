@@ -124,10 +124,10 @@ return {
     -- the same order on this machine. False is the way back, every row asked of Hammerspoon again.
     launcherCatalog = true,
     -- The leaders whose modifier combinations the app claims while its socket is up, step 5.3,
-    -- docs/DESIGN-APP-KEYS.md, META since 2026-11-20. Its held key and its sheet stay Hammerspoon's,
+    -- docs/DESIGN-APP-KEYS.md, META since 2026-11-20 and Hyper since 2026-11-23. Each one's held key and its sheet stay Hammerspoon's,
     -- and every row still runs here, asked by the app with runKey. Hammerspoon takes the keys back the
     -- moment the socket goes. An empty list is the way back.
-    appKeys = { "meta" },
+    appKeys = { "meta", "hyper" },
     -- Whether a leader's cheat sheet is drawn by the app, step 5.2, docs/DESIGN-APP-KEYS.md, on since
     -- 2026-11-20. Hammerspoon still decides when a sheet shows and lays it out, and draws it itself
     -- whenever the app's socket is down. False is the way back.

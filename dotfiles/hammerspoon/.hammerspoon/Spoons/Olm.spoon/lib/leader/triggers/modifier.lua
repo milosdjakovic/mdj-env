@@ -333,6 +333,9 @@ function obj.new(spec)
 
   function trigger.isReleased() return released end
 
+  -- The base set, read by the leader's listCombos, step 5.3.
+  trigger.baseMods = baseMods
+
   function trigger.bound(host, binding)
     if started then claim(host, binding) end
   end

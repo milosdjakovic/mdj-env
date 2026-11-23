@@ -1414,3 +1414,12 @@ main.swift is another target, so the Olm product failed to compile. The checks r
 the check products, never the Olm product, and test/olmapp.sh, which would have, declined since
 Olm.app was running. Fixed with a public applySharedMotion beside Look. Before committing a change to
 app/Sources/Olm, build that product itself, swift build --product Olm.
+
+**2026-11-23 09:33, Hyper's modifier combinations go to the app, its list keys still resolved in Hammerspoon.**
+Hyper differs from META in holding about a hundred and twenty list keys, each gated on whether its
+list is open, and four captures that wait for release, and the release refused both. The app now
+claims the list keys' combinations too, handed back with the release, and sends a press on one to
+Hammerspoon's list pass first, which runs it only while a list is open and otherwise answers no, the
+app then running the global row. Porting the list layer into the app's share was turned down, since
+its gates are Lua predicates only Hammerspoon answers. A release wait waits in Hammerspoon through
+runKey, on the leader's isActive, which reads the live modifiers whoever claims them.

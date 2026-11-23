@@ -139,7 +139,7 @@ Stage 5, keys
 - [ ] 5.1 The app hears the leaders in shadow. Built on 2026-11-20, `test/olmkeys.sh`, see As built in `docs/DESIGN-APP-KEYS.md`, waiting on Milos's trial
 - [ ] 5.2 Cheat sheets in the app. Built and flipped on 2026-11-20 behind `sheetsInApp`, `docs/DESIGN-APP-KEYS.md` 5.2, the layout still Lua's. Waits on Milos's look at a held Hyper and META
 - [ ] 5.3 Key ownership, META. Built and flipped on 2026-11-20 behind `appKeys`, `docs/DESIGN-APP-KEYS.md` 5.3. Waits on Milos's trial of META's keys and the measurement under secure input
-- [ ] 5.3 Key ownership, Hyper
+- [ ] 5.3 Key ownership, Hyper. Built and flipped on 2026-11-23 behind `appKeys`, its list keys run by Hammerspoon's list pass, `docs/DESIGN-APP-KEYS.md` 5.3 Hyper. Waits on Milos's trial
 - [ ] 5.4 The key daemon, optional, kanata kept until then
 
 Stage 6, the core in the app, one per step

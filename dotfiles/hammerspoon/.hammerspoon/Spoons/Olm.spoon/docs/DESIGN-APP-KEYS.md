@@ -143,7 +143,31 @@ when a sheet shows. The goldens of each sheet are compared with what the app dra
   enabling them, a leader with a list key refused, `test/bridge.lua`, the three words and the socket
   going, and `olm-keys-check`, the combinations claimed and the timing.
 
+**5.3, Hyper's modifier combinations owned by the app, built 2026-11-23.**
+
+- **What is new over META** is two kinds of row META never held. Hyper carries every list's own keys,
+  J and K and the rest, each gated on its list being open, about a hundred and twenty bindings, and
+  four captures that run only once the leader is up.
+- **List keys stay Hammerspoon's to resolve.** The release answers each leader's list key
+  combinations, `Leader:listCombos`, and the app claims them beside the global rows'. A press on one
+  goes to `listKey` first, which runs `Leader:runListKey`, the list pass `_resolve` ranks, only while
+  a list is open on that leader. Otherwise it answers no and the app runs the global row it
+  resolved, so the order is `_resolve`'s on both sides. A list key that repeats repeats on the app's
+  driven schedule, each repeat one more `listKey`. The list layer moves when the lists' keys do.
+- **A row that waits for release** waits in Hammerspoon, `runKey` handing it to
+  `Leader:afterRelease`, which reads the live modifiers and so sees Hyper held whoever claims it.
+- **Caps Lock as F18** where kanata is off, and Hyper's sheet, stay Hammerspoon's, as META's do.
+- **The switch** is `appKeys`, `{ "meta", "hyper" }`.
+- **Checked** by `test/leaders.lua`, a leader with list keys released, its combinations and its list
+  pass open and closed, `test/bridge.lua`, `listKey` and a release wait through `runKey`, and
+  `olm-keys-check`, the list combinations joining the rows'.
+
 ## Rejected
+
+- **Porting every list key to the app's share at Hyper's step.** 2026-11-23. The list layer is
+  ranked against predicates only Hammerspoon answers, whether each Lua list is open, so the app
+  would carry a second copy of a hundred and twenty bindings and their gates. Hammerspoon's list
+  pass answers the press instead, until the lists' keys move.
 
 - **Porting `lib/keymap.lua` to Swift now.** 2026-11-20. It reads Lua config, and the app needs only
   its answer. Porting it is stage 8's question, once nothing else reads the Lua files.

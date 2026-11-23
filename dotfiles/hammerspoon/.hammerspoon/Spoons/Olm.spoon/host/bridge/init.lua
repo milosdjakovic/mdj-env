@@ -350,7 +350,8 @@ function obj:keyHost(leaders, rows)
   local runs = {}
   for _, row in ipairs(rows or {}) do
     if type(row.run) == "function" then
-      runs[tostring(row.owner) .. "." .. tostring(row.action)] = { run = row.run, leader = row.leader }
+      runs[tostring(row.owner) .. "." .. tostring(row.action)] = { run = row.run, leader = row.leader,
+        afterRelease = row.afterRelease == true }
     end
   end
   self._keyRuns = runs
@@ -371,7 +372,7 @@ function obj:_keyMethods(methods)
   methods.releaseKeys = { run = function(params)
     local allowed = {}
     for _, name in ipairs(self._appKeys or {}) do allowed[name] = true end
-    local released, refused = {}, {}
+    local released, refused, lists = {}, {}, {}
     for _, name in ipairs(type(params.leaders) == "table" and params.leaders or {}) do
       local leader = (self._keyLeaders or {})[name]
       if not allowed[name] then
@@ -382,6 +383,7 @@ function obj:_keyMethods(methods)
         local ok, why = leader:releaseModifiers()
         if ok then
           released[#released + 1] = name
+          lists[name] = type(leader.listCombos) == "function" and leader:listCombos() or {}
           self._released = self._released or {}
           self._released[name] = leader
         else
@@ -390,7 +392,7 @@ function obj:_keyMethods(methods)
       end
     end
     for _, r in ipairs(refused) do log.i("the app does not claim " .. r.leader .. "'s keys, " .. tostring(r.why)) end
-    return { released = released, refused = refused }
+    return { released = released, refused = refused, lists = lists }
   end }
   methods.reclaimKeys = { run = function(params)
     for _, name in ipairs(type(params.leaders) == "table" and params.leaders or {}) do
@@ -407,8 +409,27 @@ function obj:_keyMethods(methods)
     if not entry then return false end
     local leader = entry.leader and (self._keyLeaders or {})[entry.leader]
     if leader then leader:conceal() end
-    entry.run(tonumber(params.depth) or 0)
+    local depth = tonumber(params.depth) or 0
+    -- A row that waits for its leader's release, a capture, waits here as a press here would, on
+    -- isActive, which reads the live modifiers whoever holds the combinations.
+    if entry.afterRelease and leader then
+      leader:afterRelease(function() entry.run(depth) end)
+    else
+      entry.run(depth)
+    end
     return true
+  end }
+  -- A press the app claimed on a list key's combination, run by the leader's list pass while a list
+  -- is open on it, answering whether it ran and whether that binding repeats. Otherwise the app runs
+  -- the global row, _resolve's order.
+  methods.listKey = { run = function(params)
+    local leader = (self._released or {})[tostring(params.leader)]
+    if not leader then return { ran = false, repeats = false } end
+    local flags = {}
+    for _, m in ipairs(type(params.mods) == "table" and params.mods or {}) do flags[m] = true end
+    local ran, repeats = leader:runListKey(tonumber(params.code), flags, tonumber(params.depth) or 0)
+    if ran then leader:conceal() end
+    return { ran = ran == true, repeats = repeats == true }
   end }
 end
 
