@@ -451,48 +451,9 @@ func runPrefix(_ file: String, _ doc: [String: Any]) {
 // windows.plan, where a window action puts the focused window, OlmApps' WindowPlan against what
 // plugins/windowmanager/plan.lua answered when test/windowplan-record.lua recorded it, every number
 // within a millionth.
-func windowRect(_ any: Any?) -> WindowRect? {
-  guard let o = any as? [String: Any] else { return nil }
-  func n(_ k: String) -> Double { (o[k] as? NSNumber)?.doubleValue ?? 0 }
-  return WindowRect(x: n("x"), y: n("y"), w: n("w"), h: n("h"))
-}
+func windowRect(_ any: Any?) -> WindowRect? { WindowRect(json: any) }
 
-func windowInput(_ o: [String: Any]) -> WindowInput {
-  var s = WindowInput()
-  s.window = windowRect(o["window"])
-  s.id = (o["id"] as? NSNumber).map { UInt32(truncating: $0) }
-  s.screen = o["screen"] as? String
-  s.screens = (o["screens"] as? [[String: Any]] ?? []).compactMap { sc in
-    guard let uuid = sc["uuid"] as? String, let f = windowRect(sc["frame"]) else { return nil }
-    return WindowScreen(uuid: uuid, frame: f)
-  }
-  if let m = o["margins"] as? [String: Any] {
-    func n(_ k: String) -> Double { (m[k] as? NSNumber)?.doubleValue ?? 0 }
-    s.margins = WindowMargins(top: n("top"), right: n("right"), bottom: n("bottom"), left: n("left"))
-  }
-  s.gap = (o["gap"] as? NSNumber)?.doubleValue ?? 0
-  if let z = o["sizing"] as? [String: Any] {
-    func n(_ k: String) -> Double? { (z[k] as? NSNumber)?.doubleValue }
-    func pair(_ k: String) -> (width: Double?, height: Double?)? {
-      guard let p = z[k] as? [String: Any] else { return nil }
-      return ((p["width"] as? NSNumber)?.doubleValue, (p["height"] as? NSNumber)?.doubleValue)
-    }
-    s.sizing.maxWidth = n("maxWidth"); s.sizing.maxHeight = n("maxHeight")
-    s.sizing.fullHeightMaxWidth = n("fullHeightMaxWidth")
-    s.sizing.movePixels = n("movePixels"); s.sizing.movePixelsHeld = n("movePixelsHeld")
-    s.sizing.resizePixels = n("resizePixels"); s.sizing.resizePixelsHeld = n("resizePixelsHeld")
-    s.sizing.holdGrace = n("holdGrace"); s.sizing.minWidth = n("minWidth"); s.sizing.minHeight = n("minHeight")
-    s.sizing.screenRecording = pair("screenRecording"); s.sizing.smallSize = pair("smallSize")
-  }
-  s.depth = (o["depth"] as? NSNumber)?.intValue ?? 0
-  if let z = o["size"] as? [String: Any], let w = z["width"] as? NSNumber, let h = z["height"] as? NSNumber,
-    !(z["width"] is String), !(z["height"] is String) {
-    s.size = (w.doubleValue, h.doubleValue)
-  }
-  s.target = o["target"] as? String
-  for (uuid, f) in o["memory"] as? [String: Any] ?? [:] { if let r = windowRect(f) { s.memory[uuid] = r } }
-  return s
-}
+func windowInput(_ o: [String: Any]) -> WindowInput { WindowInput(json: o) }
 
 func runWindowPlan(_ file: String, _ doc: [String: Any]) {
   func near(_ a: WindowRect, _ b: WindowRect) -> Bool {

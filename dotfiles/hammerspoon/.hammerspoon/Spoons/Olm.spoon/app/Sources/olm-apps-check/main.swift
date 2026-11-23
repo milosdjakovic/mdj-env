@@ -111,5 +111,41 @@ let c = shadow.current
 eq([c.ran, c.same, c.differs, c.untrusted], [3, 1, 1, 1], "a press is counted, agreeing or not, and one without Lua's plan compares nothing")
 eq([c.placed, c.refused, c.unplaced], [1, 1, 1], "a frame within two points is placed, one further refused")
 
+// The window manager's shadow, step 6.3b: which rows are window actions, and what a press differs by.
+eq(WindowShadow.action("windowmanager.leftHalf"), "leftHalf", "a window row names its action")
+eq(WindowShadow.action("apptoggler.Safari"), nil, "any other row names none")
+var snap = WindowSnapshot()
+snap.window = WindowRect(x: 100, y: 100, w: 800, h: 600)
+snap.id = 7
+snap.screen = "S1"
+snap.screens = [WindowScreen(uuid: "S1", frame: WindowRect(x: 0, y: 25, w: 1512, h: 957))]
+let luaInput: [String: Any] = ["window": ["x": 100, "y": 100.2, "w": 800, "h": 600], "id": 7, "screen": "S1",
+  "screens": [["uuid": "S1", "frame": ["x": 0, "y": 25, "w": 1512, "h": 957]]], "margins": [String: Any](),
+  "gap": 0, "sizing": [String: Any]()]
+let half = WindowPlan.plan("leftHalf", WindowInput(json: luaInput))!
+let luaResult: [String: Any] = ["frame": ["x": half.frame.x, "y": half.frame.y, "w": half.frame.w, "h": half.frame.h]]
+eq(WindowShadow.differences(action: "leftHalf", app: snap, lua: ["input": luaInput, "result": luaResult]), [],
+  "the same read within half a point and the same plan differ by nothing")
+var moved = snap
+moved.window = WindowRect(x: 300, y: 100, w: 800, h: 600)
+moved.screen = "S2"
+eq(WindowShadow.differences(action: "center", app: moved, lua: ["input": luaInput]), ["window", "screen"],
+  "another frame and screen are named, and with the screen unknown neither side plans")
+eq(WindowShadow.differences(action: "center", app: snap, lua: ["input": luaInput]), ["plan"],
+  "a plan where Lua planned none is named")
+eq(WindowShadow.differences(action: "leftHalf", app: snap, lua: nil), nil, "no report compares nothing")
+var showing = WindowSnapshot()
+showing.others = ["a.b", "c.d"]
+eq(WindowShadow.differences(action: "hideAllExceptFocused", app: showing, lua: ["hidden": ["c.d", "a.b"]]), [],
+  "Hide Others hiding the same apps in any order agrees")
+eq(WindowShadow.differences(action: "hideAllExceptFocused", app: showing, lua: ["hidden": [String]()]), ["hidden"],
+  "and hiding others differs")
+let windows = WindowShadow(log: nil)
+windows.compare(action: "leftHalf", depth: 0, app: snap, lua: ["input": luaInput, "result": luaResult])
+windows.compare(action: "center", depth: 0, app: moved, lua: ["input": luaInput])
+windows.compare(action: "leftHalf", depth: 0, app: snap, lua: nil)
+let w = windows.current
+eq([w.ran, w.same, w.differs, w.unanswered], [3, 1, 1, 1], "every press is counted, agreeing, differing or unanswered")
+
 print("olm-apps-check: \(checks) checks, \(failures) failures")
 exit(failures == 0 ? 0 : 1)

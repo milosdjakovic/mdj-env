@@ -1523,3 +1523,12 @@ the Applications page keys only what Hammerspoon's catalog knows. Making an acti
 application now, through Hammerspoon, was the alternative and is not taken, since it would build in
 Lua what is about to move. The presses already run in the app, 22 of 22 agreeing since its start;
 what moves next for app switching is the catalog, the actions and the keys.
+
+**2026-11-23 13:04, 6.3b's shadow at the press.** Milos said META is good after 6.3a and to
+proceed. The app already claims META's keys, so the shadow reads the window in the app before it
+hands the row to Hammerspoon, rather than behind a forwarder the way 6.2's did, since after the row
+runs the window has moved. Hammerspoon's window actions answer what they read and planned through
+runKey, and the app compares both reads and both plans. Sharing the window settings for the flip was
+left as a question, since the obvious answer adds five settings to Olm Settings and that is his.
+Reading the window in Hammerspoon and only comparing plans was turned down, since the reads are what
+the flip risks, the plan being held to 72 fixtures already.

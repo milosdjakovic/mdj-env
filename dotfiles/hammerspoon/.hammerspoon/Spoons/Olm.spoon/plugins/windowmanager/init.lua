@@ -119,7 +119,11 @@ end
 function obj:_do(action, extra)
   local win = hs.window.focusedWindow()
   if not win then return nil end
-  local result = Plan.plan(action, self:planInput(win, extra))
+  local input = self:planInput(win, extra)
+  local result = Plan.plan(action, input)
+  -- What this press read and planned, which the action's run hands back for Olm.app's shadow, step
+  -- 6.3b, docs/DESIGN-APP-WINDOWS.md. Read before anything is written.
+  self._report = { input = input, result = result }
   if not result then return nil end
   local id = win:id()
   if result.remember and id then
@@ -291,12 +295,17 @@ function obj:hideAllExceptFocused()
   local focusedWindow = hs.window.focusedWindow()
   if not focusedWindow then return end
   local keep = focusedWindow:application():pid()
+  local hidden = {}
+  self._report = { hidden = hidden }
   -- The apps a person switches to, the ones in the Dock, as macOS's own Hide Others hides them, read
   -- from the running applications rather than from every window of every app. Walking the windows
   -- took over a second and a half with a dozen apps open, and hid the menu bar agent and Notification
   -- Center's interface too, which own windows of their own, found on 2026-11-20.
   for _, app in ipairs(hs.application.runningApplications()) do
-    if app:kind() == 1 and app:pid() ~= keep and not app:isHidden() then app:hide() end
+    if app:kind() == 1 and app:pid() ~= keep and not app:isHidden() then
+      hidden[#hidden + 1] = app:bundleID()
+      app:hide()
+    end
   end
 end
 
@@ -387,8 +396,17 @@ function obj:actions()
   local handlers = self:_handlers()
   local out = {}
   for _, a in ipairs(ORDER) do
+    local handler = handlers[a.name]
     out[#out + 1] = {
-      name = a.name, run = handlers[a.name], description = humanize(a.name),
+      -- The run answers what the press read and planned, { window = report }, for Olm.app's shadow,
+      -- step 6.3b. A caller that only runs the action ignores it.
+      name = a.name, run = function(...)
+        self._report = nil
+        handler(...)
+        local report = self._report
+        self._report = nil
+        return report and { window = report } or nil
+      end, description = humanize(a.name),
       icon = "windows", kind = "window",
       when = a.when, repeats = a.repeats, listed = a.listed,
     }

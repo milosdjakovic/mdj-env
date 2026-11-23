@@ -253,3 +253,63 @@ public enum WindowPlan {
     }
   }
 }
+
+// MARK: Read from JSON, as the fixtures record a case and as Hammerspoon reports a press
+
+extension WindowRect {
+  /// { x, y, w, h } as Foundation answers JSON, nil for anything else.
+  public init?(json any: Any?) {
+    guard let o = any as? [String: Any] else { return nil }
+    func n(_ k: String) -> Double { (o[k] as? NSNumber)?.doubleValue ?? 0 }
+    self.init(x: n("x"), y: n("y"), w: n("w"), h: n("h"))
+  }
+}
+
+extension WindowInput {
+  /// plan.lua's s as Foundation answers JSON.
+  public init(json o: [String: Any]) {
+    self.init()
+    window = WindowRect(json: o["window"])
+    id = (o["id"] as? NSNumber).map { UInt32(truncating: $0) }
+    screen = o["screen"] as? String
+    screens = (o["screens"] as? [[String: Any]] ?? []).compactMap { sc in
+      guard let uuid = sc["uuid"] as? String, let f = WindowRect(json: sc["frame"]) else { return nil }
+      return WindowScreen(uuid: uuid, frame: f)
+    }
+    if let m = o["margins"] as? [String: Any] {
+      func n(_ k: String) -> Double { (m[k] as? NSNumber)?.doubleValue ?? 0 }
+      margins = WindowMargins(top: n("top"), right: n("right"), bottom: n("bottom"), left: n("left"))
+    }
+    gap = (o["gap"] as? NSNumber)?.doubleValue ?? 0
+    if let z = o["sizing"] as? [String: Any] {
+      func n(_ k: String) -> Double? { (z[k] as? NSNumber)?.doubleValue }
+      func pair(_ k: String) -> (width: Double?, height: Double?)? {
+        guard let p = z[k] as? [String: Any] else { return nil }
+        return ((p["width"] as? NSNumber)?.doubleValue, (p["height"] as? NSNumber)?.doubleValue)
+      }
+      sizing.maxWidth = n("maxWidth"); sizing.maxHeight = n("maxHeight")
+      sizing.fullHeightMaxWidth = n("fullHeightMaxWidth")
+      sizing.movePixels = n("movePixels"); sizing.movePixelsHeld = n("movePixelsHeld")
+      sizing.resizePixels = n("resizePixels"); sizing.resizePixelsHeld = n("resizePixelsHeld")
+      sizing.holdGrace = n("holdGrace"); sizing.minWidth = n("minWidth"); sizing.minHeight = n("minHeight")
+      sizing.screenRecording = pair("screenRecording"); sizing.smallSize = pair("smallSize")
+    }
+    depth = (o["depth"] as? NSNumber)?.intValue ?? 0
+    if let z = o["size"] as? [String: Any], let w = z["width"] as? NSNumber, let h = z["height"] as? NSNumber,
+      !(z["width"] is String), !(z["height"] is String) {
+      size = (w.doubleValue, h.doubleValue)
+    }
+    target = o["target"] as? String
+    for (uuid, f) in o["memory"] as? [String: Any] ?? [:] { if let r = WindowRect(json: f) { memory[uuid] = r } }
+  }
+}
+
+extension WindowResult {
+  /// plan.lua's result as Foundation answers JSON, nil without a frame.
+  public init?(json o: [String: Any]) {
+    guard let frame = WindowRect(json: o["frame"]) else { return nil }
+    let r = o["remember"] as? [String: Any]
+    let remember = (r?["screen"] as? String).flatMap { s in WindowRect(json: r?["frame"]).map { (screen: s, frame: $0) } }
+    self.init(frame: frame, screen: o["screen"] as? String, remember: remember, verify: o["verify"] as? Bool ?? false)
+  }
+}

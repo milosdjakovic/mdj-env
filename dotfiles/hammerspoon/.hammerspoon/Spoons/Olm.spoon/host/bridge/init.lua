@@ -415,8 +415,13 @@ function obj:_keyMethods(methods)
     -- isActive, which reads the live modifiers whoever holds the combinations.
     if entry.afterRelease and leader then
       leader:afterRelease(function() entry.run(depth) end)
-    else
-      entry.run(depth)
+      return true
+    end
+    -- A row whose run answers a report hands it back, the window manager's read and plan for the
+    -- app's shadow, step 6.3b, docs/DESIGN-APP-WINDOWS.md.
+    local answer = entry.run(depth)
+    if type(answer) == "table" and type(answer.window) == "table" then
+      return { ran = true, window = answer.window }
     end
     return true
   end }

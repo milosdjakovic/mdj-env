@@ -32,6 +32,37 @@ move between screens reads the frame back and writes size, position and size aga
 `NSRunningApplication.hide` over the regular apps. Its shadow computes the plan beside each run
 Hammerspoon makes and logs a difference, and the switch hands META's window rows to the app.
 
+### 6.3b, the shadow, built 2026-11-23
+
+Every META window key already reaches the app, which claims META's combinations since 5.3, so the
+shadow sits at the press rather than behind a forwarder as 6.2's did. Before the app hands a row
+named `windowmanager.<action>` to Hammerspoon with `runKey`, `OlmApps/WindowRead.swift` reads the
+frontmost application's focused window, its window number, the screen it overlaps most and every
+screen's uuid and visible frame, the way Hammerspoon reads each. Reading first matters, since once
+Hammerspoon runs the row the window has moved. The window manager's action run then answers what
+it read and planned, `{ window = { input, result } }`, or for Hide Others `{ window = { hidden } }`,
+and `runKey` hands that back. `OlmApps/WindowShadow.swift` compares the two reads, and the app's own
+plan, `WindowPlan` over its read with Hammerspoon's margins, gap, sizing, depth and memory, with
+Hammerspoon's plan. A difference is one line in `~/.olm/log/shadow-windows.jsonl`, naming what
+differs, `window`, `id`, `screen`, `screens`, `frame`, `lands`, `plan` or `hidden`, with the counts
+and the slowest read in `shadow-windows-count.json`. It runs only while the app holds Accessibility,
+and it moves nothing. `olm-apps-check` holds the comparison.
+
+What the shadow does not yet give the app is the settings. The margins, the gap and the sizing come
+from Hammerspoon's report on each press, which is enough to compare and not enough to act alone.
+Before the flip the app needs them from Olm's own config, which is the next decision, see Open
+questions.
+
+The trial is the log empty through ordinary use, every action pressed at least once, on one screen
+and on two.
+
+## Open questions
+
+1. Where the app reads the window settings from once it acts alone. The eight steps and sizes in
+   Olm Settings are already in the settings share; the gap, the full height width, the hold grace,
+   the screen recording size and the small size are only in config/settings.lua. Declaring those as
+   settings too would put every one in the exported config and in the share, the way the eight are.
+
 ## Rejected
 
 - **Porting the plugin method by method into Swift with no shared statement.** 2026-11-23. The

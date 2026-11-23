@@ -78,6 +78,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
   private let appFocus = AppFocus(shadow: AppShadow(log: olm.appendingPathComponent("log")),
     log: { NSLog("Olm apps: %@", $0) })
   private var appsAllowed = AppFocus.allowed
+  // The window manager in shadow, step 6.3b, docs/DESIGN-APP-WINDOWS.md: each META window key read
+  // here before Hammerspoon runs it, and compared with what Hammerspoon read and planned.
+  private let windowShadow = WindowShadow(log: olm.appendingPathComponent("log"))
   private var appsTimer: Timer?
   // The leaders whose modifier combinations the app claims, step 5.3, docs/DESIGN-APP-KEYS.md.
   private var keyOwner: KeyOwner?
@@ -268,6 +271,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
       }
       // The keys the app claims, step 5.3. Asked each time a session opens and each time Hammerspoon
       // says its leaders started, the keymap read afresh, and every claim dropped as the session goes.
+      let windowShadow = self.windowShadow
       let owner = KeyOwner(words: KeyOwner.Words(
         release: { names in
           let answer = try? await bridgeForApps.request("releaseKeys", .object(["leaders": .array(names.map { .string($0) })]))
@@ -284,7 +288,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
           _ = try? await bridgeForApps.request("reclaimKeys", .object(["leaders": .array(names.map { .string($0) })]))
         },
         run: { id, depth in
-          _ = try? await bridgeForApps.request("runKey", .object(["id": .string(id), "depth": .number(Double(depth))]))
+          // A window action is read before Hammerspoon moves the window, and its report compared.
+          let action = AppFocus.allowed ? WindowShadow.action(id) : nil
+          let before = action == nil ? nil : await WindowRead.snapshot()
+          let answer = try? await bridgeForApps.request("runKey", .object(["id": .string(id), "depth": .number(Double(depth))]))
+          if let action, let before {
+            windowShadow.compare(action: action, depth: depth, app: before, lua: answer?["window"].any)
+          }
         },
         list: { leader, code, mods, depth in
           let answer = try? await bridgeForApps.request("listKey", .object(["leader": .string(leader),
