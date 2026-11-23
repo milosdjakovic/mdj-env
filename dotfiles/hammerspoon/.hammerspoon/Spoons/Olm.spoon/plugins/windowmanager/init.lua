@@ -108,7 +108,7 @@ function obj:planInput(win, extra)
   for _, screen in ipairs(hs.screen.allScreens()) do
     -- The Mac's own panel, which a named size may ask for, macOS naming it Built-in.
     screens[#screens + 1] = { uuid = uuidOf(screen), frame = rectOf(screen:frame()),
-      builtin = (screen:name() or ""):find("Built%-in") ~= nil or nil }
+      builtin = type(screen.name) == "function" and (screen:name() or ""):find("Built%-in") ~= nil or nil }
   end
   local id = win:id()
   local screen = win:screen()
@@ -411,6 +411,10 @@ local ORDER = {
   { name = "moveUp", repeats = true }, { name = "moveDown", repeats = true },
   { name = "center" }, { name = "hideAllExceptFocused" },
   { name = "exactSize", listed = false },
+  -- The two shipped named sizes, always actions, since a key the manifest binds needs its action
+  -- whether or not the settings carry the sizes. Their titles and sizes come from the setting.
+  { name = "smallSize", description = "Small", size = "small" },
+  { name = "screenRecording", description = "Recording", size = "recording" },
   -- The layouts a press steps through, round robin, plan.lua's LAYOUTS, with no key of their own,
   -- found in the launcher by name, Milos's ask of 2026-11-23. A person gives one a key in
   -- config/keymap.lua like any action.
@@ -430,18 +434,30 @@ local ORDER = {
 --- nothing and builds no row. The kind is the word the launcher remembered these rows by before
 --- they were descriptors, window and the action name, which the launcher's window scope also
 --- narrows by. windowsize reads the same list as a sibling and calls exactSize's run with a size.
+-- The actions in order, ORDER with the shipped sizes titled from the setting and every size added
+-- after them, each added one's handler set in handlers when given.
+function obj:_order(handlers)
+  local order = {}
+  for _, a in ipairs(ORDER) do order[#order + 1] = a end
+  local titles = {}
+  for _, z in ipairs(self:sizes()) do titles[z.id] = z.name end
+  for i, a in ipairs(order) do
+    if a.size and titles[a.size] then order[i] = { name = a.name, description = titles[a.size], size = a.size } end
+  end
+  for _, z in ipairs(self:sizes()) do
+    if not SIZE_ACTIONS[z.id] then
+      local name, id = obj.sizeAction(z.id), z.id
+      if handlers then handlers[name] = function() self:namedSize(id) end end
+      order[#order + 1] = { name = name, description = z.name, size = id }
+    end
+  end
+  return order
+end
+
 function obj:actions()
   local handlers = self:_handlers()
   local out = {}
-  -- Every named size an action of its own after the fixed ones, Small's keeping its key.
-  local order = {}
-  for _, a in ipairs(ORDER) do order[#order + 1] = a end
-  for _, z in ipairs(self:sizes()) do
-    local name, id = obj.sizeAction(z.id), z.id
-    handlers[name] = function() self:namedSize(id) end
-    order[#order + 1] = { name = name, description = z.name, size = id }
-  end
-  for _, a in ipairs(order) do
+  for _, a in ipairs(self:_order(handlers)) do
     local handler = handlers[a.name]
     out[#out + 1] = {
       -- The run answers what the press read and planned, { window = report }, for Olm.app's shadow,
@@ -475,13 +491,11 @@ local GROUPS = {
 --- id, or other. The page never learns how an action works, only its name and where it belongs.
 function obj:catalog()
   local out = {}
-  for _, a in ipairs(ORDER) do
+  for _, a in ipairs(self:_order()) do
     if a.listed ~= false then
-      out[#out + 1] = { action = a.name, title = a.description or humanize(a.name), group = GROUPS[a.name] or "layout" }
+      out[#out + 1] = { action = a.name, title = a.description or humanize(a.name),
+        group = a.size and "size" or GROUPS[a.name] or "layout", size = a.size }
     end
-  end
-  for _, z in ipairs(self:sizes()) do
-    out[#out + 1] = { action = obj.sizeAction(z.id), title = z.name, group = "size", size = z.id }
   end
   return out
 end
@@ -529,6 +543,8 @@ function obj:_handlers()
     -- Every other action here ignores the argument, since none of them repeats and a
     -- placement is the same wherever in a hold it is asked for.
     cycleHalves =          function() self:_do("cycleHalves") end,
+    smallSize =            function() self:smallSize() end,
+    screenRecording =      function() self:screenRecording() end,
     cycleHalvesStacked =   function() self:_do("cycleHalvesStacked") end,
     cycleThirds =          function() self:_do("cycleThirds") end,
     cycleTwoThirds =       function() self:_do("cycleTwoThirds") end,

@@ -45,14 +45,14 @@
 45	window:moveDown	Move Down	Window Manager · ◆S	windows	windowmanager	-	Window Manager	40
 46	window:center	Center	Window Manager · ◆C	windows	windowmanager	-	Window Manager	40
 47	window:hideAllExceptFocused	Hide All Except Focused	Window Manager · ◆H	windows	windowmanager	-	Window Manager	40
-48	window:cycleHalves	Halves, Left and Right	Window Manager	windows	windowmanager	-	Window Manager	40
-49	window:cycleHalvesStacked	Halves, Top and Bottom	Window Manager	windows	windowmanager	-	Window Manager	40
-50	window:cycleThirds	Thirds	Window Manager	windows	windowmanager	-	Window Manager	40
-51	window:cycleTwoThirds	Two Thirds	Window Manager	windows	windowmanager	-	Window Manager	40
-52	window:cycleFourths	Fourths	Window Manager	windows	windowmanager	-	Window Manager	40
-53	window:cycleQuarters	Quarters	Window Manager	windows	windowmanager	-	Window Manager	40
-54	window:smallSize	Small	Window Manager · ◆Z	windows	windowmanager	-	Window Manager	40
-55	window:screenRecording	Recording	Window Manager	windows	windowmanager	-	Window Manager	40
+48	window:smallSize	Small	Window Manager · ◆Z	windows	windowmanager	-	Window Manager	40
+49	window:screenRecording	Recording	Window Manager	windows	windowmanager	-	Window Manager	40
+50	window:cycleHalves	Halves, Left and Right	Window Manager	windows	windowmanager	-	Window Manager	40
+51	window:cycleHalvesStacked	Halves, Top and Bottom	Window Manager	windows	windowmanager	-	Window Manager	40
+52	window:cycleThirds	Thirds	Window Manager	windows	windowmanager	-	Window Manager	40
+53	window:cycleTwoThirds	Two Thirds	Window Manager	windows	windowmanager	-	Window Manager	40
+54	window:cycleFourths	Fourths	Window Manager	windows	windowmanager	-	Window Manager	40
+55	window:cycleQuarters	Quarters	Window Manager	windows	windowmanager	-	Window Manager	40
 56	settingsPane:x-apple.systempreferences:com.apple.wifi-settings-extension	Wi-Fi	System Settings	wifi	systemsettings	-	wifi, wireless, airport | System Settings	50
 57	settingsPane:x-apple.systempreferences:com.apple.BluetoothSettings	Bluetooth	System Settings	bluetooth	systemsettings	-	headphones, pairing | System Settings	50
 58	settingsPane:x-apple.systempreferences:com.apple.Network-Settings.extension	Network	System Settings	network	systemsettings	-	ethernet, vpn, dns, proxy, ip address | System Settings	50
