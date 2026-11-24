@@ -355,10 +355,12 @@ built first, true as information, and a switch refuses only an ability Olm alrea
 Browser Switcher's profiles, which Olm.app reads. Enforcement comes with the runner, an ability then
 being a request over the plugin's pipes that the sandbox stops it going around.
 
-**Olm's signature has to hold.** macOS keys a permission to the program's signature, and Olm.app is
-signed afresh on every build, which can make macOS forget its permissions. Holding all of them makes
-that worse, so Olm.app is signed with one stable certificate made on the machine before this is
-relied on. Full Disk Access survived the rebuilds of 2026-11-24, which is luck rather than design.
+**Olm's signature has to hold.** macOS keys a permission to the program's signature. Signed ad hoc
+with a requirement naming only the bundle id, which kept the permissions across rebuilds from
+2026-11-09, any program signed as `local.olm.Olm` matched it, and signing that way needs no key. So
+since 2026-11-24 Olm.app is signed with a certificate made once on the machine, `src/lib/olm-signing.sh`,
+in a keychain of Olm's own under `~/.olm/state/signing`, and its requirement names the certificate's
+hash too. A grant given before that still names the bundle id alone until it is given again.
 
 **Decided with Milos on 2026-11-24.**
 
@@ -374,7 +376,7 @@ relied on. Full Disk Access survived the rebuilds of 2026-11-24, which is luck r
 1. The `abilities` field and its check, the accordion on the Permissions page and the group on a
    plugin's page, Browser Switcher declaring `browserProfiles` and `receiveLinks`, its block real
    since Olm reads the profiles.
-2. Olm.app signed with a stable certificate.
+2. Olm.app signed with a stable certificate, built 2026-11-24.
 3. Enforcement in the runner, with the first Swift plugin.
 
 ## Hammerspoon until it is gone
@@ -385,6 +387,16 @@ shadow where its rows can be compared, then flipped, which switches the Lua plug
 `config/plugins.lua`. When the bridge serves nothing, Hammerspoon is switched off, the end of stage 6.
 
 ## As built
+
+**Step 2, Olm.app signed with this Mac's certificate, built 2026-11-24.** `src/setup-olmapp.sh` makes
+a self signed code signing certificate once, with the system's `openssl`, into
+`~/.olm/state/signing/olm.keychain-db`, a keychain macOS does not search, its random password in a
+file beside it readable by this account alone, so no build asks the person anything. `app/build.sh`
+unlocks it and signs, the requirement becoming the bundle id and the certificate's hash, and stops
+rather than signing ad hoc when it does not unlock, since codesign asks for a locked keychain's
+password in a dialog and an ad hoc build would match no grant given to the certificate. Seen live:
+Full Disk Access held across the switch and across a second rebuild, which reused the certificate.
+A build into a folder of its own, `test/olmapp.sh`, is still ad hoc.
 
 **Abilities, step 1 of the permissions plan, built 2026-11-24.**
 

@@ -9,6 +9,10 @@
 # A copy left in ~/.olm/app by an older run shares the bundle id, so it is unregistered, which
 # keeps olm:// on the new copy, and left on disk, with a closing note saying it can be removed.
 #
+# It is signed with a certificate made once on this Mac, src/lib/olm-signing.sh, so the permissions
+# Olm holds for its plugins match only a program signed with this Mac's key. A certificate that
+# cannot be made leaves the app signed as before, by its bundle id, with a closing note.
+#
 # Switching the piece off stops a run from building it and removes nothing, rule 4 of AGENTS.md.
 
 set -uo pipefail
@@ -16,9 +20,14 @@ set -uo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd -P)"
 # shellcheck source=src/lib/backup.sh
 source "$ROOT/src/lib/backup.sh"
+# shellcheck source=src/lib/olm-signing.sh
+source "$ROOT/src/lib/olm-signing.sh"
 lsregister="/System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister"
 build="$ROOT/dotfiles/hammerspoon/.hammerspoon/Spoons/Olm.spoon/app/build.sh"
 
+if ! olm_signing_ready; then
+  mdj_note "Olm.app is signed by its bundle id alone, the signing certificate could not be made in ~/.olm/state/signing."
+fi
 echo "==> Building Olm.app"
 app="$("$build" "/Applications")"
 status=$?

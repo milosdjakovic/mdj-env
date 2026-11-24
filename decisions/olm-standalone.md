@@ -1731,3 +1731,19 @@ Olm.app before reading profiles. The rest wait for the runner. Default Browser j
 permissions, since Receive Links rides on it. The permission id for the clipboard gate is
 `pasteboard`, since the dry gate refuses the plugin's name in core code. Not built: when each was
 last used, and search opening a permission's row.
+
+### 2026-11-24 19:08, Olm.app signed with a certificate made on this Mac, asked by Milos
+
+The 2026-11-09 entry kept the certificate as a fallback that was not needed, since a requirement
+naming the bundle id kept the grants across rebuilds, and it still does. The reason now is that such
+a requirement is matched by any program signed as local.olm.Olm, which needs no key, and Olm.app
+holds Full Disk Access for its plugins. So `src/lib/olm-signing.sh` makes a self signed code signing
+certificate once into a keychain of Olm's own, `~/.olm/state/signing`, with a random password in a
+file beside it, and `app/build.sh` signs with it. The login keychain was turned down, since giving
+codesign its key without a dialog needs the login password, so setup would need a person, and a
+program running as this account can use either keychain's key through codesign alike. A trust
+setting was turned down as unneeded, codesign signs with the certificate untrusted and the privacy
+system compares its hash. Found while testing: codesign over a locked keychain opens a password
+dialog and waits, so the build unlocks first and stops when it cannot. Full Disk Access held across
+the switch and a rebuild, seen live. A grant given before today stores the old requirement, the
+bundle id alone, until it is removed and given again.
