@@ -64,6 +64,23 @@ struct BackButton: View {
   }
 }
 
+extension View {
+  /// Back for a page a gear opened, title the page it returns to, at the pane's top left in the
+  /// window's top bar, centred on the window's buttons, asked by Milos on 2026-11-24. Nothing when
+  /// title is nil, the page being a section's own. The page leaves the top bar's height free above
+  /// its header.
+  func backBar(_ title: String?, model: SettingsModel, action: @escaping () -> Void) -> some View {
+    overlay(alignment: .topLeading) {
+      if let title {
+        BackButton(title: title, action: action)
+          .frame(height: model.buttonsMid * 2)
+          .padding(.leading, Space.edge)
+          .ignoresSafeArea(.container, edges: .top)
+      }
+    }
+  }
+}
+
 /// A page's header, its picture in a glass circle, its title and the line under it, and the note
 /// at its right when there is something to say. The height is fixed, so the note coming and going
 /// moves nothing.

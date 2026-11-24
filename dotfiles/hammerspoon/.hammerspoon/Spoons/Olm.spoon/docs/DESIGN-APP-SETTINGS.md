@@ -98,9 +98,9 @@ adding a number of its own.
 | related | 6 | between related elements, a title and the line under it |
 | row | 2 | between the rows of one list |
 
-The sidebar's edge is where the window's close button starts, read off the window, so the buttons,
-the search and every row's highlight share one left edge, and the same gap is kept on the right and
-at the foot. The search's magnifier, the sections' symbols and the app's icon share one column.
+The sidebar's gap on the left, the right and the foot is half the close button's distance from the
+window's edge, read off the window, and the search sits half a group's gap under the buttons, asked
+by Milos on 2026-11-24. The buttons stay where macOS puts them. The search's magnifier, the sections' symbols and the app's icon share one column.
 
 **No layout shift.** Nothing a person does moves anything they did not touch.
 
@@ -108,7 +108,7 @@ at the foot. The search's magnifier, the sections' symbols and the app's icon sh
   The line saying a change applies on close or was refused sits at the header's right, whose height
   is fixed, and is left out rather than made transparent when there is nothing to say, since Liquid
   Glass draws its capsule whatever the opacity.
-- The search sits a group's gap under the window's buttons, measured from the window, not from
+- The search sits half a group's gap under the window's buttons, measured from the window, not from
   under the title bar.
 - A control sits in a column of fixed width, so a popup's width changing with its choice moves
   nothing, and a number is shown in a fixed width, as wide as it can get, with figures of one width.
@@ -131,7 +131,8 @@ defect, not a choice.
    the row has a page of its own, the control last at the right edge. Each keeps its column while
    hidden, so a row with no undo showing or no gear lines its control up with the rest.
 3. **A row's details open as a page in the window, never a sheet or a window of its own.** The gear opens it,
-   `BackButton` at its top left, a glass button, names the page it returns to, and leaving it, by Back or any other
+   `BackButton`, a glass button in the window's top bar at the pane's left, centred on the window's
+   buttons through `backBar`, names the page it returns to, and leaving it, by Back or any other
    way, keeps what it holds. What cannot be kept stays on the page with the reason in its header. A
    plugin's settings and an application's mode and place both work this way.
 4. **What is set is drawn in the accent.** A value moved off the config files, and a gear whose page

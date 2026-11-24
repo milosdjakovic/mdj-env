@@ -50,6 +50,8 @@ final class SettingsModel: ObservableObject {
   @Published var leading: CGFloat = 20
   /// How far the window's buttons reach down from the top, which the search sits a group's gap under.
   @Published var buttonsBottom: CGFloat = 32
+  /// How far down the window's buttons' middle is, which Back on a page is centred on.
+  @Published var buttonsMid: CGFloat = 20
   let service: SettingsService?
   /// The permissions the Permissions page lists, and whether macOS gives each now.
   let permissions: [Permission]
@@ -228,6 +230,8 @@ public final class SettingsWindow: NSObject, NSWindowDelegate {
     if let height = window.contentView?.bounds.height {
       let bottom = height - frame.minY
       if bottom > 0, abs(model.buttonsBottom - bottom) > 0.5 { model.buttonsBottom = bottom }
+      let mid = height - frame.midY
+      if mid > 0, abs(model.buttonsMid - mid) > 0.5 { model.buttonsMid = mid }
     }
   }
 
@@ -422,11 +426,12 @@ struct SettingsSidebar: View {
       }
       AppIdentity(model: model).padding(.horizontal, Space.pad)
     }
-    .padding(.horizontal, model.leading)
-    // The search a group's gap under the window's buttons, measured from the window's top rather
-    // than from under the title bar, whose height left a gap of about forty points.
-    .padding(.top, model.buttonsBottom + Space.group)
-    .padding(.bottom, model.leading)
+    // Half the close button's distance from the window's edge on the left, the right and the foot,
+    // and half a group's gap under the window's buttons, measured from the window's top rather than
+    // from under the title bar, asked by Milos on 2026-11-24. The buttons stay where macOS puts them.
+    .padding(.horizontal, model.leading / 2)
+    .padding(.top, model.buttonsBottom + Space.group / 2)
+    .padding(.bottom, model.leading / 2)
     .ignoresSafeArea(.container, edges: .top)
     .onChange(of: model.query) { model.hit = 0 }
   }
@@ -649,7 +654,6 @@ struct SectionPage: View {
     ScrollView {
       GlassGroup {
         VStack(alignment: .leading, spacing: Space.group) {
-          if plugin != nil { BackButton(title: section.title) { model.pluginPage = nil } }
           PageHeader(title: owner?.title ?? section.title,
             subtitle: rows.count == 1 ? "1 setting" : "\(rows.count) settings", note: note) {
             SectionSymbol(symbol: section.symbol)
@@ -669,6 +673,8 @@ struct SectionPage: View {
           .glassCard(cornerRadius: 20)
         }
         .padding(Space.edge)
+        // Room under Back, which sits in the window's top bar beside its buttons.
+        .padding(.top, plugin == nil ? 0 : model.buttonsBottom)
         .frame(maxWidth: .infinity, alignment: .leading)
       }
     }
@@ -676,6 +682,7 @@ struct SectionPage: View {
     // pane, so the page sits the same distance from all four edges.
     .ignoresSafeArea(.container, edges: .top)
     .softTopEdge()
+    .backBar(plugin == nil ? nil : section.title, model: model) { model.pluginPage = nil }
     .searchJump(model, proxy, Set(rows.map { SearchTarget.setting($0.id) }))
     }
   }

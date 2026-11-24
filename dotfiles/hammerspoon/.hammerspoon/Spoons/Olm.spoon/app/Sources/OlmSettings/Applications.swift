@@ -332,7 +332,7 @@ struct AppsView: View {
 
   var body: some View {
     if page.customizing != nil {
-      CustomizePage(page: page, global: global, refusal: model.refusal, save: save)
+      CustomizePage(page: page, model: model, global: global, refusal: model.refusal, save: save)
     } else {
       list
     }
@@ -797,6 +797,7 @@ struct AppCustomize: Equatable {
 /// the page any other way, unless what it holds cannot be kept, which it says.
 struct CustomizePage: View {
   @ObservedObject var page: AppsPageModel
+  @ObservedObject var model: SettingsModel
   let global: String
   let refusal: String?
   let save: (AppCustomize) -> Void
@@ -804,7 +805,6 @@ struct CustomizePage: View {
   var body: some View {
     if let c = page.customizing {
       VStack(alignment: .leading, spacing: Space.group) {
-        BackButton(title: "Applications") { done() }
         PageHeader(title: c.name, subtitle: c.bundle,
           note: problem(c.place).map { ($0, "exclamationmark.triangle") } ?? refusal.map { ($0, "exclamationmark.triangle") }) {
           if let icon = page.icons[c.bundle] {
@@ -873,8 +873,10 @@ struct CustomizePage: View {
         }
       }
       .padding(Space.edge)
+      .padding(.top, model.buttonsBottom)
       .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
       .ignoresSafeArea(.container, edges: .top)
+      .backBar("Applications", model: model) { done() }
       .onDisappear { if page.customizing != nil { done() } }
     }
   }
