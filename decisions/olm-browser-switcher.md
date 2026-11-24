@@ -44,3 +44,12 @@ headless check of 15:21 called `M.link` directly and never went through the regi
 it passed. Now `{ member = "link", call = "dot" }`, checked through `registrar.action`. Rows are
 titled `Chrome (Personal)` with no second line, and the field shows the link shortened in the
 middle, both asked by him.
+
+### 2026-11-24 16:35, Olm.app finds the browsers, favourites are checkboxes, asked by Milos
+
+The scan moved into Olm.app, `Browsers.swift`, written to `~/.olm/run/browsers.json` for the
+plugin, since Olm.app draws the page the favourites are picked on and is where the plugin is going.
+Favourites are the new settings kind `picks`, checkboxes over the scan and Copy Link. Olm.app was
+refused Chrome's `Local State` too, so Full Disk Access joined the Permissions page, naming Browser
+Switcher. His typed favourites were converted to the new list in `~/.olm/state/settings.json`, the
+old file kept in the session's scratch folder.

@@ -73,6 +73,10 @@ final class SettingsModel: ObservableObject {
     running = values
   }
 
+  /// The browsers and profiles found, for a picks setting whose source is browsers, read as its row
+  /// is shown.
+  @Published var browsers: BrowserScan?
+
   /// Each handler setting's scheme to the path of the app macOS opens it with now.
   @Published var handlers: [String: String] = [:]
 
@@ -745,6 +749,7 @@ struct SettingRow: View {
       // A text of several lines takes the row's whole width under its title, since a list of
       // entries is wider than the control column.
       if setting.kind == .text, (setting.lines ?? 1) > 1 { TextSetting(setting: setting, model: model) }
+      if setting.kind == .picks { PicksSetting(setting: setting, model: model) }
     }
     .disabled(setting.locked != nil || model.busy.contains(setting.id))
     .help(setting.locked ?? "")
@@ -809,6 +814,9 @@ struct SettingRow: View {
         .toggleStyle(.checkbox)
     case .handler:
       HandlerSetting(setting: setting, model: model)
+    case .picks:
+      // Drawn under the title across the row, PicksSetting.
+      EmptyView()
     case .text:
       if (setting.lines ?? 1) > 1 { EmptyView() } else { TextSetting(setting: setting, model: model) }
     case .number:
@@ -889,6 +897,63 @@ struct TextSetting: View {
   private func send() {
     guard let text = model.texts.removeValue(forKey: setting.id) else { return }
     if text != (setting.value.text ?? "") { model.change(setting, to: .text(text)) }
+  }
+}
+
+/// A list of names checked off what Olm.app finds, a checkbox each, the found ones first and the
+/// fixed ones after, saved in that order. A name saved and no longer found stays listed, checked,
+/// so it can be taken off. What macOS kept from Olm is said under the list, with the way to the
+/// permission that lifts it.
+struct PicksSetting: View {
+  let setting: Setting
+  @ObservedObject var model: SettingsModel
+
+  private var picked: [String] {
+    if case .names(let n) = setting.value { return n }
+    return []
+  }
+
+  private var found: [String] {
+    switch setting.source {
+    case "browsers": return model.browsers?.targets.map(\.title) ?? []
+    default: return []
+    }
+  }
+
+  private var options: [String] {
+    var all = found + setting.fixed
+    for name in picked where !all.contains(name) { all.append(name) }
+    return all
+  }
+
+  var body: some View {
+    VStack(alignment: .leading, spacing: Space.related) {
+      ForEach(options, id: \.self) { name in
+        Toggle(isOn: Binding(get: { picked.contains(name) }, set: { flip(name, $0) })) {
+          Text(found.contains(name) || setting.fixed.contains(name) ? name : "\(name), not on this Mac")
+        }
+        .toggleStyle(.checkbox)
+      }
+      if setting.source == "browsers", let hidden = model.browsers?.hidden, !hidden.isEmpty {
+        HStack(spacing: Space.related) {
+          Text("macOS keeps \(hidden.joined(separator: ", "))'s profiles from Olm until it has Full Disk Access.")
+            .font(.caption).foregroundStyle(.secondary)
+          Button("Open Permissions") { model.selection = PermissionsPage.id }
+            .buttonStyle(.link).font(.caption)
+        }
+      }
+    }
+    .onAppear { if setting.source == "browsers" { model.browsers = Browsers.refresh() } }
+    .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in
+      if setting.source == "browsers" { model.browsers = Browsers.refresh() }
+    }
+  }
+
+  private func flip(_ name: String, _ on: Bool) {
+    var set = Set(picked)
+    if on { set.insert(name) } else { set.remove(name) }
+    let next = options.filter { set.contains($0) }
+    if next != picked { model.change(setting, to: .names(next)) }
   }
 }
 

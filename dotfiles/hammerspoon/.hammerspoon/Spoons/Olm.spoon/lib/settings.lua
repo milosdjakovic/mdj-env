@@ -329,7 +329,7 @@ function M.check(decl, value)
       if not SIZE_DISPLAYS[z.display] then return false, "gives " .. z.name .. " a display that is not one of four" end
     end
     return true
-  elseif kind == "list" then
+  elseif kind == "list" or kind == "picks" then
     if type(value) ~= "table" then return false, "is not a list of names" end
     for i, item in ipairs(value) do
       if type(item) ~= "string" then return false, "item " .. i .. " is not a name" end
@@ -344,7 +344,7 @@ end
 --------------------------------------------------------------------------------
 
 local KINDS = { number = true, switch = true, checkbox = true, text = true, choice = true, apps = true, sizes = true,
-  handler = true }
+  handler = true, picks = true }
 
 -- Whether a choice spec lists its choices, each a value and a title, and ships one of them.
 local function readChoices(spec)
@@ -364,7 +364,8 @@ end
 --- kind is number, switch, checkbox, text, choice, apps or sizes, a text taking an optional
 --- placeholder, maxLength and lines, the rows its box is tall, a list of one entry per line. A handler
 --- names a scheme, https, and is the app macOS opens it with, read and changed by Olm.app, no at and
---- nothing stored. section is optional, and a setting naming none is drawn on the
+--- nothing stored. picks is a list of names checked off a list Olm.app finds, source, browsers, with
+--- fixed names after them, such as Copy Link. section is optional, and a setting naming none is drawn on the
 --- plugin's own page, which its switch in Plugins opens. at
 --- is the path into the plugin's own data, its first word a need the manifest declares with source
 --- user, so the saved value is laid over what the plugin is handed and the plugin reads it with no
@@ -388,12 +389,16 @@ function M.fromManifest(identity, specs)
     elseif seen[spec.key] then why = "repeats the key " .. spec.key
     elseif spec.kind ~= "handler" and (type(spec.at) ~= "table" or #spec.at == 0) then
       why = "names no path into the plugin's data in at"
+    elseif spec.kind == "picks" and not (type(spec.source) == "string" and spec.source ~= "") then
+      why = "is a picks setting with no source, the list Olm.app finds its choices in, such as browsers"
+    elseif spec.kind == "picks" and spec.fixed ~= nil and type(spec.fixed) ~= "table" then
+      why = "is a picks setting whose fixed choices are not a list of names"
     elseif spec.kind == "handler" and not (type(spec.scheme) == "string" and spec.scheme:match("^%a[%w+.-]*$")) then
       why = "is a handler with no scheme, such as https"
     elseif type(spec.title) ~= "string" or spec.title == "" then why = "has no title"
     elseif spec.section ~= nil and not sections[spec.section] then why = "names no section of the window, " .. tostring(spec.section)
     elseif not KINDS[spec.kind] then
-      why = "has the kind " .. tostring(spec.kind) .. ", where a number, a switch, a checkbox, a text, a choice or a handler is read"
+      why = "has the kind " .. tostring(spec.kind) .. ", where a number, a switch, a checkbox, a text, a choice, a handler or picks is read"
     elseif spec.section == nil and (spec.kind == "apps" or spec.kind == "sizes") then
       why = "is a " .. spec.kind .. " setting with no section, and only its own section draws one"
     elseif spec.kind == "text" and spec.maxLength ~= nil and not (type(spec.maxLength) == "number" and spec.maxLength > 0) then
@@ -435,6 +440,8 @@ function M.fromManifest(identity, specs)
         extra = type(spec.extra) == "string" and spec.extra or nil,
         liveWhen = type(spec.liveWhen) == "string" and spec.liveWhen or nil,
         scheme = spec.kind == "handler" and spec.scheme or nil,
+        source = spec.kind == "picks" and spec.source or nil,
+        fixed = spec.kind == "picks" and copy(spec.fixed or {}) or nil,
         applies = spec.kind == "handler" and "live" or "reload", owner = identity }
     end
   end
@@ -761,6 +768,7 @@ function M.new(opts)
           locked = decl.locked,
           page = decl.page, plugin = decl.member and decl.member.name or nil,
           placeholder = decl.placeholder, maxLength = decl.maxLength, lines = decl.lines, scheme = decl.scheme,
+          source = decl.source, fixed = copy(decl.fixed),
           default = copy(defaults[decl.id]),
         }
         if type(decl.extraFrom) == "function" then

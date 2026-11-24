@@ -151,6 +151,19 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         symbol: "keyboard",
         settingsURL: "x-apple.systempreferences:com.apple.preference.security?Privacy_ListenEvent",
         check: { KeyTap.allowed }, ask: { KeyTap.ask() }),
+      // Browser Switcher's profiles, which macOS keeps in each browser's Application Support folder
+      // from any program without it. Read by opening a file only that access opens, since macOS has
+      // no question for it, so the button only takes the person to the list.
+      Permission(id: "fullDiskAccess", title: "Full Disk Access",
+        detail: "Browser Switcher, listing each browser's profiles",
+        symbol: "externaldrive",
+        settingsURL: "x-apple.systempreferences:com.apple.preference.security?Privacy_AllFiles",
+        check: {
+          let tcc = home.appendingPathComponent("Library/Application Support/com.apple.TCC/TCC.db").path
+          guard let handle = FileHandle(forReadingAtPath: tcc) else { return false }
+          try? handle.close()
+          return true
+        }),
     ] + folders
   }
 
@@ -239,6 +252,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
   }
 
   func applicationDidFinishLaunching(_ notification: Notification) {
+    // The browsers and their profiles for Browser Switcher, found once at launch and again before
+    // each link and whenever its page is shown.
+    DispatchQueue.global(qos: .utility).async { Browsers.refresh() }
     // LaunchServices keeps one instance for a bundle it opens, LSMultipleInstancesProhibited in
     // Info.plist. A second copy started some other way, the executable run by hand, leaves at once.
     let me = NSRunningApplication.current

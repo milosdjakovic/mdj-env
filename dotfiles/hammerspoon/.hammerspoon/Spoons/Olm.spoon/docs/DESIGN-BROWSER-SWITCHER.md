@@ -112,6 +112,12 @@ this section is true.
 - The settings API gained `lines` on a text, its box that many rows tall under the title, one
   entry per line, and a text of one line refuses a line break.
 
+- **Olm.app finds the browsers,** `app/Sources/OlmSettings/Browsers.swift`, at launch, before each
+  link and while the plugin's page shows, and writes them to `~/.olm/run/browsers.json`, which the
+  plugin reads to open a profile. **Favourites are checkboxes** over that list and Copy Link, the
+  settings API's `picks` kind. None checked shows everything, any checked shows only those. Olm.app is
+  kept from Chrome's profiles too until it has Full Disk Access, which the Permissions page lists.
+
 ## Next
 
 1. **The rules table,** a setting kind of rows each a text and a choice, the choice listing the

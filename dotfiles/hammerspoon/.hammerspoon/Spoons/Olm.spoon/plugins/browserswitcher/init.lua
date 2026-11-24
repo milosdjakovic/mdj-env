@@ -4,8 +4,8 @@
 --- rule the person wrote opens it at once, and otherwise the list asks, the person's favourites in
 --- their own order, a browser, a browser's profile or Copy Link, with Show All for the rest.
 ---
---- A target is a browser, or a Chromium browser's or Firefox's profile, read from the browser's
---- own files. Safari's profiles have no way in from outside, so Safari is one target. A link always
+--- A target is a browser, or a Chromium browser's or Firefox's profile, which Olm.app finds and
+--- writes for this plugin. Safari's profiles have no way in from outside, so Safari is one target. A link always
 --- opens in a named browser, never through the default, since the default is Olm.
 
 local M = { name = "BrowserSwitcher", version = "0.1", author = "Milos Djakovic", license = "MIT" }
@@ -14,19 +14,10 @@ local cfg = {}
 local OLM = "local.olm.Olm"
 local COPY = "Copy Link"
 
--- The browsers whose profiles can be named from outside, where each keeps its list of them under
--- Application Support, and how a link is opened in one.
-local CHROMIUM = {
-  ["com.google.Chrome"] = "Google/Chrome",
-  ["com.google.Chrome.beta"] = "Google/Chrome Beta",
-  ["com.brave.Browser"] = "BraveSoftware/Brave-Browser",
-  ["com.microsoft.edgemac"] = "Microsoft Edge",
-  ["org.chromium.Chromium"] = "Chromium",
-  ["com.vivaldi.Vivaldi"] = "Vivaldi",
-}
-local FIREFOX = { ["org.mozilla.firefox"] = "Firefox" }
-
-local SUPPORT = os.getenv("HOME") .. "/Library/Application Support/"
+-- What Olm.app found, every browser and each profile of one that has several, written as Olm.app
+-- starts, before each link it hands over and while the page in Olm Settings is shown. Olm.app reads
+-- the profiles, since macOS keeps them from Hammerspoon.
+local SCAN = os.getenv("HOME") .. "/.olm/run/browsers.json"
 
 -- The link waiting for an answer, kept after it opens so the launcher row can send it again.
 local pending
@@ -45,75 +36,41 @@ local function hostOf(url)
   return (url:match("^%a[%w+.-]*://([^/?#]+)") or ""):gsub("^[^@]*@", ""):gsub(":%d+$", ""):lower()
 end
 
--- The browsers whose list of profiles is there but cannot be read, macOS keeping another app's
--- data from Hammerspoon, refreshed with every read of the targets.
-local hidden = {}
-
--- Whether path is there but cannot be opened, which is macOS refusing it rather than no profiles.
-local function refused(path)
-  if not hs.fs.attributes(path) then return false end
-  local file = io.open(path, "r")
-  if file then file:close(); return false end
-  return true
-end
-
-local function chromiumProfiles(folder)
-  if refused(SUPPORT .. folder .. "/Local State") then return nil end
-  local state = hs.json.read(SUPPORT .. folder .. "/Local State")
-  local cache = state and state.profile and state.profile.info_cache
-  if type(cache) ~= "table" then return {} end
-  local out = {}
-  for dir, info in pairs(cache) do
-    if type(info) == "table" and type(info.name) == "string" then
-      out[#out + 1] = { arg = "--profile-directory=" .. dir, name = info.name, order = dir == "Default" and "" or dir }
-    end
-  end
-  table.sort(out, function(a, b) return a.order < b.order end)
-  return out
-end
-
-local function firefoxProfiles(folder)
-  if refused(SUPPORT .. folder .. "/profiles.ini") then return nil end
-  local file = io.open(SUPPORT .. folder .. "/profiles.ini", "r")
-  if not file then return {} end
-  local out = {}
-  for line in file:lines() do
-    local name = line:match("^Name=(.+)$")
-    if name then out[#out + 1] = { args = { "-P", name }, name = name } end
-  end
-  file:close()
-  return out
-end
-
--- Every target this Mac has, each browser and then each of its profiles when it has more than one.
+-- Every target, Olm.app's scan where it has written one, and otherwise each browser alone.
 local function targets()
   local out = {}
-  local browsers = {}
-  hidden = {}
+  local scan = hs.json.read(SCAN)
+  if type(scan) == "table" and type(scan.targets) == "table" and #scan.targets > 0 then
+    for _, t in ipairs(scan.targets) do
+      if type(t.title) == "string" and type(t.bundle) == "string" then
+        local args = type(t.args) == "table" and #t.args > 0 and t.args or nil
+        out[#out + 1] = { id = t.title, title = t.title, bundle = t.bundle, path = t.path, args = args }
+      end
+    end
+    return out
+  end
   for _, bundle in ipairs(hs.urlevent.getAllHandlersForScheme("https") or {}) do
     if bundle ~= OLM and bundle ~= "org.hammerspoon.Hammerspoon" then
       local path = hs.application.pathForBundleID(bundle)
       if path and path ~= "" then
         local name = hs.application.nameForBundleID(bundle) or bundle
-        browsers[#browsers + 1] = { bundle = bundle, name = name, path = path }
+        out[#out + 1] = { id = name, title = name, bundle = bundle, path = path }
       end
     end
   end
-  table.sort(browsers, function(a, b) return a.name:lower() < b.name:lower() end)
-  for _, b in ipairs(browsers) do
-    out[#out + 1] = { id = b.bundle, title = b.name, bundle = b.bundle, path = b.path }
-    local profiles = {}
-    if CHROMIUM[b.bundle] then profiles = chromiumProfiles(CHROMIUM[b.bundle])
-    elseif FIREFOX[b.bundle] then profiles = firefoxProfiles(FIREFOX[b.bundle]) end
-    if profiles == nil then hidden[#hidden + 1] = b.name; profiles = {} end
-    if #profiles > 1 then
-      for _, p in ipairs(profiles) do
-        out[#out + 1] = { id = b.bundle .. "#" .. p.name, title = b.name .. " (" .. p.name .. ")", bundle = b.bundle,
-          path = b.path, profile = p.name, args = p.args or { p.arg } }
-      end
-    end
-  end
+  table.sort(out, function(a, b) return a.title:lower() < b.title:lower() end)
   return out
+end
+
+-- The favourites, a list of names checked in Olm Settings, or words one per line as they were saved
+-- before they were checkboxes.
+local function favouritesList()
+  if type(cfg.favourites) == "table" then
+    local out = {}
+    for _, name in ipairs(cfg.favourites) do if type(name) == "string" and name ~= "" then out[#out + 1] = name end end
+    return out
+  end
+  return lines(cfg.favourites)
 end
 
 local function byTitle(list)
@@ -232,7 +189,7 @@ function M.rows()
   end
   local all = targets()
   local list = {}
-  local favourites = lines(cfg.favourites)
+  local favourites = favouritesList()
   if showAll or #favourites == 0 then
     for _, t in ipairs(all) do list[#list + 1] = t end
     list[#list + 1] = { id = "copy", title = COPY, copy = true }
@@ -257,11 +214,6 @@ function M.rows()
     end
     out[#out + 1] = row
   end
-  if #hidden > 0 and (showAll or #favourites == 0) then
-    out[#out + 1] = { title = table.concat(hidden, ", ") .. " profiles are hidden",
-      subTitle = "macOS keeps their list from Hammerspoon", filterText = "profiles hidden",
-      icon = "warn", enabled = false, pinned = true, item = { id = "none" } }
-  end
   if #out == 0 then
     out[1] = { title = "No favourite is on this Mac", subTitle = "Show All in the actions pane lists every browser",
       icon = "warn", enabled = false, pinned = true, item = { id = "none" } }
@@ -285,7 +237,7 @@ end
 -- The actions pane's verbs, registry.surface.
 M.verbs = {}
 
-function M.verbs:isFavourites() return not showAll and #lines(cfg.favourites) > 0 end
+function M.verbs:isFavourites() return not showAll and #favouritesList() > 0 end
 function M.verbs:isAll() return showAll end
 
 function M.verbs:showAll()

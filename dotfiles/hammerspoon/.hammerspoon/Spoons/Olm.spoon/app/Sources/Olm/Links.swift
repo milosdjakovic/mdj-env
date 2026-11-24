@@ -9,6 +9,7 @@
 import AppKit
 import OlmBridge
 import OlmKit
+import OlmSettings
 
 enum Links {
   /// How long the bridge may stay down, a reload, before the link goes to Safari.
@@ -35,6 +36,8 @@ enum Links {
     if let name = source?.localizedName { params["sourceName"] = .string(name) }
     let message = JSON.object(params)
     Task {
+      // The browsers and profiles as they are now, which the plugin reads to open a profile.
+      Browsers.refresh()
       let handled = await ask(bridge, message)
       if !handled { await MainActor.run { fallback(url) } }
     }

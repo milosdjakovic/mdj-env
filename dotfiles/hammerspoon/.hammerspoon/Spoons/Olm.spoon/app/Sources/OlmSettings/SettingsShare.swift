@@ -293,7 +293,7 @@ public struct SettingChoice: Equatable, Sendable, Identifiable {
 }
 
 public struct Setting: Equatable, Sendable, Identifiable {
-  public enum Kind: String, Sendable { case choice, number, font, `switch`, checkbox, text, handler, apps, keys, sizes, other }
+  public enum Kind: String, Sendable { case choice, number, font, `switch`, checkbox, text, handler, picks, apps, keys, sizes, other }
 
   public let id: String
   public let title: String
@@ -326,6 +326,9 @@ public struct Setting: Equatable, Sendable, Identifiable {
   public var lines: Int?
   /// A handler's scheme, https, whose app macOS opens it with the row reads and changes.
   public var scheme: String?
+  /// A picks setting's list Olm.app finds its choices in, browsers, and the names after them.
+  public var source: String?
+  public var fixed: [String] = []
 
   public var needsReload: Bool { applies == "reload" }
   public var differs: Bool { defaultValue != .none && value != defaultValue }
@@ -398,6 +401,8 @@ public struct SettingsShare: Equatable, Sendable {
     // A list of sizes is read as sizes, since read by shape alone it is a list of names.
     func value(_ any: Any?) -> SettingValue {
       if kind == .sizes { return .sizes(WindowSize.list(any)) }
+      // An empty list comes as an empty table, read by shape as an empty applications table.
+      if kind == .picks { return .names((any as? [Any] ?? []).compactMap { $0 as? String }) }
       // An applications table is read as one, since an entry holding only booleans and words looks
       // like a table of keys by shape alone.
       if kind == .apps, let o = any as? [String: Any] {
@@ -420,6 +425,8 @@ public struct SettingsShare: Equatable, Sendable {
     made.maxLength = (r["maxLength"] as? NSNumber)?.intValue
     made.lines = (r["lines"] as? NSNumber)?.intValue
     made.scheme = r["scheme"] as? String
+    made.source = r["source"] as? String
+    made.fixed = r["fixed"] as? [String] ?? []
     if kind == .sizes {
       made.windowActions = ((r["extra"] as? [Any]) ?? []).compactMap { any -> WindowAction? in
         guard let e = any as? [String: Any], let action = e["action"] as? String, let title = e["title"] as? String

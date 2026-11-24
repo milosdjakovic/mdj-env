@@ -488,6 +488,26 @@ do
   check("on the plugin's page", row and row.page, "bs")
 end
 
+-- Picks, names checked off a list Olm.app finds, with fixed names after them.
+do
+  local pFiles, pIo = disk()
+  local pSettings = M.new({ store = newStore(pFiles, pIo, {}), log = { w = function() end } })
+  local data = {}
+  local problems = pSettings.plugin("bs", {
+    { key = "fav", at = { "fav" }, kind = "picks", source = "browsers", fixed = { "Copy Link" }, shipped = {}, title = "Favourites" },
+    { key = "nosource", at = { "x" }, kind = "picks", title = "No Source" },
+  }, data)
+  check("picks with no source is a problem", problems[1], "settings[2] is a picks setting with no source, the list Olm.app finds its choices in, such as browsers, so it is left out")
+  check("picks take a list of names", (pSettings.change("bs.fav", { "Chrome (Work)", "Copy Link" })), true)
+  check("and nothing else", (pSettings.change("bs.fav", "Chrome")), false)
+  local row
+  for _, section in ipairs(pSettings.share().sections) do
+    for _, r in ipairs(section.settings) do if r.id == "bs.fav" then row = r end end
+  end
+  check("the share carries the source", row and row.source, "browsers")
+  check("and the fixed names", row and row.fixed and row.fixed[1], "Copy Link")
+end
+
 if failed then
   print("settings, FAILED")
   os.exit(1)
