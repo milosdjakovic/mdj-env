@@ -1,8 +1,8 @@
 --- === Browser Switcher ===
 ---
---- Olm.app is the default browser and hands each link here, docs/DESIGN-BROWSER-SWITCHER.md. A
---- rule the person wrote opens it at once, and otherwise the list asks, the person's favourites in
---- their own order, a browser, a browser's profile or Copy Link, with Show All for the rest.
+--- Olm.app is the default browser and hands each link here, docs/DESIGN-BROWSER-SWITCHER.md, and
+--- the list asks, the person's favourites, a browser, a browser's profile or Copy Link, with Show
+--- All for the rest.
 ---
 --- A target is a browser, or a Chromium browser's or Firefox's profile, which Olm.app finds and
 --- writes for this plugin. Safari's profiles have no way in from outside, so Safari is one target. A link always
@@ -30,10 +30,6 @@ local function lines(text)
     if line ~= "" and not line:match("^#") then out[#out + 1] = line end
   end
   return out
-end
-
-local function hostOf(url)
-  return (url:match("^%a[%w+.-]*://([^/?#]+)") or ""):gsub("^[^@]*@", ""):gsub(":%d+$", ""):lower()
 end
 
 -- Every target, Olm.app's scan where it has written one, and otherwise each browser alone.
@@ -109,54 +105,9 @@ local function open(target, url)
   end
 end
 
-local function globToPattern(glob)
-  return "^" .. glob:lower():gsub("[%^%$%(%)%%%.%[%]%+%-%?]", "%%%0"):gsub("%*", ".*") .. "$"
-end
-
-local function matches(pattern, link)
-  local app = pattern:match("^app:%s*(.+)$")
-  if app then
-    app = app:lower()
-    return (link.sourceName or ""):lower() == app or (link.sourceBundle or ""):lower() == app
-  end
-  local host = hostOf(link.url)
-  if pattern:find("/", 1, true) then
-    local rest = link.url:lower():gsub("^%a[%w+.-]*://", "")
-    return rest:find(pattern:lower():gsub("^%a[%w+.-]*://", ""), 1, true) == 1
-  end
-  if host:match(globToPattern(pattern)) then return true end
-  -- *.github.com takes github.com itself too.
-  local bare = pattern:match("^%*%.(.+)$")
-  return bare ~= nil and host == bare:lower()
-end
-
--- The target the first matching rule names, nil when none matches or it names nothing here.
-local function ruled(link)
-  local known = byTitle(targets())
-  for _, line in ipairs(lines(cfg.rules)) do
-    local pattern, name = line:match("^(.-)%s*=>%s*(.+)$")
-    if pattern and pattern ~= "" and matches(pattern, link) then
-      if name:lower() == COPY:lower() then return { copy = true, title = COPY } end
-      local target = known[name:lower()]
-      if target then return target end
-      say("Browser Switcher, the rule for " .. pattern .. " names " .. name .. ", which this Mac does not have")
-      return nil
-    end
-  end
-  return nil
-end
-
 --- M.link(params) -> handled. Olm.app's link, through the root's provides.links.
 function M.link(params)
   local link = { url = params.url, sourceBundle = params.sourceBundle, sourceName = params.sourceName }
-  if not params.ask then
-    local target = ruled(link)
-    if target then
-      pending = link
-      open(target, link.url)
-      return true
-    end
-  end
   if not cfg.stagePresent then return false end
   pending = link
   showAll = false

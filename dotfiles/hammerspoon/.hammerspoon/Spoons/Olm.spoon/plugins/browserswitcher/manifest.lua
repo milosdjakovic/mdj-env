@@ -1,8 +1,8 @@
 -- Browser Switcher, what it declares about itself.
 --
 -- Olm.app is the default browser and hands every link it receives to this plugin through
--- provides.links, docs/DESIGN-BROWSER-SWITCHER.md. A rule opens the link at once, and otherwise
--- the list asks which browser, profile or Copy Link. Native Lua over hs.urlevent and
+-- provides.links, docs/DESIGN-BROWSER-SWITCHER.md, and the list asks which browser, profile or
+-- Copy Link. Native Lua over hs.urlevent and
 -- hs.application, and the browsers are whatever this Mac has registered for https, so it names no
 -- tool. One behaviour, so the whole plugin is init.lua.
 return {
@@ -10,7 +10,7 @@ return {
 
   about = {
     title = "Browser Switcher",
-    description = "Ask which browser or profile opens each link you click, or follow your rules.",
+    description = "Ask which browser or profile opens each link you click.",
     author = "Milos Djakovic",
     version = "0.1",
     license = "MIT",
@@ -32,8 +32,6 @@ return {
     data = {
       favourites = { source = "user", policy = "optional",
         breaks = "the list shows every browser and profile, then Copy Link" },
-      rules = { source = "user", policy = "optional",
-        breaks = "no link opens on its own, every one asks" },
       stagePresent = { source = "root", policy = "optional",
         breaks = "a link cannot ask, so Olm.app opens it in Safari" },
       stageSetPlaceholder = { source = "root", policy = "optional",
@@ -77,8 +75,7 @@ return {
     placeholder = { member = "placeholder", call = "dot" },
   },
 
-  -- Drawn on this plugin's own page in Olm Settings, one entry per line, laid over favourites and
-  -- rules before configure.
+  -- Drawn on this plugin's own page in Olm Settings, the favourites laid over before configure.
   settings = {
     -- Read and changed by Olm.app, since which app opens a link is the Mac's, never stored here.
     { key = "defaultBrowser", kind = "handler", scheme = "https", title = "Default Browser",
@@ -88,11 +85,6 @@ return {
       fixed = { "Copy Link" }, shipped = {},
       detail = "What the list shows when a link asks. With none checked it shows every browser and profile, then Copy Link. Show All in the actions pane lists the rest.",
       keywords = { "browser", "profile", "picker" } },
-    { key = "rules", at = { "rules" }, title = "Rules", kind = "text", lines = 8,
-      shipped = "",
-      placeholder = "github.com => Safari\n*.zoom.us => Chrome (Work)\napp:Slack => Chrome (Work)",
-      detail = "A link a rule matches opens at once, the first match winning. A site, with * for any part, or app: and the app the link came from, then => and a favourite's name. Hold Option as you click to be asked anyway.",
-      keywords = { "browser", "url", "domain", "host", "route" } },
   },
 
   registry = {

@@ -118,10 +118,10 @@ this section is true.
   settings API's `picks` kind. None checked shows everything, any checked shows only those. Olm.app is
   kept from Chrome's profiles too until it has Full Disk Access, which the Permissions page lists.
 
+- **Rules are gone,** 2026-11-24, asked by Milos. Every link opens the list, so Option has nothing
+  left to override.
+
 ## Next
 
-1. **The rules table,** a setting kind of rows each a text and a choice, the choice listing the
-   targets this Mac has, which needs the plugin to answer its choices at load.
-2. **Always Use for This Host** in the actions pane, which needs a plugin able to write its own
-   setting.
-3. **Chrome's profiles,** once it is known what macOS wants before it lets Hammerspoon read them.
+1. **Chrome's profiles,** confirmed once Olm.app has Full Disk Access.
+2. **Rules, if wanted again,** a table setting of a site and a favourite.

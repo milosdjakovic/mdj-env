@@ -53,3 +53,8 @@ Favourites are the new settings kind `picks`, checkboxes over the scan and Copy 
 refused Chrome's `Local State` too, so Full Disk Access joined the Permissions page, naming Browser
 Switcher. His typed favourites were converted to the new list in `~/.olm/state/settings.json`, the
 old file kept in the session's scratch folder.
+
+### 2026-11-24 17:00, rules removed, asked by Milos
+
+Every link opens the picker. The rules setting, the matching and Option's override are gone, and
+rules come back as a table setting if he asks for them.
