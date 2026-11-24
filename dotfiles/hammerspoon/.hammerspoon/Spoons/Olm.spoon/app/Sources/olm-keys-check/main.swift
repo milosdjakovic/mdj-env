@@ -275,5 +275,30 @@ do {
   check((try? Keymap.parse(Data(share.utf8)))?.appKeys == ["meta"], "owner: the share names the leaders the app holds")
 }
 
+// The app's own keys in place of Hammerspoon's app rows, step 6.2b.
+do {
+  let hyper = KeyLeader(name: "hyper", held: true, keyCode: 79, mods: [.shift, .ctrl, .alt, .cmd], ranked: true)
+  var map = Keymap(leaders: [hyper], rows: [
+    KeyRow(id: "apptoggler.Finder", leader: "hyper", key: "f", keyCode: 3, mods: nil),
+    KeyRow(id: "launcher.open", leader: "hyper", key: "space", keyCode: 49, mods: nil),
+  ])
+  map.appCatalog = true
+  let own = [
+    KeyRow(id: "app:com.apple.finder", leader: "hyper", key: "e", keyCode: 14, mods: nil),
+    KeyRow(id: "app:com.apple.Notes", leader: "hyper", key: "space", keyCode: 49, mods: nil),
+    KeyRow(id: "app:com.apple.mail", leader: "super", key: "m", keyCode: 46, mods: nil),
+    KeyRow(id: "app:com.apple.Safari", leader: nil, key: "s", keyCode: 1, mods: nil),
+  ]
+  let made = map.replacing("apptoggler.", with: own)
+  check(made.keymap.rows.map(\.id) == ["launcher.open", "app:com.apple.finder"],
+    "catalog: Hammerspoon's app rows leave, the app's take their place")
+  check(made.clashes.map(\.id) == ["app:com.apple.Notes", "app:com.apple.mail", "app:com.apple.Safari"],
+    "catalog: a key another action holds, a leader not in use and a plain key with no modifier are left out")
+  let parsed = try? Keymap.parse(Data(#"{"version":1,"leaders":[],"rows":[],"appCatalog":true}"#.utf8))
+  check(parsed?.appCatalog == true, "catalog: the share says the app keeps the catalog")
+  check((try? Keymap.parse(Data(#"{"version":1,"leaders":[],"rows":[]}"#.utf8)))?.appCatalog == false,
+    "catalog: and by default it does not")
+}
+
 print("olm-keys-check, \(checks) checks, \(failures) failed")
 exit(failures == 0 ? 0 : 1)

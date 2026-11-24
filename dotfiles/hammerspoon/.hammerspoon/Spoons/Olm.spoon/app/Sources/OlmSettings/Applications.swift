@@ -85,6 +85,8 @@ final class AppsPageModel: ObservableObject {
   @Published var found = Set<String>()
   /// The action whose key is being recorded, and the monitor hearing the key.
   @Published var recording: String?
+  /// The key code of the key last recorded, which an app's own key is claimed by, step 6.2b.
+  var recordedCode: Int?
   /// The application whose Customize sheet is open, and what it holds until Done.
   @Published var customizing: AppCustomize?
   private var monitor: Any?
@@ -199,6 +201,7 @@ final class AppsPageModel: ObservableObject {
         done(nil, true)
       default:
         guard let name = KeyName.of(event) else { return nil }
+        self.recordedCode = Int(event.keyCode)
         self.stop()
         done(name, true)
       }
@@ -373,8 +376,12 @@ struct AppsView: View {
           ForEach(Array(list.enumerated()), id: \.element.id) { index, entry in
             if index > 0 { Divider().padding(.leading, Space.pad + 4) }
             AppRow(entry: entry, icon: page.icons[entry.bundle],
-              chord: entry.action.flatMap(chord), recording: entry.action != nil && page.recording == entry.action,
-              keyOwn: entry.action.map { keysTable[$0] != nil } ?? false, busy: !model.busy.isEmpty,
+              chord: keeps ? entry.own?.key?.chord : entry.action.flatMap(chord),
+              recording: keeps ? page.recording == entry.bundle : entry.action != nil && page.recording == entry.action,
+              keyOwn: keeps ? entry.own?.key != nil : entry.action.map { keysTable[$0] != nil } ?? false,
+              canRecord: keeps || entry.action != nil,
+              resetKeyHelp: keeps ? "Take the key off" : "Back to the key in the config files",
+              busy: !model.busy.isEmpty,
               customize: { customize(entry) }, reset: { resetCustom(entry) }, remove: { remove(entry) },
               record: { record(entry) }, resetKey: { resetKey(entry) })
               .padding(.horizontal, Space.pad + 4).padding(.vertical, Space.pad - 4)
@@ -388,6 +395,9 @@ struct AppsView: View {
   // MARK: What is listed
 
   private var table: [String: AppOverride] { setting.value.apps ?? [:] }
+  /// Whether the app keeps the catalog, step 6.2b, which the setting says by applying live: every
+  /// application then takes a key, saved in its own entry, and Hammerspoon's styles are history.
+  private var keeps: Bool { !setting.needsReload }
   private var allSettings: [Setting] { model.share?.sections.flatMap(\.settings) ?? [] }
   private var modeSetting: Setting? { allSettings.first { $0.id == AppsPage.modeId } }
   private var keysSetting: Setting? { allSettings.first { $0.id == AppsPage.keysId } }
@@ -430,7 +440,7 @@ struct AppsView: View {
   /// place of its own from what its style does today.
   private func customize(_ entry: AppEntry) {
     let own = entry.own
-    let inherited = entry.catalog?.placement
+    let inherited = keeps ? nil : entry.catalog?.placement
     page.customizing = AppCustomize(bundle: entry.bundle, name: entry.name, mode: own?.mode ?? "default",
       place: own?.place ?? inherited ?? AppPlace(),
       fromStyle: own?.place == nil && inherited != nil ? entry.catalog?.style : nil,
@@ -452,7 +462,7 @@ struct AppsView: View {
       own.name = own.name ?? c.name
       own.path = own.path ?? c.path
     }
-    next[c.bundle] = own.mode == nil && own.place == nil && (!c.added || own.path == nil) ? nil : own
+    next[c.bundle] = own.mode == nil && own.place == nil && own.key == nil && (!c.added || own.path == nil) ? nil : own
     page.customizing = nil
     model.change(setting, to: .apps(next))
   }
@@ -463,12 +473,12 @@ struct AppsView: View {
     own.mode = nil
     own.place = nil
     let added = entry.catalog == nil || entry.catalog?.added == true
-    next[entry.bundle] = !added || own.path == nil ? nil : own
+    next[entry.bundle] = own.key == nil && (!added || own.path == nil) ? nil : own
     model.change(setting, to: .apps(next))
   }
 
   private func catalogPlacement(_ bundle: String) -> AppPlace? {
-    setting.catalog.first { $0.bundle == bundle }?.placement
+    keeps ? nil : setting.catalog.first { $0.bundle == bundle }?.placement
   }
 
   private func remove(_ entry: AppEntry) {
@@ -480,6 +490,7 @@ struct AppsView: View {
   /// Records a key for the entry's action, refusing one another action holds, and Delete leaving it
   /// with none.
   private func record(_ entry: AppEntry) {
+    if keeps { return recordOwn(entry) }
     guard let action = entry.action, let keys = keysSetting else {
       model.refusal = "\(entry.name) has a key once its mode is set and the window closed once."
       return
@@ -501,10 +512,45 @@ struct AppsView: View {
   }
 
   private func resetKey(_ entry: AppEntry) {
+    if keeps { return setOwnKey(entry, nil) }
     guard let action = entry.action, let keys = keysSetting else { return }
     var next = keysTable
     next[action] = nil
     model.change(keys, to: .keys(next))
+  }
+
+  /// Records a key for an application while the app keeps the catalog, Hyper and the key, refusing
+  /// one another application or another action holds, and Delete taking it off.
+  private func recordOwn(_ entry: AppEntry) {
+    page.record(entry.bundle) { name, _ in
+      guard let name else { return setOwnKey(entry, nil) }
+      guard let code = page.recordedCode else { return }
+      let key = AppKey(leader: "hyper", key: name.count == 1 ? name.lowercased() : name, code: code)
+      if let holder = ownHolder(of: key, besides: entry.bundle) {
+        model.refusal = "\(KeyName.words(key.chord)) is \(holder)'s, clear it there first."
+        return
+      }
+      setOwnKey(entry, key)
+    }
+  }
+
+  private func setOwnKey(_ entry: AppEntry, _ key: AppKey?) {
+    var next = table
+    var own = next[entry.bundle] ?? AppOverride()
+    own.key = key
+    next[entry.bundle] = own.empty ? nil : own
+    model.change(setting, to: .apps(next))
+  }
+
+  /// What holds a key now besides one application: another application on the table, or an action
+  /// of the keymap that is not one of Hammerspoon's app actions, which the table stands in for.
+  private func ownHolder(of key: AppKey, besides bundle: String) -> String? {
+    for (other, own) in table where other != bundle && own.key?.slot == key.slot {
+      return own.name ?? page.installed.first { $0.bundle == other }?.name ?? other
+    }
+    let want = key.chord.lowercased()
+    for (action, held) in page.keys where !action.hasPrefix("apptoggler.") && held.lowercased() == want { return action }
+    return nil
   }
 
   /// The action holding a chord now, the keys set here over the keymap's, besides one.
@@ -555,6 +601,9 @@ struct AppRow: View {
   let chord: String?
   let recording: Bool
   let keyOwn: Bool
+  /// Whether it can take a key, every application once the app keeps the catalog.
+  let canRecord: Bool
+  let resetKeyHelp: String
   let busy: Bool
   let customize: () -> Void
   let reset: () -> Void
@@ -581,7 +630,7 @@ struct AppRow: View {
       mode
       key
       HStack(spacing: Space.related) {
-        mark("arrow.uturn.backward", shown: keyOwn, help: "Back to the key in the config files", action: resetKey)
+        mark("arrow.uturn.backward", shown: keyOwn, help: resetKeyHelp, action: resetKey)
         mark("minus.circle", shown: entry.removable, help: "Remove \(entry.name) from Olm", action: remove)
       }
       .frame(width: AppColumns.marks)
@@ -618,8 +667,8 @@ struct AppRow: View {
       }
       .buttonStyle(.plain)
       .help(recording ? "Press the key for Hyper and it, Delete for none, Escape to leave it" : "Record a key")
-      .disabled(entry.action == nil)
-      .opacity(entry.action == nil ? 0.5 : 1)
+      .disabled(!canRecord)
+      .opacity(canRecord ? 1 : 0.5)
     }
   }
 

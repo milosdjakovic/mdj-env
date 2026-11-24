@@ -1628,7 +1628,9 @@ The root reads the list with `lib/settings.lua`'s `fromManifest` once the plugin
 and before `configure`, declares each entry as the identity, a dot and the key, and lays a value
 saved in the window over the data at `at`. So the plugin reads the setting from its own data with
 no word of its own and never learns the window exists. Every such setting applies on reload, since
-the data is handed over once a load. An entry that cannot be read is named in the console and left
+the data is handed over once a load, unless `liveWhen` names a switch of the bridge's, and that
+switch is on. Then the setting's owner is Olm.app, which reads the change at once, so it applies
+live, the app toggler's Applications under `appCatalog` the one example. An entry that cannot be read is named in the console and left
 out, the rest still declared. WindowManager's steps and sizes are the settled example.
 
 A setting of Olm itself is never declared here, it is a declaration in `lib/settings.lua`, since

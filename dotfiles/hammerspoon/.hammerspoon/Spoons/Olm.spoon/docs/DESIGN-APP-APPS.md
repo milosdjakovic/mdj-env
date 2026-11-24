@@ -93,6 +93,59 @@ A place the same as what the app would do with none, its style's placement or no
 Hammerspoon's styles in `config/toggles.lua` stay the starting point the sheet shows for Ghostty,
 Herdr and Rex until the catalog and the styles move into the app with the rest of 6.2.
 
+## The catalog in the app, 6.2b
+
+Asked by Milos on 2026-11-24, after a Customize save reloaded Hammerspoon as the window closed,
+rule 11 of the plan. What moves is everything 6.2 left in Hammerspoon about which apps have a key
+and what each does: the catalog, each app's mode and place, and its key. Every application the
+Applications page lists, the scan and the added ones, can then take a mode, a place and a key, and
+a change applies the moment it is made, with the window left open and nothing reloaded.
+
+**One table, Olm's own.** `apptoggler.apps` in Olm's store, by bundle id, already holds an app's
+mode, its place and an added app's name and path. It takes the key too, `key = { leader, key,
+code, mods }`, the leader by the name a keymap row spells it, `hyper`, `meta`, `super` or none for
+a plain combination, the key as the keymap names it, its key code and the modifiers beyond the
+leader. That table is the catalog. There is no second list of apps, and an app with nothing in it
+is a row of the scan and nothing more.
+
+**Seeded once from what Hammerspoon has.** The first time the app reads the table with the switch
+on and it has not been seeded, it writes every key Hammerspoon binds on an `apptoggler` action,
+read from `keymap.json` and the action's bundle from the setting's catalog, and every styled app's
+mode and place, the popup style of Ghostty, Herdr and Rex, into the table, marking it seeded. So
+the flip loses no key and no popup, rule 9. `config/apps.lua`, `config/toggles.lua` and this
+machine's keys file are left as they are, the fallback while the app is down and what every other
+machine still reads, rule 6.
+
+**The app claims and runs every app key.** Its catalog's rows join the rows it resolves, on the
+leader each names, and a press runs in the app, `AppFocus` with the table's mode and place, telling
+Hammerspoon nothing but `keyRan`, so a held leader's sheet goes down. The `apptoggler` rows of
+`keymap.json` are left out of the share while the switch is on, so an old chord is never claimed
+beside a new one. A key the keymap already binds to another action is refused on the page, with
+what holds it, and a claim that fails is logged and left unbound rather than taking the leader
+back. A launcher row choosing an app, which still reaches the app through Lua's `appRun`, runs with
+the table's mode and place in place of what Lua sent.
+
+**Live.** The Settings window hands each change it made to the app, and the app reads the table
+again and claims the difference, keeping every claim it still wants, so a key moved is live before
+the window has drawn the change. The setting is declared live while the switch is on, so nothing
+waits for the window to close. The app then tells Hammerspoon `appsChanged` with the table's keys,
+spelled, and Hammerspoon lays them in place of the toggler's own rows on the Hyper sheet and on each
+app's launcher row, so both say what a press does.
+
+**The switch** is `appCatalog` in `config/plugins.lua`, off as shipped. Off, everything is as 6.2
+left it.
+
+Steps.
+
+1. **The app's half.** The table read and seeded, the rows claimed and run in the app, the change
+   applied live, the page's mode and key offered for every app, the share's rows left out, the
+   setting declared live under the switch. `olm-apps-check` covers the seed, the rows and the
+   difference claimed.
+2. **Hammerspoon's half.** `appsChanged` laid over the Hyper sheet's app section and the launcher's
+   app rows, so both follow a change with no reload. Until it lands the switch stays off.
+3. **The flip**, with Milos's trial, then removing `HammerspoonCatalog` and `config/toggles.lua`
+   once every machine has run the app, rule 6.
+
 ## Steps
 
 1. **6.2, this.** The seam, `appRun` and `appsReady`, `app/Sources/OlmApps`, the Accessibility

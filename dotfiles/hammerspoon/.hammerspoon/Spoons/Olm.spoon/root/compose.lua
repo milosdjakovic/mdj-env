@@ -80,6 +80,8 @@ local function sharedKeys(bridge, bound, leaderSpecs, keyTable, leaders, plain, 
     if type(bridge.appKeys) == "function" then share.appKeys = bridge:appKeys() end
     -- Whether the app runs the window manager's keys itself, step 6.3b.
     if type(bridge.windowsInApp) == "function" then share.windowsInApp = bridge:windowsInApp() end
+    -- Whether the app keeps the app catalog, each app's key, mode and place, step 6.2b.
+    if type(bridge.switchOn) == "function" then share.appCatalog = bridge:switchOn("appCatalog") end
     -- The keys the app claims without excluding macOS, so its own answer runs beside Olm's, the
     -- Globe key where Olm Settings lets macOS's input source picker show too.
     share.systemKeys = systemPicker == true and keyTable.globe and { keyTable.globe } or {}
@@ -458,8 +460,7 @@ local function settingsService(deps)
       if live[id] then
         live[id](olmSettings.value(id))
       else
-        local decl = olmSettings.declaration(id)
-        if decl and decl.applies == "reload" then reloadDue = true end
+        if olmSettings.applies(id) == "reload" then reloadDue = true end
       end
       if deps.reshare then deps.reshare() end
       return true
@@ -3238,6 +3239,10 @@ function obj.run(olm, cfg)
     end
     -- Every setting the Olm Settings window shows, each plugin a person can switch off among them,
     -- with what this load has, docs/DESIGN-APP-SETTINGS.md. Written once at load.
+    -- A plugin setting naming a switch in liveWhen applies live while the bridge has it on.
+    if bridgeModule and type(bridgeModule.switchOn) == "function" then
+      olmSettings.liveWhen(function(name) return bridgeModule:switchOn(name) end)
+    end
     if bridgeModule and type(bridgeModule.share) == "function" then
       bridgeModule:share("settings", function()
         local rows = switchLib.catalog({ manifests = allManifests, directories = directories,

@@ -78,6 +78,10 @@ return {
       -- off by default.
       windowsInApp = { source = "user", policy = "optional",
         breaks = "every window key runs in Hammerspoon, as before" },
+      -- Whether the app keeps the app catalog, each app's key, mode and place, step 6.2b, from
+      -- config/plugins.lua, off by default.
+      appCatalog = { source = "user", policy = "optional",
+        breaks = "the app keys, modes and places are Hammerspoon's, as before" },
       -- Whether a tool's own key opens its list in the app while its socket is up, step 3.8, from
       -- config/plugins.lua, off by default.
       keysFlip = { source = "user", policy = "optional",

@@ -73,7 +73,7 @@ let package = Package(
     // The keys' resolver checked against the Lua leader's rules, step 5.1.
     .executableTarget(name: "olm-keys-check", dependencies: ["OlmKeys"], path: "Sources/olm-keys-check", swiftSettings: v5),
     // Bringing an app forward checked against the toggler's rules and geometry, step 6.2.
-    .executableTarget(name: "olm-apps-check", dependencies: ["OlmApps"], path: "Sources/olm-apps-check", swiftSettings: v5),
+    .executableTarget(name: "olm-apps-check", dependencies: ["OlmApps", "OlmSettings"], path: "Sources/olm-apps-check", swiftSettings: v5),
     // The runner checked against a plugin that misbehaves on purpose, step 4.1.
     .executableTarget(name: "olm-plugin-check", dependencies: ["OlmKit", "OlmBridge", "OlmPlugins"],
       path: "Sources/olm-plugin-check", swiftSettings: v5),

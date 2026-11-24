@@ -82,6 +82,9 @@ public struct Keymap: Sendable, Equatable {
   public var systemKeys: Set<Int> = []
   /// Whether the app runs the window manager's keys itself, step 6.3b, the windowsInApp switch.
   public var windowsInApp = false
+  /// Whether the app keeps the app catalog, step 6.2b, the appCatalog switch, so its own keys stand
+  /// in for Hammerspoon's apptoggler rows.
+  public var appCatalog = false
 
   public init(leaders: [KeyLeader], rows: [KeyRow]) {
     self.leaders = leaders
@@ -116,8 +119,27 @@ public struct Keymap: Sendable, Equatable {
     var keymap = Keymap(leaders: leaders, rows: rows)
     keymap.appKeys = o["appKeys"] as? [String] ?? []
     keymap.windowsInApp = o["windowsInApp"] as? Bool ?? false
+    keymap.appCatalog = o["appCatalog"] as? Bool ?? false
     keymap.systemKeys = Set((o["systemKeys"] as? [NSNumber] ?? []).map(\.intValue))
     return keymap
+  }
+
+  /// The keymap with Hammerspoon's rows whose ids start with replaced left out and rows laid in
+  /// their place, each one whose combination another row holds dropped and named in clashes, so the
+  /// app's own keys never claim a combination twice.
+  public func replacing(_ replaced: String, with own: [KeyRow]) -> (keymap: Keymap, clashes: [KeyRow]) {
+    func slot(_ r: KeyRow) -> String {
+      "\(r.leader ?? "")|\((r.mods ?? []).map(\.rawValue).sorted())|\(r.keyCode)"
+    }
+    var out = self
+    out.rows = rows.filter { !$0.id.hasPrefix(replaced) }
+    var taken = Set(out.rows.map(slot))
+    var clashes: [KeyRow] = []
+    for row in own {
+      let known = row.leader == nil ? !(row.mods ?? []).isEmpty : leaders.contains { $0.name == row.leader }
+      if known, taken.insert(slot(row)).inserted { out.rows.append(row) } else { clashes.append(row) }
+    }
+    return (out, clashes)
   }
 
   public static func read(_ url: URL) throws -> Keymap {

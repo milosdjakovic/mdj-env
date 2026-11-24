@@ -4,6 +4,7 @@
 
 import Foundation
 import OlmApps
+import OlmSettings
 
 var failures = 0, checks = 0
 func eq<T: Equatable>(_ got: T, _ want: T, _ what: String) {
@@ -192,6 +193,60 @@ eq(WindowRun.runs("hideAllExceptFocused", withSizes), true, "and Hide Others")
 eq(WindowRun.runs("sizeWide", withSizes), true, "and a named size the settings carry")
 eq(WindowRun.runs("sizeGone", withSizes), false, "a named size they do not stays in Hammerspoon")
 eq(WindowRun.runs("exactSize", withSizes), false, "and so does an exact size, which a key cannot carry")
+
+// The catalog the app keeps, step 6.2b: the seed from Hammerspoon's keys and styles, the applications
+// with a key, and what a press runs.
+let popupPlace: AppPlace = {
+  var p = AppPlace()
+  p.center = true
+  p.sized = true
+  p.width = 2400
+  p.height = 1350
+  p.padX = 40
+  p.padY = 20
+  return p
+}()
+let hsCatalog = [
+  CatalogApp(name: "Finder", bundle: "com.apple.finder", style: nil, hides: nil, placed: false, added: false, path: nil),
+  CatalogApp(name: "Herdr", bundle: "dev.herdr.app", style: "popup", hides: true, placed: true, added: false, path: nil,
+    placement: popupPlace),
+  CatalogApp(name: "Notes", bundle: "com.apple.Notes", style: nil, hides: nil, placed: false, added: false, path: nil),
+]
+let luaKeys = [
+  AppCatalog.LuaKey(id: "apptoggler.Finder", leader: "hyper", key: "f", code: 3, mods: []),
+  AppCatalog.LuaKey(id: "apptoggler.Herdr", leader: "hyper", key: "`", code: 50, mods: []),
+  AppCatalog.LuaKey(id: "apptoggler.Herdr", leader: "hyper", key: "h", code: 4, mods: []),
+  AppCatalog.LuaKey(id: "apptoggler.Notes", leader: "hyper", key: "n", code: 45, mods: []),
+  AppCatalog.LuaKey(id: "apptoggler.Gone", leader: "hyper", key: "g", code: 5, mods: []),
+]
+let before: [String: AppOverride] = [
+  "dev.herdr.app": AppOverride(mode: "cycle"),
+  "com.example.Own": AppOverride(key: AppKey(leader: "hyper", key: "n", code: 45)),
+]
+let seeded = AppCatalog.seed(before, keys: luaKeys, catalog: hsCatalog) ?? [:]
+eq(seeded["com.apple.finder"]?.key, AppKey(leader: "hyper", key: "f", code: 3), "the seed lays in a catalog action's key")
+eq(seeded["dev.herdr.app"]?.key, AppKey(leader: "hyper", key: "`", code: 50), "the first key it binds")
+eq(seeded["dev.herdr.app"]?.mode, "cycle", "a mode of its own is kept over its style's")
+eq(seeded["dev.herdr.app"]?.place, popupPlace, "and its style's place laid in")
+eq(seeded["com.apple.Notes"]?.key == nil, true, "a key the table gives another application is left out")
+eq(seeded.count, 3, "an action no catalog app has adds nothing, an app with nothing gets no entry")
+eq(AppCatalog.seed(seeded, keys: luaKeys, catalog: hsCatalog) == nil, true, "a seeded table seeds to nothing more")
+let clashing: [String: AppOverride] = [
+  "a.one": AppOverride(key: AppKey(leader: "hyper", key: "x", code: 7)),
+  "b.two": AppOverride(key: AppKey(leader: "hyper", key: "x", code: 7)),
+  "c.three": AppOverride(mode: "hides"),
+]
+let keyedApps = AppCatalog.keyed(clashing)
+eq(keyedApps.apps.map(\.id), ["app:a.one"], "an application with a key is a row, by bundle order")
+eq(keyedApps.clashes, ["b.two"], "and a second on one combination is left out")
+let herdrPress = AppCatalog.press("dev.herdr.app", table: seeded, global: "hides")
+eq(herdrPress.hides, false, "a press takes the app's own mode")
+eq(herdrPress.place?.acts, true, "and its place")
+let finderPress = AppCatalog.press("com.apple.finder", table: seeded, global: "hides")
+eq(finderPress.hides, true, "an app with no mode takes the global one")
+eq(finderPress.place == nil, true, "and with no place asks for none")
+let keyJSON = AppOverride(key: AppKey(leader: "hyper", key: "f", code: 3, mods: ["shift"]))
+eq(keyJSON.key?.chord, "hyper+shift+f", "a key spells its chord as the keymap does")
 
 print("olm-apps-check: \(checks) checks, \(failures) failures")
 exit(failures == 0 ? 0 : 1)

@@ -15,16 +15,20 @@ public struct AppOverride: Equatable, Sendable {
   public var name: String?
   public var path: String?
   public var place: AppPlace?
-  public init(mode: String? = nil, name: String? = nil, path: String? = nil, place: AppPlace? = nil) {
+  /// Its key, once the app keeps the catalog, step 6.2b.
+  public var key: AppKey?
+  public init(mode: String? = nil, name: String? = nil, path: String? = nil, place: AppPlace? = nil,
+    key: AppKey? = nil) {
     self.mode = mode
     self.name = name
     self.path = path
     self.place = place
+    self.key = key
   }
 
   init(_ e: [String: Any]) {
     self.init(mode: e["mode"] as? String, name: e["name"] as? String, path: e["path"] as? String,
-      place: (e["place"] as? [String: Any]).map(AppPlace.init))
+      place: (e["place"] as? [String: Any]).map(AppPlace.init), key: (e["key"] as? [String: Any]).flatMap(AppKey.init))
   }
 
   var any: [String: Any] {
@@ -33,8 +37,45 @@ public struct AppOverride: Equatable, Sendable {
     if let name { o["name"] = name }
     if let path { o["path"] = path }
     if let place { o["place"] = place.any }
+    if let key { o["key"] = key.any }
     return o
   }
+
+  /// Nothing of its own left, so the entry can leave the table, an added app keeping its name and path.
+  var empty: Bool { mode == nil && place == nil && key == nil && path == nil }
+}
+
+/// An application's key, step 6.2b: the leader by the name a keymap row spells it, hyper, meta or
+/// super, none for a plain combination, the key as the keymap names it, its key code and the
+/// modifiers beyond the leader.
+public struct AppKey: Equatable, Sendable {
+  public var leader: String?
+  public var key: String
+  public var code: Int
+  public var mods: [String]
+  public init(leader: String?, key: String, code: Int, mods: [String] = []) {
+    self.leader = leader
+    self.key = key
+    self.code = code
+    self.mods = mods.sorted()
+  }
+
+  init?(_ e: [String: Any]) {
+    guard let key = e["key"] as? String, !key.isEmpty, let code = (e["code"] as? NSNumber)?.intValue else { return nil }
+    self.init(leader: e["leader"] as? String, key: key, code: code, mods: e["mods"] as? [String] ?? [])
+  }
+
+  var any: [String: Any] {
+    var o: [String: Any] = ["key": key, "code": code, "mods": mods]
+    if let leader { o["leader"] = leader }
+    return o
+  }
+
+  /// The chord as the keymap spells it, hyper+C.
+  public var chord: String { ((leader.map { [$0] } ?? []) + mods + [key]).joined(separator: "+") }
+
+  /// One physical combination, so two keys on it are one.
+  public var slot: String { "\(leader ?? "")|\(mods.joined(separator: ","))|\(code)" }
 }
 
 /// Where an application's window goes when its key shows it, set in its Customize sheet: the display,
@@ -179,6 +220,18 @@ public struct CatalogApp: Equatable, Sendable {
   /// The style's placement in the page's words, a centred window at its size, where the Customize
   /// sheet starts for an app with no place of its own.
   public var placement: AppPlace? = nil
+
+  public init(name: String, bundle: String, style: String?, hides: Bool?, placed: Bool, added: Bool, path: String?,
+    placement: AppPlace? = nil) {
+    self.name = name
+    self.bundle = bundle
+    self.style = style
+    self.hides = hides
+    self.placed = placed
+    self.added = added
+    self.path = path
+    self.placement = placement
+  }
 }
 
 /// One named size of the window manager, plugins/windowmanager/plan.lua's named size: a name, a width

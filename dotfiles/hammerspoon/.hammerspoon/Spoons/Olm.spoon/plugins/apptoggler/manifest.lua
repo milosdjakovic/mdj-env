@@ -89,7 +89,7 @@ return {
     -- Every application, its own mode over its style's and the global one, and those added from
     -- outside the catalog, the Applications page drawing with catalog, what this plugin knows of each.
     { key = "apps", at = { "overrides" }, section = "applications", title = "Applications", kind = "apps",
-      shipped = {}, extra = "catalog", keywords = { "app", "toggle", "hyper", "cycle", "hide", "show", "add" } },
+      shipped = {}, extra = "catalog", liveWhen = "appCatalog", keywords = { "app", "toggle", "hyper", "cycle", "hide", "show", "add" } },
   },
 
   defaults = {

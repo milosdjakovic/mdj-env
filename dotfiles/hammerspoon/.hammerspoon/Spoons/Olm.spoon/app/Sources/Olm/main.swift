@@ -162,6 +162,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
   /// The window's two words over the bridge, a change answered with the share as Hammerspoon now
   /// holds it, and done once the window closes.
+  /// Set once the keys are first taken, the keys taken again with the keymap read afresh, so an app's
+  /// key, mode or place changed in Olm Settings is live before the window has drawn the change.
+  nonisolated(unsafe) static var retakeKeys: (@Sendable () -> Void)?
+
   static func settingsService(_ bridge: Bridge) -> SettingsService {
     SettingsService(change: { id, value, reset in
       do {
@@ -169,7 +173,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
           "reset": .bool(reset)]))
         guard case .object(let o) = answer else { return SettingAnswer(ok: false, why: "was answered oddly", share: nil) }
         let share = o["share"].flatMap { try? JSONSerialization.data(withJSONObject: $0.any) }.flatMap(SettingsShare.parse)
-        return SettingAnswer(ok: o["ok"] == .bool(true), why: o["why"]?.string, share: share)
+        let ok = o["ok"] == .bool(true)
+        if ok, id == AppCatalog.settingId || id == AppCatalog.modeId { retakeKeys?() }
+        return SettingAnswer(ok: ok, why: o["why"]?.string, share: share)
       } catch {
         return SettingAnswer(ok: false, why: "was not changed, Hammerspoon did not answer (\(error))", share: nil)
       }
@@ -287,7 +293,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     grants.tell("accessibility", appsAllowed)
     Task {
       await bridgeForApps.onAppRun { params in
-        if let press = AppPress(params) { appFocus.run(press) }
+        guard let press = AppPress(params) else { return }
+        // While the app keeps the catalog, its table says what a press does, not Lua's toggler.
+        if AppsHeld.shared.keeps {
+          appFocus.run(AppsHeld.shared.press(press.id, bundle: press.bundle))
+        } else {
+          appFocus.run(press)
+        }
       }
       // A leader's cheat sheet Hammerspoon laid out, drawn here, step 5.2, docs/DESIGN-APP-KEYS.md.
       let sheets = self.sheets
@@ -315,6 +327,21 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
           _ = try? await bridgeForApps.request("reclaimKeys", .object(["leaders": .array(names.map { .string($0) })]))
         },
         run: { id, depth in
+          // An app's key the app keeps, step 6.2b, run here with the table's mode and place,
+          // Hammerspoon told only so Hyper's sheet goes down. Without Accessibility it goes to
+          // Hammerspoon's own action for the app where its catalog has one.
+          if id.hasPrefix(AppCatalog.prefix) {
+            let bundle = String(id.dropFirst(AppCatalog.prefix.count))
+            if AppFocus.allowed {
+              appFocus.run(AppsHeld.shared.press(id, bundle: bundle))
+              await bridgeForApps.notify("keyRan", .object(["id": .string(id)]))
+            } else if let lua = AppsHeld.shared.luaAction(bundle) {
+              _ = try? await bridgeForApps.request("runKey", .object(["id": .string(lua), "depth": .number(0)]))
+            } else {
+              NSLog("Olm apps: %@'s key was pressed without Accessibility, so nothing ran", bundle)
+            }
+            return
+          }
           // A window key the app runs itself once the switch is on and it may act, Hammerspoon told
           // only so META's sheet goes down. Any other row, or the switch off, goes to Hammerspoon.
           if let action = WindowShadow.action(id), WindowsSwitch.on, AppFocus.allowed,
@@ -358,13 +385,42 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         self.keyOwner = owner
       }
       let keymapURL = context.run.appendingPathComponent("keymap.json")
+      let service = Self.settingsService(bridgeForApps)
       let takeKeys: @Sendable () -> Void = {
         Task { @MainActor in
           guard let keymap = try? Keymap.read(keymapURL) else { return }
           WindowsSwitch.on = keymap.windowsInApp
-          await owner.take(keymap)
+          guard keymap.appCatalog else {
+            AppsHeld.shared.set(on: false, share: nil)
+            return await owner.take(keymap)
+          }
+          var share = SettingsShare.read()
+          // Seeded once from what Hammerspoon binds and styles, so the flip loses no key and no popup.
+          if !FileManager.default.fileExists(atPath: AppCatalog.seededMark.path), let read = share,
+            let data = try? Data(contentsOf: keymapURL) {
+            let seeded = AppCatalog.seed(AppCatalog.table(read), keys: AppCatalog.luaKeys(data), catalog: AppCatalog.catalog(read))
+            let answer = seeded.map { next in Task { await service.change(AppCatalog.settingId, .apps(next), false) } }
+            if let got = await answer?.value, !got.ok {
+              NSLog("Olm apps: the catalog was not seeded, %@", got.why ?? "refused")
+            } else {
+              if let got = await answer?.value, let now = got.share { share = now }
+              try? Data().write(to: AppCatalog.seededMark)
+              NSLog("Olm apps: the catalog is seeded from Hammerspoon's")
+            }
+          }
+          AppsHeld.shared.set(on: true, share: share)
+          let own = AppCatalog.keyed(AppCatalog.table(share))
+          for bundle in own.clashes { NSLog("Olm apps: %@'s key is another app's, so it is left out", bundle) }
+          let rows = own.apps.map { a -> KeyRow in
+            let mods = Set(a.key.mods.compactMap(Mod.init(rawValue:)))
+            return KeyRow(id: a.id, leader: a.key.leader, key: a.key.key, keyCode: a.key.code, mods: mods.isEmpty ? nil : mods)
+          }
+          let made = keymap.replacing(AppCatalog.luaPrefix, with: rows)
+          for row in made.clashes { NSLog("Olm apps: %@'s key is held by another action, so it is left out", row.id) }
+          await owner.take(made.keymap)
         }
       }
+      Self.retakeKeys = takeKeys
       await bridgeForApps.onOpen(takeKeys)
       await bridgeForApps.onKeysReady(takeKeys)
       await bridgeForApps.onClose { Task { @MainActor in owner.drop() } }
@@ -514,6 +570,40 @@ app.run()
 /// are taken.
 enum WindowsSwitch {
   nonisolated(unsafe) static var on = false
+}
+
+/// The app catalog as the keys were last taken, step 6.2b, docs/DESIGN-APP-APPS.md: whether the app
+/// keeps it, the table and the mode an app with none of its own takes, read by every press.
+final class AppsHeld: @unchecked Sendable {
+  static let shared = AppsHeld()
+  private let lock = NSLock()
+  private var on = false
+  private var table: [String: AppOverride] = [:]
+  private var global = "cycle"
+  private var catalog: [CatalogApp] = []
+
+  func set(on: Bool, share: SettingsShare?) {
+    lock.lock(); defer { lock.unlock() }
+    self.on = on
+    table = AppCatalog.table(share)
+    global = AppCatalog.globalMode(share)
+    catalog = AppCatalog.catalog(share)
+  }
+
+  var keeps: Bool { lock.lock(); defer { lock.unlock() }; return on }
+
+  /// What a press on an app runs from the table, as AppFocus takes it.
+  func press(_ id: String, bundle: String) -> AppPress {
+    lock.lock(); defer { lock.unlock() }
+    let p = AppCatalog.press(bundle, table: table, global: global)
+    return AppPress(id: id, bundle: bundle, hides: p.hides, placement: p.place, lua: nil)
+  }
+
+  /// Hammerspoon's action for an app, where its catalog has one, for a press the app cannot run.
+  func luaAction(_ bundle: String) -> String? {
+    lock.lock(); defer { lock.unlock() }
+    return catalog.first { $0.bundle == bundle }.map { AppCatalog.luaPrefix + $0.name }
+  }
 }
 
 /// The window settings last read and the share's stamp they were read at.

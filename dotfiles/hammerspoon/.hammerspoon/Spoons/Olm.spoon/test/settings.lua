@@ -369,6 +369,22 @@ do
     size = { width = 120, height = 80, unit = "percent" } } } })), false)
   check("a size with no height is refused", (M.check(appsDecl, { ["a.b"] = { place = {
     size = { width = 800, unit = "points" } } } })), false)
+  -- An application's own key, step 6.2b.
+  check("an own key is taken", (M.check(appsDecl, { ["a.b"] = { key = { leader = "hyper", key = "`", code = 50,
+    mods = { "shift" } } } })), true)
+  check("a key with no code is refused", (M.check(appsDecl, { ["a.b"] = { key = { leader = "hyper", key = "f" } } })), false)
+  check("a key with a modifier of none of the four is refused", (M.check(appsDecl, { ["a.b"] = { key = {
+    key = "f", code = 3, mods = { "fn" } } } })), false)
+  -- A setting naming a switch in liveWhen applies live while the switch is on, and on reload otherwise.
+  local liveSettings = M.new({ store = newStore({}, appsIo, {}), log = { w = function() end } })
+  liveSettings.plugin("apps", { { key = "apps", at = { "overrides" }, section = "applications",
+    title = "Applications", kind = "apps", shipped = {}, liveWhen = "appCatalog" } }, {})
+  check("a liveWhen setting applies on reload with no switch answering", liveSettings.applies("apps.apps"), "reload")
+  local switchOn = false
+  liveSettings.liveWhen(function(name) return name == "appCatalog" and switchOn end)
+  check("and still while its switch is off", liveSettings.applies("apps.apps"), "reload")
+  switchOn = true
+  check("and live while it is on", liveSettings.applies("apps.apps"), "live")
   local appsShare
   for _, section in ipairs(appsSettings.share().sections) do
     if section.id == "applications" then

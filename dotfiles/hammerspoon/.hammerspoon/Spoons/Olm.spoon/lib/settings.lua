@@ -230,6 +230,20 @@ function M.check(decl, value)
         local ok, why = M.checkPlace(o.place)
         if not ok then return false, "gives " .. bundle .. " a place that " .. why end
       end
+      -- Its key, once the app keeps the catalog, step 6.2b, a leader by name or none, the key's
+      -- name, its key code and the modifiers beyond the leader.
+      if o.key ~= nil then
+        local k = o.key
+        local fine = type(k) == "table" and type(k.key) == "string" and k.key ~= ""
+          and type(k.code) == "number" and k.code == math.floor(k.code) and k.code >= 0 and (k.leader == nil or type(k.leader) == "string")
+          and (k.mods == nil or type(k.mods) == "table")
+        if fine then
+          for _, m in ipairs(k.mods or {}) do
+            if m ~= "shift" and m ~= "ctrl" and m ~= "alt" and m ~= "cmd" then fine = false end
+          end
+        end
+        if not fine then return false, "gives " .. bundle .. " a key that is not a key" end
+      end
     end
     return true
   elseif kind == "sizes" then
@@ -290,7 +304,7 @@ end
 --- user, so the saved value is laid over what the plugin is handed and the plugin reads it with no
 --- word of its own. The id is the identity, a dot and the key, so no plugin can take another's or
 --- one of Olm's own, and every such setting applies on reload, since the data is handed over once a
---- load. A spec that cannot be read is left out and named in problems, the rest still declared.
+--- load, unless liveWhen names a switch of the bridge that is on, its owner then the app. A spec that cannot be read is left out and named in problems, the rest still declared.
 function M.fromManifest(identity, specs)
   local out, problems = {}, {}
   if specs == nil then return out, problems end
@@ -332,6 +346,7 @@ function M.fromManifest(identity, specs)
         unit = spec.unit, shipped = copy(spec.shipped), keywords = copy(spec.keywords or {}),
         choices = spec.kind == "choice" and readChoices(spec) or nil,
         extra = type(spec.extra) == "string" and spec.extra or nil,
+        liveWhen = type(spec.liveWhen) == "string" and spec.liveWhen or nil,
         applies = "reload", owner = identity }
     end
   end
@@ -492,6 +507,24 @@ function M.new(opts)
   --- settings.declare(id, fields) lays fields over a declaration, or adds one, the choices of the
   --- chooser and theme known only once their stores are built, a default, a plugin's switch.
   --- default in fields is the file's value for a setting with no target.
+  -- What answers a declaration's liveWhen, a switch's name to whether it is on, set by the root.
+  local switchOn = function() return false end
+
+  --- settings.liveWhen(fn)
+  --- fn answers whether a switch is on, by name. A plugin setting naming one in liveWhen applies
+  --- live while it is on, since then its owner is the app and reads the change at once.
+  function self.liveWhen(fn)
+    if type(fn) == "function" then switchOn = fn end
+  end
+
+  --- settings.applies(id) -> "live" or "reload", what a declaration applies on now.
+  function self.applies(id)
+    local decl = byId[id]
+    if decl == nil then return nil end
+    if decl.liveWhen and switchOn(decl.liveWhen) == true then return "live" end
+    return decl.applies
+  end
+
   function self.declare(id, fields)
     local decl = byId[id]
     if decl == nil then
@@ -635,7 +668,7 @@ function M.new(opts)
       if section and not decl.hidden and not decl.absent then
         local row = {
           id = decl.id, title = decl.title, detail = decl.detail, kind = decl.kind,
-          keywords = copy(decl.keywords or {}), applies = decl.applies,
+          keywords = copy(decl.keywords or {}), applies = self.applies(decl.id),
           choices = copy(decl.choices), min = decl.min, max = decl.max, step = decl.step, unit = decl.unit,
           locked = decl.locked,
           default = copy(defaults[decl.id]),

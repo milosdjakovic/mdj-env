@@ -127,6 +127,9 @@ function obj:configure(opts)
   -- config says true, and even then only while the app has said it may act.
   if opts.appToggler ~= nil then self._appToggler = opts.appToggler == true end
   if opts.windowsInApp ~= nil then self._windowsInApp = opts.windowsInApp == true end
+  -- Whether the app keeps the app catalog, each app's key, mode and place, step 6.2b,
+  -- docs/DESIGN-APP-APPS.md, off unless the config says true.
+  if opts.appCatalog ~= nil then self._appCatalog = opts.appCatalog == true end
   -- Whether a tool's own key opens its list in the app, step 3.8, off unless the config says true.
   if opts.keysFlip ~= nil then self._keysFlip = opts.keysFlip == true end
   if type(opts.shares) == "table" then self:_share(opts.shares) end
@@ -336,6 +339,14 @@ function obj:serveLauncher(provider)
   self._conn = conn:start()
   self._service, self._session = service, session
   return conn
+end
+
+--- obj:switchOn(name) -> whether one of the bridge's switches is on, by its name in
+--- config/plugins.lua, so a setting may apply live while its owner is the app.
+local SWITCHES = { appCatalog = "_appCatalog", windowsInApp = "_windowsInApp", appToggler = "_appToggler" }
+function obj:switchOn(name)
+  local field = SWITCHES[name]
+  return field ~= nil and self[field] == true
 end
 
 --- obj:windowsInApp() -> whether the app runs the window manager's keys itself, step 6.3b.
