@@ -1630,7 +1630,9 @@ plugin's own data, its first word a `needs.data` field the plugin declares with 
 on or off, drawn as a macOS switch or a check box. A text is words, with an optional `placeholder`
 the empty field shows and a `maxLength`, and `lines`, a whole number from 2 to 20, makes it a box
 that many rows tall under its title, a list of one entry per line, where a text of one line refuses a
-line break. A choice lists `choices`, each a `value` and a `title`, and
+line break. A `handler` names a `scheme`, `https`, and no `at`, and is the app macOS opens that
+scheme with, drawn by Olm.app as a menu of every app that can, read from the Mac and changed by
+asking macOS, so nothing is stored and the plugin never sees it. A choice lists `choices`, each a `value` and a `title`, and
 ships one of them. `apps` and `sizes` are drawn by a page of their own, Applications and Window
 Management. `section` is optional. Naming one of the window's sections in `lib/settings.lua`'s
 `SECTIONS` puts the setting on that section's page. Naming none puts it on the plugin's own page,

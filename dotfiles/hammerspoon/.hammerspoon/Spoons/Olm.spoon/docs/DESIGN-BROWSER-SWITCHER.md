@@ -106,8 +106,9 @@ this section is true.
 - **Rules are text** on the plugin's page, `pattern => favourite`, a site with `*`, a path prefix,
   or `app:` and the source app's name or bundle id. The table setting is the planned next step.
 - **No fallback setting.** A link nobody answers opens in Safari.
-- **Make Olm the Default Browser** and **Give the Default Browser Back** are launcher rows, each
-  raising macOS's question. The second hands the default to the first favourite browser, else Safari.
+- **Default Browser** is the first row of the plugin's page, a menu of every app that opens https,
+  read live, and choosing one raises macOS's question. It was two launcher rows for an hour, and
+  Milos moved it here, the settings API's `handler` kind.
 - The settings API gained `lines` on a text, its box that many rows tall under the title, one
   entry per line, and a text of one line refuses a line break.
 

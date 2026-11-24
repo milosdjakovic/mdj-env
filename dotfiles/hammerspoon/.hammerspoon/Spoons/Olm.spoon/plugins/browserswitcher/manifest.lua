@@ -50,7 +50,6 @@ return {
   -- Olm.app's links come here, found by this capability and never by name.
   provides = {
     links = "link",
-    actions = "actions",
   },
 
   defaults = {
@@ -79,6 +78,10 @@ return {
   -- Drawn on this plugin's own page in Olm Settings, one entry per line, laid over favourites and
   -- rules before configure.
   settings = {
+    -- Read and changed by Olm.app, since which app opens a link is the Mac's, never stored here.
+    { key = "defaultBrowser", kind = "handler", scheme = "https", title = "Default Browser",
+      detail = "Choose Olm so the links you click come here. macOS asks before it changes.",
+      keywords = { "default browser", "http", "url handler" } },
     { key = "favourites", at = { "favourites" }, title = "Favourites", kind = "text", lines = 6,
       shipped = "",
       placeholder = "Google Chrome: Work\nGoogle Chrome: Personal\nSafari\nCopy Link",

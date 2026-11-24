@@ -131,7 +131,7 @@ defect, not a choice.
    the row has a page of its own, the control last at the right edge. Each keeps its column while
    hidden, so a row with no undo showing or no gear lines its control up with the rest.
 3. **A row's details open as a page in the window, never a sheet or a window of its own.** The gear opens it,
-   `BackButton` at its top left names the page it returns to, and leaving it, by Back or any other
+   `BackButton` at its top left, a glass button, names the page it returns to, and leaving it, by Back or any other
    way, keeps what it holds. What cannot be kept stays on the page with the reason in its header. A
    plugin's settings and an application's mode and place both work this way.
 4. **What is set is drawn in the accent.** A value moved off the config files, and a gear whose page

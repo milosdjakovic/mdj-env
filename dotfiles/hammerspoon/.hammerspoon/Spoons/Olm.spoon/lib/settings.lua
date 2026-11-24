@@ -254,6 +254,8 @@ function M.check(decl, value)
   elseif kind == "switch" or kind == "checkbox" then
     if type(value) ~= "boolean" then return false, "is not on or off" end
     return true
+  elseif kind == "handler" then
+    return false, "is the app macOS opens it with, which Olm.app asks macOS to change"
   elseif kind == "text" then
     if type(value) ~= "string" then return false, "is not words" end
     if decl.maxLength and #value > decl.maxLength then return false, "is longer than " .. decl.maxLength end
@@ -341,7 +343,8 @@ end
 -- A plugin's own settings, its manifest's settings list
 --------------------------------------------------------------------------------
 
-local KINDS = { number = true, switch = true, checkbox = true, text = true, choice = true, apps = true, sizes = true }
+local KINDS = { number = true, switch = true, checkbox = true, text = true, choice = true, apps = true, sizes = true,
+  handler = true }
 
 -- Whether a choice spec lists its choices, each a value and a title, and ships one of them.
 local function readChoices(spec)
@@ -359,7 +362,9 @@ end
 --- A plugin's settings list read into declarations, docs/DESIGN-APP-SETTINGS.md S.4. Each spec is
 --- { key, at, title, section, kind, keywords, detail, and for a number min, max, step, unit, shipped }, detail a line shown under the title.
 --- kind is number, switch, checkbox, text, choice, apps or sizes, a text taking an optional
---- placeholder, maxLength and lines, the rows its box is tall, a list of one entry per line. section is optional, and a setting naming none is drawn on the
+--- placeholder, maxLength and lines, the rows its box is tall, a list of one entry per line. A handler
+--- names a scheme, https, and is the app macOS opens it with, read and changed by Olm.app, no at and
+--- nothing stored. section is optional, and a setting naming none is drawn on the
 --- plugin's own page, which its switch in Plugins opens. at
 --- is the path into the plugin's own data, its first word a need the manifest declares with source
 --- user, so the saved value is laid over what the plugin is handed and the plugin reads it with no
@@ -381,11 +386,14 @@ function M.fromManifest(identity, specs)
     if type(spec) ~= "table" then why = "is not a table"
     elseif type(spec.key) ~= "string" or not spec.key:match("^[%w_]+$") then why = "names no key of letters and digits"
     elseif seen[spec.key] then why = "repeats the key " .. spec.key
-    elseif type(spec.at) ~= "table" or #spec.at == 0 then why = "names no path into the plugin's data in at"
+    elseif spec.kind ~= "handler" and (type(spec.at) ~= "table" or #spec.at == 0) then
+      why = "names no path into the plugin's data in at"
+    elseif spec.kind == "handler" and not (type(spec.scheme) == "string" and spec.scheme:match("^%a[%w+.-]*$")) then
+      why = "is a handler with no scheme, such as https"
     elseif type(spec.title) ~= "string" or spec.title == "" then why = "has no title"
     elseif spec.section ~= nil and not sections[spec.section] then why = "names no section of the window, " .. tostring(spec.section)
     elseif not KINDS[spec.kind] then
-      why = "has the kind " .. tostring(spec.kind) .. ", where a number, a switch, a checkbox, a text or a choice is read"
+      why = "has the kind " .. tostring(spec.kind) .. ", where a number, a switch, a checkbox, a text, a choice or a handler is read"
     elseif spec.section == nil and (spec.kind == "apps" or spec.kind == "sizes") then
       why = "is a " .. spec.kind .. " setting with no section, and only its own section draws one"
     elseif spec.kind == "text" and spec.maxLength ~= nil and not (type(spec.maxLength) == "number" and spec.maxLength > 0) then
@@ -402,7 +410,7 @@ function M.fromManifest(identity, specs)
       why = "is a number with no range, min below max and a step above nothing"
     end
     if not why then
-      for _, word in ipairs(spec.at) do
+      for _, word in ipairs(spec.kind == "handler" and {} or spec.at) do
         if type(word) ~= "string" or word == "" then why = "has a path in at that is not words" end
       end
     end
@@ -410,8 +418,12 @@ function M.fromManifest(identity, specs)
       problems[#problems + 1] = where .. " " .. why .. ", so it is left out"
     else
       seen[spec.key] = true
-      local target = { identity }
-      for _, word in ipairs(spec.at) do target[#target + 1] = word end
+      -- A handler is a fact about the Mac that Olm.app reads and changes, so nothing is stored.
+      local target
+      if spec.kind ~= "handler" then
+        target = { identity }
+        for _, word in ipairs(spec.at) do target[#target + 1] = word end
+      end
       -- A setting naming no section lives on the plugin's own page, reached from its switch in
       -- Plugins, asked by Milos on 2026-11-24.
       out[#out + 1] = { id = identity .. "." .. spec.key, section = spec.section or "plugins",
@@ -422,7 +434,8 @@ function M.fromManifest(identity, specs)
         choices = spec.kind == "choice" and readChoices(spec) or nil,
         extra = type(spec.extra) == "string" and spec.extra or nil,
         liveWhen = type(spec.liveWhen) == "string" and spec.liveWhen or nil,
-        applies = "reload", owner = identity }
+        scheme = spec.kind == "handler" and spec.scheme or nil,
+        applies = spec.kind == "handler" and "live" or "reload", owner = identity }
     end
   end
   return out, problems
@@ -625,7 +638,7 @@ function M.new(opts)
     if #decls == 0 or type(data) ~= "table" then return problems end
     for _, decl in ipairs(decls) do
       local node = data
-      for i = 2, #decl.target - 1 do
+      for i = 2, decl.target and #decl.target - 1 or 0 do
         local word = decl.target[i]
         if type(node[word]) ~= "table" then node[word] = {} end
         node = node[word]
@@ -747,7 +760,7 @@ function M.new(opts)
           choices = copy(decl.choices), min = decl.min, max = decl.max, step = decl.step, unit = decl.unit,
           locked = decl.locked,
           page = decl.page, plugin = decl.member and decl.member.name or nil,
-          placeholder = decl.placeholder, maxLength = decl.maxLength, lines = decl.lines,
+          placeholder = decl.placeholder, maxLength = decl.maxLength, lines = decl.lines, scheme = decl.scheme,
           default = copy(defaults[decl.id]),
         }
         if type(decl.extraFrom) == "function" then

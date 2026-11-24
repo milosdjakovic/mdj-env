@@ -295,30 +295,6 @@ function M.verbs:copyLink()
   if cfg.stageHide then cfg.stageHide() end
 end
 
--- Making Olm the default browser, and handing it back, each raising macOS's own question.
-function M:actions()
-  return {
-    { name = "makeDefault", description = "Make Olm the Default Browser", icon = "browser", system = true,
-      keywords = "default browser, set default",
-      run = function()
-        hs.urlevent.setDefaultHandler("http", OLM)
-        say("macOS asks whether Olm becomes the default browser")
-      end },
-    { name = "giveDefaultBack", description = "Give the Default Browser Back", icon = "browser", system = true,
-      keywords = "default browser, restore, safari, chrome",
-      run = function()
-        local back = "com.apple.Safari"
-        local known = byTitle(targets())
-        for _, name in ipairs(lines(cfg.favourites)) do
-          local t = known[name:lower()]
-          if t then back = t.bundle; break end
-        end
-        hs.urlevent.setDefaultHandler("http", back)
-        say("macOS asks whether " .. (hs.application.nameForBundleID(back) or back) .. " becomes the default browser")
-      end },
-  }
-end
-
 function M:configure(opts)
   cfg = opts or {}
   return M

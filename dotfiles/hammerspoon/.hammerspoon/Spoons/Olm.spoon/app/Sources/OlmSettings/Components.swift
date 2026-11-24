@@ -44,14 +44,22 @@ struct PageButton: View {
   }
 }
 
-/// Back, at the top left of a page a gear opened, naming the page it returns to.
+/// Back, at the top left of a page a gear opened, naming the page it returns to, a glass button as
+/// the system draws one, asked by Milos on 2026-11-24, the bordered one before macOS 26.
 struct BackButton: View {
   let title: String
   let action: () -> Void
 
   var body: some View {
+    if #available(macOS 26, *) {
+      button.buttonStyle(.glass)
+    } else {
+      button.buttonStyle(.bordered)
+    }
+  }
+
+  private var button: some View {
     Button(action: action) { Label(title, systemImage: "chevron.left") }
-      .buttonStyle(.borderless)
       .help("Back to \(title)")
   }
 }

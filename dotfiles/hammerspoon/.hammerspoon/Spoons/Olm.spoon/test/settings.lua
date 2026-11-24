@@ -466,6 +466,28 @@ do
   check("the share carries a text's lines", shared and shared.lines, 8)
 end
 
+-- A handler, the app macOS opens a scheme with, read and changed by Olm.app and never stored.
+do
+  local hFiles, hIo = disk()
+  local hSettings = M.new({ store = newStore(hFiles, hIo, {}), log = { w = function() end } })
+  local data = {}
+  local problems = hSettings.plugin("bs", {
+    { key = "browser", kind = "handler", scheme = "https", title = "Default Browser" },
+    { key = "noScheme", kind = "handler", title = "No Scheme" },
+  }, data)
+  check("a handler with no scheme is a problem", problems[1], "settings[2] is a handler with no scheme, such as https, so it is left out")
+  check("a handler needs no path", problems[2], nil)
+  check("a handler applies live", hSettings.applies("bs.browser"), "live")
+  check("a handler is not changed by the window", (hSettings.change("bs.browser", "Safari")), false)
+  check("nothing lands in the plugin's data", next(data), nil)
+  local row
+  for _, section in ipairs(hSettings.share().sections) do
+    for _, r in ipairs(section.settings) do if r.id == "bs.browser" then row = r end end
+  end
+  check("the share carries the scheme", row and row.scheme, "https")
+  check("on the plugin's page", row and row.page, "bs")
+end
+
 if failed then
   print("settings, FAILED")
   os.exit(1)

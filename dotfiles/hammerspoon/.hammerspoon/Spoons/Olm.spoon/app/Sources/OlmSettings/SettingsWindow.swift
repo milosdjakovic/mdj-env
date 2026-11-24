@@ -71,6 +71,15 @@ final class SettingsModel: ObservableObject {
     running = values
   }
 
+  /// Each handler setting's scheme to the path of the app macOS opens it with now.
+  @Published var handlers: [String: String] = [:]
+
+  func readHandler(_ scheme: String) {
+    guard let probe = URL(string: scheme + "://example.com") else { return }
+    let path = NSWorkspace.shared.urlForApplication(toOpen: probe)?.path ?? ""
+    if handlers[scheme] != path { handlers[scheme] = path }
+  }
+
   /// Whether a setting's saved value waits for the reload as the window closes.
   func waitsForReload(_ setting: Setting) -> Bool {
     setting.needsReload && running[setting.id].map { $0 != setting.value } == true
@@ -791,6 +800,8 @@ struct SettingRow: View {
     case .checkbox:
       Toggle(setting.title, isOn: flag)
         .toggleStyle(.checkbox)
+    case .handler:
+      HandlerSetting(setting: setting, model: model)
     case .text:
       if (setting.lines ?? 1) > 1 { EmptyView() } else { TextSetting(setting: setting, model: model) }
     case .number:
@@ -871,6 +882,51 @@ struct TextSetting: View {
   private func send() {
     guard let text = model.texts.removeValue(forKey: setting.id) else { return }
     if text != (setting.value.text ?? "") { model.change(setting, to: .text(text)) }
+  }
+}
+
+/// Which app macOS opens a scheme with, every app that can, Olm among them, read live from Launch
+/// Services rather than saved, since it is a fact about the Mac. Choosing one asks macOS, which shows
+/// its own question, and the row reads the answer again once it is given and whenever the window is
+/// shown. A web scheme is changed through http, which macOS keeps https beside.
+struct HandlerSetting: View {
+  let setting: Setting
+  @ObservedObject var model: SettingsModel
+
+  private var scheme: String { setting.scheme ?? "https" }
+
+  var body: some View {
+    let current = model.handlers[scheme] ?? ""
+    let apps = Self.apps(for: scheme)
+    Picker(setting.title, selection: Binding(get: { current }, set: { choose($0) })) {
+      ForEach(apps, id: \.path) { url in
+        Text(FileManager.default.displayName(atPath: url.path).replacingOccurrences(of: ".app", with: ""))
+          .tag(url.path)
+      }
+      if !apps.contains(where: { $0.path == current }) { Text("Unknown").tag(current) }
+    }
+    .fixedSize()
+    .onAppear { model.readHandler(scheme) }
+    .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in
+      model.readHandler(scheme)
+    }
+  }
+
+  static func apps(for scheme: String) -> [URL] {
+    guard let probe = URL(string: scheme + "://example.com") else { return [] }
+    var seen = Set<String>()
+    return NSWorkspace.shared.urlsForApplications(toOpen: probe)
+      .filter { seen.insert($0.path).inserted }
+      .sorted { $0.lastPathComponent.localizedCaseInsensitiveCompare($1.lastPathComponent) == .orderedAscending }
+  }
+
+  private func choose(_ path: String) {
+    guard path != model.handlers[scheme], !path.isEmpty else { return }
+    let web = scheme == "https" || scheme == "http"
+    NSWorkspace.shared.setDefaultApplication(at: URL(fileURLWithPath: path),
+      toOpenURLsWithScheme: web ? "http" : scheme) { _ in
+      Task { @MainActor in model.readHandler(scheme) }
+    }
   }
 }
 
