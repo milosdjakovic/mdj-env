@@ -215,7 +215,7 @@ recognises, a vault, the Downloads folder, the home folder for a plugin that sea
 than file by file. A plugin that genuinely needs the whole home folder or the internet says so and
 gets it once allowed, and the window says so in those words.
 
-**Switching a plugin on asks once.** When a plugin is installed or switched on, Olm shows one sheet,
+**Switching a plugin on asks once.** When a plugin is installed or switched on, Olm shows one page,
 its name and what it does, then the groups it asks for in plain words, and Allow or Cancel. Allowed,
 it is never asked again for the same list. An update that asks for more shows only what is new. Our
 own plugins, installed by `src/setup-olmapp.sh`, are allowed by that install, so a fresh machine
@@ -231,20 +231,133 @@ as the exact list of what the plugin touches.
 
 **macOS's own permissions are not shared.** macOS counts a child process as part of the app that
 started it for the permissions it holds, so without care a plugin would act with Olm's
-Accessibility grant. Nothing an external plugin does should need it, since windows, keys and pasting
-are the core's, so the runner starts every plugin disclaiming Olm's grants, and a plugin that needs a
-permission of macOS's asks for it as itself. Disclaiming goes through the spawn flag macOS's own
-Terminal and Xcode use.
+Accessibility grant. So the runner starts every plugin disclaiming Olm's grants, and a plugin never
+holds a permission of macOS's at all. What one needs, Olm does for it, see the next section, which
+replaced on 2026-11-24 the first draft's plugin asking for a permission as itself. Disclaiming goes
+through the spawn flag macOS's own Terminal and Xcode use.
 
 **What it is not.** A plugin allowed to run `tmux` can do whatever `tmux` can, so the sandbox narrows
 a plugin to what it said it needs and cannot make a powerful tool harmless. Installing a plugin is
-still trusting its author with that list, and the sheet shows the list so the trust is informed.
+still trusting its author with that list, and the page shows the list so the trust is informed.
 
 **Two interfaces it stands on are not Apple's public ones.** The sandbox's rule language and the
 command that starts a program inside it are deprecated, though Chrome and Claude Code depend on them
 and they work on current macOS, and the disclaim flag is private. Either can change with a macOS
 release, so step 1 proves both on this machine, with caffeinate and mullvad, before anything leans on
 them, and the runner refuses to start plugins unsandboxed when they fail, saying why.
+
+## macOS's permissions, held by Olm and lent by ability
+
+Planned on 2026-11-24 with Milos, nothing built. It answers open question 2.
+
+**Olm holds every permission and a plugin holds none.** Olm.app is the one program macOS knows:
+Accessibility, Input Monitoring, Full Disk Access, Screen Recording, a folder, and the right to
+control another app, which macOS calls Automation. A plugin runs disclaimed and sandboxed, so if it
+reaches for something protected itself, macOS holds the plugin responsible and refuses it. What a
+plugin needs that a permission guards, it asks Olm for as an **ability**, a named action from a list
+Olm keeps, and Olm does it with its own permission and hands back the result. This is how a browser
+treats its extensions, the browser holding the camera and an extension asking the browser.
+
+Olm does an ability only when three things hold, each checked on every request: the plugin declared
+it, the person allows it for that plugin, and Olm has the permission it rides on. Every use and every
+refusal is written to the plugin's log, and the last use is shown beside it.
+
+Why not the others. A plugin inheriting Olm's permissions gives every plugin all of them, and macOS's
+question then names Olm and never the plugin asking. A plugin holding its own permissions puts each
+plugin in each list of System Settings by hand, Full Disk Access having no question at all, and loses
+them when a plugin built from source is signed afresh.
+
+**Declared in the manifest, in plain words.**
+
+```lua
+abilities = {
+  { use = "browserProfiles", why = "List each browser's profiles so a link can open in one" },
+  { use = "receiveLinks",    why = "Be asked where each clicked link opens" },
+},
+```
+
+Each ability also carries what stops working without it, as a need's `breaks` does, so a plugin
+keeps working with less when one is blocked.
+
+**The abilities, Olm's list.** An ability is an action rather than a permission, so Olm can narrow it,
+`readFiles` to the paths the plugin declared and shows, and a plugin can never simply have Full Disk
+Access.
+
+| Ability | What Olm does | The permission it rides on |
+|---|---|---|
+| `browserProfiles` | lists the browsers and their profiles | Full Disk Access |
+| `moveWindows` | moves or sizes another app's window | Accessibility |
+| `hearKeys` | passes key presses on | Input Monitoring |
+| `captureScreen` | takes a picture of the screen | Screen Recording |
+| `controlApp:<app>` | sends that app commands | Automation, asked once per app |
+| `readFiles:<path>` | reads files under a declared path | that folder's, or Full Disk Access |
+| `readClipboard` | reads the pasteboard | none of macOS's, gated by Olm since it is private |
+| `receiveLinks` | hands it each link while Olm is the default browser | the default browser |
+
+**What the person sees.**
+
+- **Switching a plugin on the first time** shows its abilities with their reasons on one page, to
+  allow all or untick some, and asks nothing again. An update that adds one asks for that one alone.
+- **The Permissions page** keeps one row per permission, Olm's own state from macOS and Open
+  Settings, with a chevron and how many plugins use it. Open, it is an accordion of the plugins using
+  that permission, each with its icon and name, its reason, when it last used it and a switch. Off
+  refuses that plugin that permission and no other. Olm's own uses are listed in it too, greyed and
+  with no switch, so the list is whole. The permission row itself has no switch, since only macOS
+  can take Olm's permission away. A permission no plugin uses has no chevron and reads no plugins.
+  While Olm lacks a permission its plugins' switches keep what was set, greyed, and the row says
+  what to fix. Collapsed at first, several may be open at once, and a search for a plugin's name
+  opens the accordion holding it.
+
+```
+Permissions                                   6 of 6 allowed
+┌──────────────────────────────────────────────────────────────┐
+│ ▸ Accessibility        Olm: Allowed   3 plugins  [Open Settings]
+├──────────────────────────────────────────────────────────────┤
+│ ▾ Full Disk Access     Olm: Allowed   1 plugin   [Open Settings]
+│     Browser Switcher                                     [ ● ]
+│        List each browser's profiles · used 2 min ago
+├──────────────────────────────────────────────────────────────┤
+│ ▸ Input Monitoring     Olm: Allowed   no plugins [Open Settings]
+└──────────────────────────────────────────────────────────────┘
+```
+
+- **A plugin's own page** opens with a Permissions group, one row per ability, what it does, the
+  permission it rides on, whether Olm has it with the way to fix it, when it was last used, and the
+  same switch. Both places are one setting, saved under the plugin in `~/.olm/state/settings.json`,
+  so it travels with an export.
+- **The accordion is a new part,** `DisclosureRow`, added to Parts in `docs/DESIGN-APP-SETTINGS.md`
+  when it is built. A page, the gear and Back, stays the way to a row's own settings, and an accordion
+  is for a short list belonging to a row, switched in place. Opening one moves the rows below, which
+  the person did, and the chevron's room is kept on every row so the names line up.
+
+**While the plugins live in Hammerspoon.** A Lua plugin runs inside Hammerspoon with Hammerspoon's
+permissions, so nothing it does can be refused by Olm. The manifest field and both views can still be
+built first, true as information, and a switch refuses only an ability Olm already performs itself,
+Browser Switcher's profiles, which Olm.app reads. Enforcement comes with the runner, an ability then
+being a request over the plugin's pipes that the sandbox stops it going around.
+
+**Olm's signature has to hold.** macOS keys a permission to the program's signature, and Olm.app is
+signed afresh on every build, which can make macOS forget its permissions. Holding all of them makes
+that worse, so Olm.app is signed with one stable certificate made on the machine before this is
+relied on. Full Disk Access survived the rebuilds of 2026-11-24, which is luck rather than design.
+
+**Decided with Milos when it is built.**
+
+1. A plugin switched on asks for its abilities once, as proposed, or is allowed all it declares and
+   blocked later.
+2. A plugin needing something not on Olm's list is refused until Olm adds the ability, as proposed,
+   or may hold that permission as itself, flagged on its page.
+3. Controlling apps one app at a time, as proposed, or one switch for all.
+4. More than one accordion open at once, as proposed, or opening one closes the rest.
+5. A switch on the permission row blocking it for every plugin, proposed left out.
+
+**The order to build it in, each when Milos says.**
+
+1. The `abilities` field and its check, the accordion on the Permissions page and the group on a
+   plugin's page, Browser Switcher declaring `browserProfiles` and `receiveLinks`, its block real
+   since Olm reads the profiles.
+2. Olm.app signed with a stable certificate.
+3. Enforcement in the runner, with the first Swift plugin.
 
 ## Hammerspoon until it is gone
 
@@ -330,7 +443,7 @@ shadow where its rows can be compared, then flipped, which switches the Lua plug
 2. **`OlmPluginKit`, the `olm` command and the test harness.** A plugin written, tested and run from
    a folder outside this repository, by hand and by Claude.
 3. **Installing and asking.** The Plugins section of Olm Settings takes a dropped plugin, shows the
-   sheet of what it asks for, builds it and lists it with its state, its grants, its log and its
+   page of what it asks for, builds it and lists it with its state, its grants, its log and its
    switch, and a block in use is offered with Allow.
 4. **The first plugin of ours.** Keep awake, small and pure, rewritten in Swift as an external
    plugin, run in shadow beside the Lua one and flipped. Then the others, one per step.
@@ -345,5 +458,7 @@ Each step ends with Milos's trial.
 1. The budgets, 150 ms soft and 2 s hard for rows, 5 minutes idle, 512 MB, are first guesses, to be
    set from what the step 1 harness measures.
 2. Whether every plugin disclaims Olm's permissions, as proposed, or a plugin may ask to share them.
-3. How wide a file grant may be before the sheet warns, the home folder for one, decided with the
+   Answered on 2026-11-24: every plugin disclaims, Olm holds the permissions and lends them by
+   ability, see macOS's permissions, held by Olm and lent by ability.
+3. How wide a file grant may be before the page warns, the home folder for one, decided with the
    first plugin that asks for it.

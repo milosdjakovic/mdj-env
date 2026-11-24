@@ -1699,3 +1699,14 @@ undo, gear, control in that order, Applications having had its undo last. The pa
 `app/Sources/OlmSettings/Components.swift` and the rules under Parts in
 `docs/DESIGN-APP-SETTINGS.md`. A sheet for a row's details is turned down, since a plugin's page
 and an application's would then open two ways. He preferred pages.
+
+### 2026-11-24 17:47, plugins hold no macOS permission, Olm lends them by ability, planned with Milos
+
+Planned, nothing built. Every plugin runs disclaimed and sandboxed and holds no permission of
+macOS's. What one needs, it asks Olm for as an ability from Olm's own list, and Olm does it with its
+own permission when the plugin declared it, the person allows it and Olm holds it. The Permissions
+page becomes an accordion per permission listing the plugins using it, each with a switch, and a
+plugin's page lists its abilities with the same switch. Turned down: plugins inheriting Olm's
+permissions, since every plugin would hold all of them and macOS's questions would name Olm, and each
+plugin holding its own, since a person would add each to each list by hand and a plugin built from
+source loses them when signed afresh. `docs/DESIGN-APP-PLUGINS.md` has the plan and five questions.
