@@ -1,8 +1,8 @@
 // Browser Switcher, the first external plugin of ours, docs/DESIGN-BROWSER-SWITCHER.md and
 // docs/DESIGN-APP-PLUGINS.md. Olm.app is the default browser and opens this list for each link it
 // receives, handing it the link, the browsers Olm found and the favourites set in Olm Settings. The
-// list asks where the link opens, a browser, one of its profiles or Copy Link, with Show All in the
-// actions pane for the rest. It runs sandboxed and holds no permission of macOS's: Olm reads the
+// list asks where the link opens, a browser or one of its profiles, with Copy Link on Command and
+// Return and Show All in the actions pane for the rest. It runs sandboxed and holds no permission of macOS's: Olm reads the
 // profiles for it, Browser Profiles, and opens the link where it is chosen, since a plugin may not
 // start an application.
 //
@@ -51,15 +51,13 @@ func placeholder(_ url: String?) -> String {
   return String(chars[0..<head]) + "…" + String(chars[(chars.count - tail)...])
 }
 
-/// The favourites shown, by name, Copy Link among them, or every browser then Copy Link.
-func shown() -> [Target?] {
-  if showAll || favourites.isEmpty { return targets.map { $0 } + [nil] }
+/// The favourites shown, by name, or every browser. Copy Link is no row, it is Command and Return,
+/// so a favourite of that name kept from before is passed over.
+func shown() -> [Target] {
+  if showAll || favourites.isEmpty { return targets }
   var byTitle: [String: Target] = [:]
   for t in targets { byTitle[t.title.lowercased()] = t }
-  return favourites.compactMap { name -> Target?? in
-    if name.lowercased() == copyTitle.lowercased() { return .some(nil) }
-    return byTitle[name.lowercased()].map { .some($0) }
-  }
+  return favourites.compactMap { byTitle[$0.lowercased()] }
 }
 
 func copyLink() {
@@ -91,10 +89,7 @@ plugin.rows = { _ in
       subtitle: "Links you click while Olm is the default browser land here",
       icon: .symbol("exclamationmark.triangle"), pinned: true)]
   }
-  let rows = shown().map { t -> OlmRow in
-    guard let t else { return OlmRow(key: "copy", title: copyTitle, icon: .symbol("doc.on.doc")) }
-    return OlmRow(key: "t:" + t.title, title: t.title, icon: .app(t.bundle))
-  }
+  let rows = shown().map { t in OlmRow(key: "t:" + t.title, title: t.title, icon: .app(t.bundle)) }
   if rows.isEmpty {
     return [OlmRow(key: "none", title: "No favourite is on this Mac",
       subtitle: "Show All in the actions pane lists every browser", icon: .symbol("exclamationmark.triangle"),
@@ -105,10 +100,6 @@ plugin.rows = { _ in
 
 plugin.choose = { key, _ in
   guard let link, key != "none" else { return [] }
-  if key == "copy" {
-    copyLink()
-    return [.hide]
-  }
   guard key.hasPrefix("t:"), let t = targets.first(where: { "t:" + $0.title == key }) else { return [] }
   plugin.openLink(link, app: t.path, arguments: t.args)
   return [.hide]

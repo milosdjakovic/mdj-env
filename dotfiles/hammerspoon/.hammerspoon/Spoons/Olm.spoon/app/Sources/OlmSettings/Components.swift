@@ -118,6 +118,21 @@ struct SectionSymbol: View {
   }
 }
 
+/// Where a setting's control sits against its label, the middle of the label's first line, the
+/// title, so a label grown by a detail or a reserved line keeps its title level with the control
+/// beside it, a picker, a switch or a slider. The label's other lines hang below.
+extension VerticalAlignment {
+  private enum TitleLine: AlignmentID {
+    static func defaultValue(in d: ViewDimensions) -> CGFloat { d[VerticalAlignment.center] }
+  }
+  static let titleLine = VerticalAlignment(TitleLine.self)
+}
+
+extension View {
+  /// Marks this view's middle as the title line, on a row's title and on its control.
+  func onTitleLine() -> some View { alignmentGuide(.titleLine) { $0[VerticalAlignment.center] } }
+}
+
 /// A row that folds open a short list belonging to it, switched in place, the chevron at its left
 /// in a column every such row keeps, folding or not, so the titles line up. The one exception to a
 /// page with Back, for a list that is part of its row, the plugins under a permission, asked by
@@ -182,9 +197,9 @@ struct AbilityRow: View {
   }
 
   var body: some View {
-    HStack(alignment: .center, spacing: Space.pad) {
+    HStack(alignment: .titleLine, spacing: Space.pad) {
       VStack(alignment: .leading, spacing: Space.related / 2) {
-        Text(plugin ?? setting.title)
+        Text(plugin ?? setting.title).onTitleLine()
         Text(line).font(.caption).foregroundStyle(.secondary)
           .fixedSize(horizontal: false, vertical: true)
         // Always there, so a switch flipped grows no row.

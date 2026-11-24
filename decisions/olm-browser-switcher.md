@@ -82,3 +82,10 @@ a plugin of Olm.app's now has a launcher row only when its manifest declares `ro
 nothing over the list, since Hammerspoon routes list keys only to lists it knows. Its bridge now
 has one list context for any list a plugin of the app shows. Telling the plugin's list up as the
 launcher's was tried first and dropped the same minute, since the launcher has no Hyper and O or X.
+
+### 2026-11-24 22:02, Copy Link only on Command and Return, reported by Milos
+
+Copy Link was a row in the list and a favourite to check, beside Command and Return doing the same.
+Milos found that one too many, and a favourite the wrong place for it, since it is no browser. The
+list now holds browsers and profiles only, Favourites offers only those, and Copy Link stays on
+Command and Return and in the actions pane. A favourite of that name saved before is passed over.

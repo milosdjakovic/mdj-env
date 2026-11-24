@@ -25,9 +25,9 @@
     { "key": "defaultBrowser", "kind": "handler", "scheme": "https", "title": "Default Browser",
       "detail": "Choose Olm so the links you click come here. macOS asks before it changes.",
       "keywords": ["default browser", "http", "url handler"] },
-    { "key": "favourites", "kind": "picks", "source": "browsers", "fixed": ["Copy Link"],
+    { "key": "favourites", "kind": "picks", "source": "browsers",
       "title": "Favourites",
-      "detail": "What the list shows when a link asks. With none checked it shows every browser and profile, then Copy Link. Show All in the actions pane lists the rest.",
+      "detail": "What the list shows when a link asks. With none checked it shows every browser and profile. Show All in the actions pane lists the rest.",
       "keywords": ["browser", "profile", "picker"] }
   ]
 }

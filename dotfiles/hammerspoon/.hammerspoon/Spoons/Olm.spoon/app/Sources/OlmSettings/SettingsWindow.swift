@@ -781,7 +781,7 @@ struct SettingRow: View {
     // and keeps its place when hidden, so the reset appearing moves nothing in the row.
     let canReset = setting.differs && setting.locked == nil
     VStack(alignment: .leading, spacing: Space.pad) {
-    HStack(alignment: .center, spacing: Space.pad) {
+    HStack(alignment: .titleLine, spacing: Space.pad) {
       label
       Spacer(minLength: Space.pad)
       HStack(spacing: Space.pad) {
@@ -793,6 +793,7 @@ struct SettingRow: View {
         control.labelsHidden()
       }
       .frame(width: Space.control)
+      .onTitleLine()
     }
       // A text of several lines takes the row's whole width under its title, since a list of
       // entries is wider than the control column.
@@ -806,7 +807,7 @@ struct SettingRow: View {
 
   @ViewBuilder private var label: some View {
     VStack(alignment: .leading, spacing: Space.related / 2) {
-      Text(setting.title)
+      Text(setting.title).onTitleLine()
       if let detail = setting.detail, !detail.isEmpty {
         Text(detail).font(.caption).foregroundStyle(.secondary)
       }

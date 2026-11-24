@@ -94,7 +94,7 @@ this section is true.
 
 - **Asking is the default.** A link no rule matches always asks. The list shows the person's
   **Favourites**, in the order written, one per line, a browser, a browser and its profile after a
-  colon, `Chrome: Work`, or `Copy Link`. **Show All** in the actions pane lists every browser and
+  colon, `Chrome: Work`. Copy Link is no row, it is Command and Return. **Show All** in the actions pane lists every browser and
   profile, **Show Favourites** goes back. Empty favourites show everything. Return opens the link,
   Command and Return copies it, Escape drops it.
 - **Profiles** are listed for Chromium browsers from `Local State` and Firefox from
@@ -114,7 +114,7 @@ this section is true.
 
 - **Olm.app finds the browsers,** `app/Sources/OlmSettings/Browsers.swift`, at launch, before each
   link and while the plugin's page shows, and writes them to `~/.olm/run/browsers.json`, which the
-  plugin reads to open a profile. **Favourites are checkboxes** over that list and Copy Link, the
+  plugin reads to open a profile. **Favourites are checkboxes** over that list alone, the
   settings API's `picks` kind. None checked shows everything, any checked shows only those. Olm.app is
   kept from Chrome's profiles too until it has Full Disk Access, which the Permissions page lists.
 
