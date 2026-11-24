@@ -597,6 +597,12 @@ The split is not cosmetic. A query for `rows` alone returns every scopable tool 
 computed source may also propose `defaults.example`, one short line the launcher's empty
 field can wear, which is the only way a person finds out a typed sum answers at all.
 
+`links` is the plugin Olm.app hands a web link to while Olm is the default browser, a member
+called with `{ url, ask, sourceBundle, sourceName }`, `ask` true when Option was held at the click,
+answering true when it took the link. The first plugin in load order that provides it gets every
+link, and a link none takes opens in Safari. Browser Switcher is the one that does,
+`docs/DESIGN-BROWSER-SWITCHER.md`.
+
 `actions` is what a plugin can run, and the one way to declare anything runnable. It names a
 member answering a list, or a list itself, each entry a descriptor naming its own action in
 `name`. The list's order is the order the plugin's rows take wherever Olm lists its actions,
@@ -1622,7 +1628,9 @@ plugin's own data, its first word a `needs.data` field the plugin declares with 
 `configure` since 2026-11-23, so the manifest is the one statement of a default. `kind` is
 `number`, `switch`, `checkbox`, `text`, `choice`, `apps` or `sizes`. A switch and a checkbox are both
 on or off, drawn as a macOS switch or a check box. A text is words, with an optional `placeholder`
-the empty field shows and a `maxLength`. A choice lists `choices`, each a `value` and a `title`, and
+the empty field shows and a `maxLength`, and `lines`, a whole number from 2 to 20, makes it a box
+that many rows tall under its title, a list of one entry per line, where a text of one line refuses a
+line break. A choice lists `choices`, each a `value` and a `title`, and
 ships one of them. `apps` and `sizes` are drawn by a page of their own, Applications and Window
 Management. `section` is optional. Naming one of the window's sections in `lib/settings.lua`'s
 `SECTIONS` puts the setting on that section's page. Naming none puts it on the plugin's own page,

@@ -3480,7 +3480,25 @@ function obj.run(olm, cfg)
             end)
           end)
         end
+        -- A web link Olm.app received as the default browser goes to the first plugin in load order
+        -- that provides links, docs/DESIGN-BROWSER-SWITCHER.md, found by what it declares and never
+        -- by name. None, and the app opens the link in Safari.
+        local linkHandler
+        for _, directory in ipairs(plan.order) do
+          local identity = plan.identity[directory] or directory
+          local manifest = manifests[directory] or manifests[identity] or {}
+          local spec = (manifest.provides or {}).links
+          local member = spec ~= nil and registrarLib.memberSpec(spec) or nil
+          local module = modules[identity] or modules[directory]
+          if member ~= nil and registrarLib.memberResolves(module, member) then
+            linkHandler = registrarLib.action(modules, identity, identity, spec)
+            break
+          elseif spec ~= nil then
+            log.e("Olm compose, '" .. tostring(identity) .. "' provides links but it names no function on the module, so links skip it")
+          end
+        end
         bridgeModule:serveLauncher({
+          link = linkHandler,
           launcher = {
             rows = function(query) return launcher:bridgeRows(query) end,
             -- The typed rows alone, for the catalog the app builds itself, step 6.1.

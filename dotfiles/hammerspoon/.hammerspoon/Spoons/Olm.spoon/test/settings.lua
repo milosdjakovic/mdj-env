@@ -444,6 +444,28 @@ do
   check("a settings field that is not a list is a problem", wrong[1], "settings is a string rather than a list")
 end
 
+-- A text of several lines, a list of one entry per line, and a text of one line refusing a line break.
+do
+  local linesFiles, linesIo = disk()
+  local linesSettings = M.new({ store = newStore(linesFiles, linesIo, {}), log = { w = function() end } })
+  local problems = linesSettings.plugin("bs", {
+    { key = "rules", at = { "rules" }, title = "Rules", kind = "text", lines = 8, shipped = "" },
+    { key = "name", at = { "name" }, title = "Name", kind = "text", shipped = "" },
+    { key = "bad", at = { "bad" }, title = "Bad", kind = "text", lines = 1 },
+    { key = "odd", at = { "odd" }, title = "Odd", kind = "number", min = 0, max = 1, step = 1, lines = 4 },
+  }, {})
+  check("lines below two is a problem", problems[1], "settings[3] has lines that are not a text's rows, a whole number from 2 to 20, so it is left out")
+  check("lines on a number is a problem", problems[2], "settings[4] has lines that are not a text's rows, a whole number from 2 to 20, so it is left out")
+  check("a text of lines takes a line break", (linesSettings.change("bs.rules", "a => b\nc => d")), true)
+  local ok, why = linesSettings.change("bs.name", "one\ntwo")
+  check("a text of one line refuses a line break", ok == false and why, "is more than one line")
+  local shared
+  for _, section in ipairs(linesSettings.share().sections) do
+    for _, row in ipairs(section.settings) do if row.id == "bs.rules" then shared = row end end
+  end
+  check("the share carries a text's lines", shared and shared.lines, 8)
+end
+
 if failed then
   print("settings, FAILED")
   os.exit(1)

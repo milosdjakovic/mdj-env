@@ -15,6 +15,7 @@ META	up	any	-	-	windowmanager
 META	w	any	-	-	windowmanager
 META	z	any	-	-	windowmanager
 field	,	cmd	audioOpen	100	audio
+field	,	cmd	browserSwitcherOpen	100	browserSwitcher
 field	,	cmd	browserTabsOpen	100	browserTabs
 field	,	cmd	caffeinateOpen	100	caffeinate
 field	,	cmd	clipboardOpen	100	clipboard
@@ -38,6 +39,7 @@ field	,	cmd	vpnOpen	100	vpn
 field	,	cmd	wifiOpen	100	wifi
 field	,	cmd	workspacesOpen	100	workspaces
 field	/	cmd	audioOpen	100	audio
+field	/	cmd	browserSwitcherOpen	100	browserSwitcher
 field	/	cmd	browserTabsOpen	100	browserTabs
 field	/	cmd	caffeinateOpen	100	caffeinate
 field	/	cmd	clipboardOpen	100	clipboard
@@ -61,6 +63,7 @@ field	/	cmd	vpnOpen	100	vpn
 field	/	cmd	wifiOpen	100	wifi
 field	/	cmd	workspacesOpen	100	workspaces
 field	/	cmd+shift	audioOpen	100	audio
+field	/	cmd+shift	browserSwitcherOpen	100	browserSwitcher
 field	/	cmd+shift	browserTabsOpen	100	browserTabs
 field	/	cmd+shift	caffeinateOpen	100	caffeinate
 field	/	cmd+shift	clipboardOpen	100	clipboard
@@ -83,10 +86,12 @@ field	/	cmd+shift	volumeOpen	100	volume
 field	/	cmd+shift	vpnOpen	100	vpn
 field	/	cmd+shift	wifiOpen	100	wifi
 field	/	cmd+shift	workspacesOpen	100	workspaces
+field	padenter	cmd	browserSwitcherOpen	100	browserSwitcher
 field	padenter	cmd	clipboardOpen	100	clipboard
 field	padenter	cmd	emojiOpen	100	emoji
 field	padenter	cmd	fileSearchOpen	100	fileSearch
 field	padenter	cmd	textCaseOpen	100	textCase
+field	return	cmd	browserSwitcherOpen	100	browserSwitcher
 field	return	cmd	clipboardOpen	100	clipboard
 field	return	cmd	emojiOpen	100	emoji
 field	return	cmd	fileSearchOpen	100	fileSearch
@@ -113,6 +118,7 @@ hyper	f	any	processesOpen	100	processes
 hyper	g	any	fileSearchOpen	100	fileSearch
 hyper	h	any	fileSearchOpen	100	fileSearch
 hyper	i	any	audioOpen	100	audio
+hyper	i	any	browserSwitcherOpen	100	browserSwitcher
 hyper	i	any	browserTabsOpen	100	browserTabs
 hyper	i	any	caffeinateOpen	100	caffeinate
 hyper	i	any	clipboardOpen	100	clipboard
@@ -138,6 +144,7 @@ hyper	i	any	workspacesOpen	100	workspaces
 hyper	j	any	-	-	emoji
 hyper	k	any	-	-	caffeinate
 hyper	k	any	audioOpen	100	audio
+hyper	k	any	browserSwitcherOpen	100	browserSwitcher
 hyper	k	any	browserTabsOpen	100	browserTabs
 hyper	k	any	caffeinateOpen	100	caffeinate
 hyper	k	any	displayProfilesOpen	100	displayProfiles
@@ -162,6 +169,7 @@ hyper	k	any	workspacesOpen	100	workspaces
 hyper	l	any	fileSearchOpen	100	fileSearch
 hyper	m	any	clipboardOpen	100	clipboard
 hyper	n	any	audioOpen	100	audio
+hyper	n	any	browserSwitcherOpen	100	browserSwitcher
 hyper	n	any	browserTabsOpen	100	browserTabs
 hyper	n	any	caffeinateOpen	100	caffeinate
 hyper	n	any	clipboardOpen	100	clipboard
@@ -184,6 +192,7 @@ hyper	n	any	volumeOpen	100	volume
 hyper	n	any	vpnOpen	100	vpn
 hyper	n	any	wifiOpen	100	wifi
 hyper	n	any	workspacesOpen	100	workspaces
+hyper	o	any	browserSwitcherOpen	100	browserSwitcher
 hyper	o	any	browserTabsOpen	100	browserTabs
 hyper	o	any	clipboardOpen	100	clipboard
 hyper	o	any	displayProfilesOpen	100	displayProfiles
@@ -206,6 +215,7 @@ hyper	u	any	fileSearchOpen	100	fileSearch
 hyper	w	any	-	-	browserTabs
 hyper	x	any	-	-	clipboard
 hyper	x	any	audioOpen	100	audio
+hyper	x	any	browserSwitcherOpen	100	browserSwitcher
 hyper	x	any	browserTabsOpen	100	browserTabs
 hyper	x	any	caffeinateOpen	100	caffeinate
 hyper	x	any	clipboardOpen	100	clipboard

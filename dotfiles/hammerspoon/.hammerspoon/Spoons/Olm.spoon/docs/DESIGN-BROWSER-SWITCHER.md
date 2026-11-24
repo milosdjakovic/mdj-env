@@ -1,6 +1,7 @@
 # The browser switcher
 
-Status. Designed on 2026-11-24, asked by Milos, nothing built. The questions at the end are his.
+Status. Designed on 2026-11-24, asked by Milos, and built the same day after he answered the
+questions, see As built. `decisions/olm-browser-switcher.md` has what was turned down.
 
 ## What a person gets
 
@@ -86,10 +87,34 @@ code to add one.
 4. **The rules table** on the plugin's page, the new setting kind. Until it lands, rules live in
    the plugin's settings as text, one rule per line, `pattern => Browser`.
 
-## Open questions for Milos
+## As built, 2026-11-24
 
-1. **Profiles.** Should a rule be able to name a Chrome or Firefox profile, not only the browser?
-   It costs a launch with arguments and a check of each browser's profile list.
-2. **Ask or fallback** when no rule matches, as shipped?
-3. **The Option and Shift keys** for ask and skip, or other ones?
-4. **Rules as text first**, step 4's stopgap, or wait for the table before rules ship?
+His answers changed the draft above in four places, and where this section and the draft differ,
+this section is true.
+
+- **Asking is the default.** A link no rule matches always asks. The list shows the person's
+  **Favourites**, in the order written, one per line, a browser, a browser and its profile after a
+  colon, `Chrome: Work`, or `Copy Link`. **Show All** in the actions pane lists every browser and
+  profile, **Show Favourites** goes back. Empty favourites show everything. Return opens the link,
+  Command and Return copies it, Escape drops it.
+- **Profiles** are listed for Chromium browsers from `Local State` and Firefox from
+  `profiles.ini`, and opened by starting the browser's own program with the profile. Safari's
+  profiles have no way in from outside. On this Mac macOS refused Chrome's `Local State` to every
+  process, so the list says Chrome's profiles are hidden rather than inventing them.
+- **Option** held at the click asks whatever the rules say. **Shift** was dropped, since with
+  asking the default it meant the same.
+- **Rules are text** on the plugin's page, `pattern => favourite`, a site with `*`, a path prefix,
+  or `app:` and the source app's name or bundle id. The table setting is the planned next step.
+- **No fallback setting.** A link nobody answers opens in Safari.
+- **Make Olm the Default Browser** and **Give the Default Browser Back** are launcher rows, each
+  raising macOS's question. The second hands the default to the first favourite browser, else Safari.
+- The settings API gained `lines` on a text, its box that many rows tall under the title, one
+  entry per line, and a text of one line refuses a line break.
+
+## Next
+
+1. **The rules table,** a setting kind of rows each a text and a choice, the choice listing the
+   targets this Mac has, which needs the plugin to answer its choices at load.
+2. **Always Use for This Host** in the actions pane, which needs a plugin able to write its own
+   setting.
+3. **Chrome's profiles,** once it is known what macOS wants before it lets Hammerspoon read them.

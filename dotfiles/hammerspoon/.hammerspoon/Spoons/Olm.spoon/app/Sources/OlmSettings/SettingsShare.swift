@@ -322,6 +322,8 @@ public struct Setting: Equatable, Sendable, Identifiable {
   /// What an empty text field shows, and the most characters it takes.
   public var placeholder: String?
   public var maxLength: Int?
+  /// A text's rows, a list of one entry per line drawn in a box under its title, nil for one line.
+  public var lines: Int?
 
   public var needsReload: Bool { applies == "reload" }
   public var differs: Bool { defaultValue != .none && value != defaultValue }
@@ -414,6 +416,7 @@ public struct SettingsShare: Equatable, Sendable {
     made.plugin = r["plugin"] as? String
     made.placeholder = r["placeholder"] as? String
     made.maxLength = (r["maxLength"] as? NSNumber)?.intValue
+    made.lines = (r["lines"] as? NSNumber)?.intValue
     if kind == .sizes {
       made.windowActions = ((r["extra"] as? [Any]) ?? []).compactMap { any -> WindowAction? in
         guard let e = any as? [String: Any], let action = e["action"] as? String, let title = e["title"] as? String

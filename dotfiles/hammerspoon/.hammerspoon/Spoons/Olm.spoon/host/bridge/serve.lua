@@ -63,6 +63,9 @@ local SF, GLYPH = "sf", "emoji"
 --- opts.settings    the Olm Settings window's three words, change(id, value) -> ok, why, share()
 ---                  -> the share, and done() once the window closes, docs/DESIGN-APP-SETTINGS.md
 ---                  S.3, optional, setting and settingsDone refused without it
+--- opts.link        function(params) -> handled, a web link Olm.app received as the default browser,
+---                  params url, ask, sourceBundle and sourceName, handed to the plugin that provides
+---                  links, docs/DESIGN-BROWSER-SWITCHER.md, optional, every link unhandled without it
 --- opts.facade      host/bridge/facade.lua's, the stage words a hosted list's code calls during a
 ---                  request recorded as effects, optional
 function M.new(opts)
@@ -823,6 +826,23 @@ function M.new(opts)
     if not settings then rpc.fail(rpc.PARAMS, "settings are not served here") end
     settings.done()
     return true
+  end }
+
+  -- A web link the app received, handed on, answered with whether anything took it, since the app
+  -- opens one nothing took in Safari. A plugin that raises is logged and answers not taken.
+  methods.link = { run = function(params)
+    if type(params.url) ~= "string" or params.url == "" then rpc.fail(rpc.PARAMS, "link needs a url") end
+    if type(opts.link) ~= "function" then return { handled = false } end
+    local ok, handled = pcall(opts.link, {
+      url = params.url, ask = params.ask == true,
+      sourceBundle = type(params.sourceBundle) == "string" and params.sourceBundle or nil,
+      sourceName = type(params.sourceName) == "string" and params.sourceName or nil,
+    })
+    if not ok then
+      if opts.log then opts.log("a link's handler failed, " .. tostring(handled)) end
+      return { handled = false }
+    end
+    return { handled = handled == true }
   end }
 
   methods.back = { run = function(params)

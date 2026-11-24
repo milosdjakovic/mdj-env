@@ -59,12 +59,30 @@ final class SettingsModel: ObservableObject {
   /// The Window Management page's size being edited.
   let sizeEditor = SizeEditor()
 
+  /// Each setting's value as Hammerspoon runs it, read when the window opens, so a row says it
+  /// applies on reload only once its value has moved off that one.
+  @Published var running: [String: SettingValue] = [:]
+
+  func markRunning() {
+    var values: [String: SettingValue] = [:]
+    for section in share?.sections ?? [] { for setting in section.settings where values[setting.id] == nil {
+      values[setting.id] = setting.value
+    } }
+    running = values
+  }
+
+  /// Whether a setting's saved value waits for the reload as the window closes.
+  func waitsForReload(_ setting: Setting) -> Bool {
+    setting.needsReload && running[setting.id].map { $0 != setting.value } == true
+  }
+
   init(share: SettingsShare?, service: SettingsService?, permissions: [Permission] = []) {
     self.share = share
     self.service = service
     self.permissions = permissions
     selection = share?.sections.first?.id ?? (permissions.isEmpty ? nil : PermissionsPage.id)
     appsPage.warm(share)
+    markRunning()
   }
 
   /// The share's sections, then the Permissions page when it has any to list. A search never
@@ -144,6 +162,7 @@ public final class SettingsWindow: NSObject, NSWindowDelegate {
     if window != nil, let model {
       // The share as Hammerspoon wrote it at its last load, the section and search kept.
       model.share = share()
+      model.markRunning()
       if !model.sections.contains(where: { $0.id == model.selection }) { model.selection = model.sections.first?.id }
     } else {
       build()
@@ -650,21 +669,10 @@ struct SectionPage: View {
           VStack(spacing: 0) {
             ForEach(Array(rows.enumerated()), id: \.element.id) { index, setting in
               if index > 0 { Divider().padding(.leading, Space.pad + 4) }
-              HStack(spacing: Space.pad) {
-                SettingRow(setting: setting, model: model)
-                // A plugin with a page of its own is reached by the button after its switch. The
-                // button's room is kept on every row of the list, so the switches stay in one column.
-                if plugin == nil && !pages.isEmpty {
-                  let target = setting.plugin.flatMap { pages.contains($0) ? $0 : nil }
-                  Button { model.pluginPage = target } label: {
-                    Image(systemName: "gearshape").frame(width: Space.mark)
-                  }
-                  .buttonStyle(.borderless)
-                  .help("Settings of \(setting.title)")
-                  .opacity(target == nil ? 0 : 1)
-                  .disabled(target == nil)
-                }
-              }
+              // A plugin with a page of its own is reached by the gear just before its switch, so
+              // every switch stays in the one column at the right.
+              SettingRow(setting: setting, model: model,
+                page: plugin == nil ? setting.plugin.flatMap { pages.contains($0) ? $0 : nil } : nil)
               .padding(.horizontal, Space.pad + 4).padding(.vertical, Space.pad)
               .searchMark(model, SearchTarget.setting(setting.id))
             }
@@ -715,11 +723,14 @@ struct Note: View {
 struct SettingRow: View {
   let setting: Setting
   @ObservedObject var model: SettingsModel
+  /// The plugin page the gear before the control opens, nil for a row with none.
+  var page: String? = nil
 
   var body: some View {
     // The reset button sits a pad's gap before the control, in the control's column of fixed width,
     // and keeps its place when hidden, so the reset appearing moves nothing in the row.
     let canReset = setting.differs && setting.locked == nil
+    VStack(alignment: .leading, spacing: Space.pad) {
     HStack(alignment: .center, spacing: Space.pad) {
       label
       Spacer(minLength: Space.pad)
@@ -734,9 +745,20 @@ struct SettingRow: View {
         .help("Back to the value in the config files")
         .opacity(canReset ? 1 : 0)
         .disabled(!canReset)
+        if let page {
+          Button { model.pluginPage = page } label: {
+            Image(systemName: "gearshape").frame(width: Space.mark)
+          }
+          .buttonStyle(.borderless)
+          .help("Settings of \(setting.title)")
+        }
         control.labelsHidden()
       }
       .frame(width: Space.control)
+    }
+      // A text of several lines takes the row's whole width under its title, since a list of
+      // entries is wider than the control column.
+      if setting.kind == .text, (setting.lines ?? 1) > 1 { TextSetting(setting: setting, model: model) }
     }
     .disabled(setting.locked != nil || model.busy.contains(setting.id))
     .help(setting.locked ?? "")
@@ -751,8 +773,11 @@ struct SettingRow: View {
       if let locked = setting.locked {
         Text("Locked, \(locked)").font(.caption).foregroundStyle(.secondary)
       } else if setting.needsReload {
+        // Said only once the value has moved off the running one, its line kept while hidden so
+        // a change grows no row.
         Label("Applies on reload", systemImage: "arrow.clockwise")
           .font(.caption).foregroundStyle(.secondary)
+          .opacity(model.waitsForReload(setting) ? 1 : 0)
       }
     }
   }
@@ -797,7 +822,7 @@ struct SettingRow: View {
       Toggle(setting.title, isOn: flag)
         .toggleStyle(.checkbox)
     case .text:
-      TextSetting(setting: setting, model: model)
+      if (setting.lines ?? 1) > 1 { EmptyView() } else { TextSetting(setting: setting, model: model) }
     case .number:
       HStack(spacing: Space.pad) {
         if let lo = setting.min, let hi = setting.max, lo < hi {
@@ -837,16 +862,40 @@ struct TextSetting: View {
   @ObservedObject var model: SettingsModel
   @FocusState private var focused: Bool
 
-  var body: some View {
-    TextField(setting.title, text: Binding(get: { model.texts[setting.id] ?? setting.value.text ?? "" }, set: { value in
+  private var text: Binding<String> {
+    Binding(get: { model.texts[setting.id] ?? setting.value.text ?? "" }, set: { value in
       model.texts[setting.id] = setting.maxLength.map { String(value.prefix($0)) } ?? value
-    }), prompt: setting.placeholder.map { Text($0) })
-    .textFieldStyle(.roundedBorder)
-    .frame(width: Space.slider)
-    .focused($focused)
-    .onSubmit(send)
-    .onChange(of: focused) { if !focused { send() } }
-    .onDisappear(perform: send)
+    })
+  }
+
+  var body: some View {
+    if let lines = setting.lines, lines > 1 {
+      // Return starts a new entry, so the words are sent when the box is left or the page closes.
+      TextEditor(text: text)
+        .font(.body.monospaced())
+        .scrollContentBackground(.hidden)
+        .padding(Space.related)
+        .frame(height: CGFloat(lines) * 17 + Space.related * 2)
+        .background(RoundedRectangle(cornerRadius: 6).fill(Color(nsColor: .textBackgroundColor)))
+        .overlay(RoundedRectangle(cornerRadius: 6).stroke(Color(nsColor: .separatorColor)))
+        .overlay(alignment: .topLeading) {
+          if text.wrappedValue.isEmpty, let placeholder = setting.placeholder {
+            Text(placeholder).font(.body.monospaced()).foregroundStyle(.tertiary)
+              .padding(Space.related).padding(.leading, 5).allowsHitTesting(false)
+          }
+        }
+        .focused($focused)
+        .onChange(of: focused) { if !focused { send() } }
+        .onDisappear(perform: send)
+    } else {
+      TextField(setting.title, text: text, prompt: setting.placeholder.map { Text($0) })
+        .textFieldStyle(.roundedBorder)
+        .frame(width: Space.slider)
+        .focused($focused)
+        .onSubmit(send)
+        .onChange(of: focused) { if !focused { send() } }
+        .onDisappear(perform: send)
+    }
   }
 
   private func send() {

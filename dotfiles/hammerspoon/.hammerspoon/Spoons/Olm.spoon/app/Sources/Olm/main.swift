@@ -17,6 +17,7 @@
 // olm://settings shows the Olm Settings window, docs/DESIGN-APP-SETTINGS.md, drawn from the share
 // Hammerspoon writes at every load.
 // An olm:// URL never runs anything, and one this app does not know is logged and dropped.
+// An http or https link, Olm being the default browser, is handed on by Links.swift.
 
 import AppKit
 import FileSearchPlugin
@@ -524,6 +525,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
   func application(_ application: NSApplication, open urls: [URL]) {
     for url in urls {
+      if Links.isWeb(url) { Links.route(url, bridge: bridge); continue }
       guard url.scheme == "olm" else { continue }
       let items = URLComponents(url: url, resolvingAgainstBaseURL: false)?.queryItems ?? []
       func item(_ name: String) -> String? { items.first(where: { $0.name == name })?.value }

@@ -38,6 +38,19 @@
         <string>olm</string>
       </array>
     </dict>
+    <dict>
+      <!-- A web link, so Olm can be the default browser and hand each one to a real browser,
+           docs/DESIGN-BROWSER-SWITCHER.md. -->
+      <key>CFBundleURLName</key>
+      <string>Web site URL</string>
+      <key>CFBundleTypeRole</key>
+      <string>Viewer</string>
+      <key>CFBundleURLSchemes</key>
+      <array>
+        <string>http</string>
+        <string>https</string>
+      </array>
+    </dict>
   </array>
 </dict>
 </plist>

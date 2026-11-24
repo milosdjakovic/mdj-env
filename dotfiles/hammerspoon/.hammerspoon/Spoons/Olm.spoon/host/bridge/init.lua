@@ -312,6 +312,7 @@ function obj:serveLauncher(provider)
     pending = function(name) return self:_takePending(name) end,
     facade = self._facade, stampIcons = provider.stampIcons, verbs = provider.verbs,
     picture = pictureOf, cycleIdle = provider.cycleIdle, settings = provider.settings,
+    link = provider.link, log = function(text) log.w(text) end,
     retype = function(code, mods) self:_retype(code, mods) end,
     -- A hosted tool's list is shown in the app when the config's hosts names it, by the name its
     -- presentation carries, a child taking its tool's.

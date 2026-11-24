@@ -257,6 +257,7 @@ function M.check(decl, value)
   elseif kind == "text" then
     if type(value) ~= "string" then return false, "is not words" end
     if decl.maxLength and #value > decl.maxLength then return false, "is longer than " .. decl.maxLength end
+    if not decl.lines and value:find("[\r\n]") then return false, "is more than one line" end
     return true
   elseif kind == "keys" then
     if type(value) ~= "table" then return false, "is not a table of actions and their keys" end
@@ -358,7 +359,7 @@ end
 --- A plugin's settings list read into declarations, docs/DESIGN-APP-SETTINGS.md S.4. Each spec is
 --- { key, at, title, section, kind, keywords, detail, and for a number min, max, step, unit, shipped }, detail a line shown under the title.
 --- kind is number, switch, checkbox, text, choice, apps or sizes, a text taking an optional
---- placeholder and maxLength. section is optional, and a setting naming none is drawn on the
+--- placeholder, maxLength and lines, the rows its box is tall, a list of one entry per line. section is optional, and a setting naming none is drawn on the
 --- plugin's own page, which its switch in Plugins opens. at
 --- is the path into the plugin's own data, its first word a need the manifest declares with source
 --- user, so the saved value is laid over what the plugin is handed and the plugin reads it with no
@@ -389,6 +390,9 @@ function M.fromManifest(identity, specs)
       why = "is a " .. spec.kind .. " setting with no section, and only its own section draws one"
     elseif spec.kind == "text" and spec.maxLength ~= nil and not (type(spec.maxLength) == "number" and spec.maxLength > 0) then
       why = "is a text with a maxLength that is not a length"
+    elseif spec.lines ~= nil and not (spec.kind == "text" and math.type(spec.lines) == "integer"
+      and spec.lines >= 2 and spec.lines <= 20) then
+      why = "has lines that are not a text's rows, a whole number from 2 to 20"
     elseif spec.placeholder ~= nil and type(spec.placeholder) ~= "string" then
       why = "has a placeholder that is not words"
     elseif spec.kind == "choice" and not readChoices(spec) then
@@ -412,7 +416,7 @@ function M.fromManifest(identity, specs)
       -- Plugins, asked by Milos on 2026-11-24.
       out[#out + 1] = { id = identity .. "." .. spec.key, section = spec.section or "plugins",
         page = spec.section == nil and identity or nil, title = spec.title,
-        placeholder = spec.placeholder, maxLength = spec.maxLength,
+        placeholder = spec.placeholder, maxLength = spec.maxLength, lines = spec.lines,
         detail = type(spec.detail) == "string" and spec.detail or nil, kind = spec.kind, target = target, min = spec.min, max = spec.max, step = spec.step,
         unit = spec.unit, shipped = copy(spec.shipped), keywords = copy(spec.keywords or {}),
         choices = spec.kind == "choice" and readChoices(spec) or nil,
@@ -743,7 +747,7 @@ function M.new(opts)
           choices = copy(decl.choices), min = decl.min, max = decl.max, step = decl.step, unit = decl.unit,
           locked = decl.locked,
           page = decl.page, plugin = decl.member and decl.member.name or nil,
-          placeholder = decl.placeholder, maxLength = decl.maxLength,
+          placeholder = decl.placeholder, maxLength = decl.maxLength, lines = decl.lines,
           default = copy(defaults[decl.id]),
         }
         if type(decl.extraFrom) == "function" then

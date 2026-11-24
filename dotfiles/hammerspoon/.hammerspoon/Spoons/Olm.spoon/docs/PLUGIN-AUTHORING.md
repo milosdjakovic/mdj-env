@@ -121,8 +121,8 @@ every present, since a new list means something new.
 
 Add one only when something is actually wrong without it.
 
-`settings` puts the plugin's own data in Olm Settings, a number, a switch, a checkbox, a text or a
-choice, applied on reload. One naming no section is drawn on the plugin's own page, which a gear
+`settings` puts the plugin's own data in Olm Settings, a number, a switch, a checkbox, a text, a
+text of several `lines` for a list of entries, or a choice, applied on reload. One naming no section is drawn on the plugin's own page, which a gear
 beside its switch in Plugins opens, with Back at its top left. The contract's `settings` section has
 the shape, DisplayProfiles is the example of a page and WindowManager of a setting on a section.
 
