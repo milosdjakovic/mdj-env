@@ -384,6 +384,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
           }
         }
         self.keyOwner = owner
+        KeyRecording.hold = { [weak owner] on in owner?.hold(on) }
       }
       let keymapURL = context.run.appendingPathComponent("keymap.json")
       let service = Self.settingsService(bridgeForApps)

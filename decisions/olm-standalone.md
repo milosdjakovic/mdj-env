@@ -1662,3 +1662,11 @@ typed there, until the launcher's choosing moves.
 - 2026-11-24 02:13, bug found. `plugins/apptoggler/init.lua` called `luaPlacement` above the line that
   defined it, so a press Lua ran itself for an app with a place of its own raised, seen in the
   console at 00:14. Both helpers now sit above their first use.
+- 2026-11-24 08:28, bug found, reported by Milos. On the Applications page Caps Lock and Y recorded
+  nothing while Command and Y or Option and Y recorded as Hyper and Y. Two causes. The recorder is a
+  local key monitor, and the app claims Hyper and Y through Carbon as File Search's list key, so the
+  press never reached the window. And the recorder ignored the modifiers held and wrote Hyper for any.
+  Now the key owner suspends every Carbon claim while a recorder listens and claims them again after,
+  `KeyRecording.hold`, and the recorder reads the modifiers, four as Hyper, shift ctrl alt as META,
+  any other set but Shift alone as a plain combination. Considered and rejected: a session event tap
+  for the recorder, since suspending the claims is the smaller change and needs no new grant path.

@@ -87,6 +87,8 @@ final class AppsPageModel: ObservableObject {
   @Published var recording: String?
   /// The key code of the key last recorded, which an app's own key is claimed by, step 6.2b.
   var recordedCode: Int?
+  /// The real modifiers held with it, shift, ctrl, alt and cmd by name.
+  var recordedMods: Set<String> = []
   /// The application whose Customize sheet is open, and what it holds until Done.
   @Published var customizing: AppCustomize?
   private var monitor: Any?
@@ -192,6 +194,7 @@ final class AppsPageModel: ObservableObject {
   func record(_ action: String, _ done: @escaping (String?, Bool) -> Void) {
     stop()
     recording = action
+    KeyRecording.hold?(true)
     monitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
       guard let self else { return event }
       switch event.keyCode {
@@ -202,6 +205,7 @@ final class AppsPageModel: ObservableObject {
       default:
         guard let name = KeyName.of(event) else { return nil }
         self.recordedCode = Int(event.keyCode)
+        self.recordedMods = KeyRecording.mods(event.modifierFlags)
         self.stop()
         done(name, true)
       }
@@ -211,8 +215,46 @@ final class AppsPageModel: ObservableObject {
 
   func stop() {
     if let monitor { NSEvent.removeMonitor(monitor) }
+    if monitor != nil { KeyRecording.hold?(false) }
     monitor = nil
     recording = nil
+  }
+}
+
+/// The one seam between a key recorder here and the app's own key claims, which the app sets so a
+/// recorder hears a combination the app holds, and the reading of a recorded chord.
+@MainActor
+public enum KeyRecording {
+  /// Told true as a recorder starts listening and false as it stops.
+  public static var hold: ((Bool) -> Void)?
+
+  static func mods(_ flags: NSEvent.ModifierFlags) -> Set<String> {
+    var out = Set<String>()
+    if flags.contains(.shift) { out.insert("shift") }
+    if flags.contains(.control) { out.insert("ctrl") }
+    if flags.contains(.option) { out.insert("alt") }
+    if flags.contains(.command) { out.insert("cmd") }
+    return out
+  }
+
+  /// The leader and the modifiers beyond it a recorded set of modifiers stands for: all four Hyper,
+  /// shift, ctrl and alt META, as the two arrive from kanata or by hand, any other set a plain
+  /// combination, nil for none or Shift alone, which only types.
+  static func chord(_ held: Set<String>) -> (String?, [String])? {
+    if held == ["shift", "ctrl", "alt", "cmd"] { return ("hyper", []) }
+    if held == ["shift", "ctrl", "alt"] { return ("meta", []) }
+    if held.isEmpty || held == ["shift"] { return nil }
+    return (nil, held.sorted())
+  }
+
+  /// A chord spelled for comparing, lower case, the leader first and the modifiers sorted.
+  static func normal(_ chord: String) -> String {
+    var parts = chord.lowercased().split(separator: "+", omittingEmptySubsequences: false).map(String.init)
+    guard parts.count > 1 else { return parts.joined(separator: "+") }
+    let key = parts.removeLast()
+    let leaders: Set<String> = ["hyper", "meta", "super"]
+    let lead = parts.filter { leaders.contains($0) }
+    return (lead + parts.filter { !leaders.contains($0) }.sorted() + [key]).joined(separator: "+")
   }
 }
 
@@ -525,7 +567,11 @@ struct AppsView: View {
     page.record(entry.bundle) { name, _ in
       guard let name else { return setOwnKey(entry, nil) }
       guard let code = page.recordedCode else { return }
-      let key = AppKey(leader: "hyper", key: name.count == 1 ? name.lowercased() : name, code: code)
+      guard let (leader, mods) = KeyRecording.chord(page.recordedMods) else {
+        model.refusal = "Hold Hyper, META or a modifier other than Shift with the key."
+        return
+      }
+      let key = AppKey(leader: leader, key: name.count == 1 ? name.lowercased() : name, code: code, mods: mods)
       if let holder = ownHolder(of: key, besides: entry.bundle) {
         model.refusal = "\(KeyName.words(key.chord)) is \(holder)'s, clear it there first."
         return
@@ -548,8 +594,8 @@ struct AppsView: View {
     for (other, own) in table where other != bundle && own.key?.slot == key.slot {
       return own.name ?? page.installed.first { $0.bundle == other }?.name ?? other
     }
-    let want = key.chord.lowercased()
-    for (action, held) in page.keys where !action.hasPrefix("apptoggler.") && held.lowercased() == want { return action }
+    let want = KeyRecording.normal(key.chord)
+    for (action, held) in page.keys where !action.hasPrefix("apptoggler.") && KeyRecording.normal(held) == want { return action }
     return nil
   }
 
@@ -666,7 +712,7 @@ struct AppRow: View {
         }
       }
       .buttonStyle(.plain)
-      .help(recording ? "Press the key for Hyper and it, Delete for none, Escape to leave it" : "Record a key")
+      .help(recording ? "Hold Hyper, META or modifiers and press the key, Delete for none, Escape to leave it" : "Record a key")
       .disabled(!canRecord)
       .opacity(canRecord ? 1 : 0.5)
     }

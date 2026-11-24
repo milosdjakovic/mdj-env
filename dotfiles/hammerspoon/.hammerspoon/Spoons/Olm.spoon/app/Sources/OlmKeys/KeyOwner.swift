@@ -148,6 +148,12 @@ public final class KeyOwner {
     onChange?(held)
   }
 
+  /// Every claim let go while a key recorder in the app listens, and claimed again after, so the
+  /// recorder hears a combination the app holds, Hyper and a list key among them.
+  public func hold(_ on: Bool) {
+    if on { keys.suspend() } else { keys.resume() }
+  }
+
   /// Every claim let go, for a socket gone.
   public func drop() {
     generation += 1

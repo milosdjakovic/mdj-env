@@ -165,7 +165,10 @@ As built, 2026-11-24.
   `withAppKeyDetails`, handing the catalog on again, `Launcher:catalogChanged`. `keyRan` names its
   leader for an app key, since no row here has its id.
 - **Not yet.** Olm Keys still lists the keymap's app keys, Hammerspoon's, until it reads the table
-  too. The recorder offers Hyper only, the full recorder being the next part of 6.2.
+  too. The recorder reads the modifiers held, all four as Hyper, shift, ctrl and alt as META and
+  any other set but Shift alone as a plain combination, and the app lets go of its own claims while
+  it listens, so a combination the app holds, a list key such as Hyper and Y, is heard. Choosing
+  which physical key each leader is, left from right, and F13 to F20 are the next part of 6.2.
 
 ## Steps
 
