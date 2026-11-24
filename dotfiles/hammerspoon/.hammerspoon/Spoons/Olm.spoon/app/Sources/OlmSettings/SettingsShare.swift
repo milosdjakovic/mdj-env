@@ -293,7 +293,7 @@ public struct SettingChoice: Equatable, Sendable, Identifiable {
 }
 
 public struct Setting: Equatable, Sendable, Identifiable {
-  public enum Kind: String, Sendable { case choice, number, font, `switch`, apps, keys, sizes, other }
+  public enum Kind: String, Sendable { case choice, number, font, `switch`, checkbox, text, apps, keys, sizes, other }
 
   public let id: String
   public let title: String
@@ -315,6 +315,13 @@ public struct Setting: Equatable, Sendable, Identifiable {
   public var catalog: [CatalogApp] = []
   /// The window manager's actions, for the Window Management page, empty for every other setting.
   public var windowActions: [WindowAction] = []
+  /// The plugin whose own page draws this setting, nil for a setting on its section's page.
+  public var page: String?
+  /// The plugin a switch in Plugins turns on and off, which leads to that plugin's page.
+  public var plugin: String?
+  /// What an empty text field shows, and the most characters it takes.
+  public var placeholder: String?
+  public var maxLength: Int?
 
   public var needsReload: Bool { applies == "reload" }
   public var differs: Bool { defaultValue != .none && value != defaultValue }
@@ -403,6 +410,10 @@ public struct SettingsShare: Equatable, Sendable {
       unit: r["unit"] as? String, locked: r["locked"] as? String,
       defaultValue: value(r["default"]), value: value(r["value"]))
     made.catalog = kind == .sizes ? [] : catalog
+    made.page = r["page"] as? String
+    made.plugin = r["plugin"] as? String
+    made.placeholder = r["placeholder"] as? String
+    made.maxLength = (r["maxLength"] as? NSNumber)?.intValue
     if kind == .sizes {
       made.windowActions = ((r["extra"] as? [Any]) ?? []).compactMap { any -> WindowAction? in
         guard let e = any as? [String: Any], let action = e["action"] as? String, let title = e["title"] as? String

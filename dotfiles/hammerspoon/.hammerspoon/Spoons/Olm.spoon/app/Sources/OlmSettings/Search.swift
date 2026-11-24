@@ -17,6 +17,8 @@ struct SearchHit: Identifiable, Equatable {
   let symbol: String
   /// The application's bundle, whose icon the row wears.
   var bundle: String?
+  /// The plugin whose own page holds it, opened before the row is lit.
+  var page: String?
   /// The words it is found by beyond its title.
   let words: [String]
   /// Its place in the window's order, which breaks a tie.
@@ -54,12 +56,16 @@ enum SettingsSearch {
           continue
         default:
           let target = SearchTarget.setting(setting.id)
-          out.append(SearchHit(id: target, section: section.id, title: setting.title, detail: section.title,
-            symbol: section.symbol, words: setting.keywords + [setting.detail ?? ""]))
+          // A setting on a plugin's own page says the plugin after the section.
+          let place = setting.page.map { page in
+            "\(section.title) › " + (section.settings.first { $0.plugin == page }?.title ?? page)
+          } ?? section.title
+          out.append(SearchHit(id: target, section: section.id, title: setting.title, detail: place,
+            symbol: section.symbol, page: setting.page, words: setting.keywords + [setting.detail ?? ""]))
           // A menu's choices, each found by its own name and landing on the menu.
           for choice in setting.choices where choice.title.lowercased() != setting.title.lowercased() {
             out.append(SearchHit(id: target, section: section.id, title: choice.title,
-              detail: "\(section.title) › \(setting.title)", symbol: section.symbol, words: []))
+              detail: "\(place) › \(setting.title)", symbol: section.symbol, page: setting.page, words: []))
           }
         }
       }

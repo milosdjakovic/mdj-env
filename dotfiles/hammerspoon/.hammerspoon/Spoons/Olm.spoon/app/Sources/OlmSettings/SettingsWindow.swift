@@ -25,7 +25,11 @@ import UniformTypeIdentifiers
 @MainActor
 final class SettingsModel: ObservableObject {
   @Published var share: SettingsShare?
-  @Published var selection: String?
+  @Published var selection: String? {
+    didSet { if oldValue != selection { pluginPage = nil } }
+  }
+  /// The plugin whose own page is open inside Plugins, nil for the Plugins list itself.
+  @Published var pluginPage: String?
   @Published var query = ""
   /// The search result highlighted in the dropdown, by its place.
   @Published var hit = 0
@@ -34,6 +38,8 @@ final class SettingsModel: ObservableObject {
   @Published var lit: String?
   /// A slider's value while it is dragged, sent when it is let go.
   @Published var drafts: [String: Double] = [:]
+  /// A text setting's words while they are typed, sent on Return or when the field is left.
+  @Published var texts: [String: String] = [:]
   /// The last change Hammerspoon refused, the setting's title and why.
   @Published var refusal: String?
   /// A change taken that applies on reload, so the window reloads once when it closes.
@@ -76,6 +82,7 @@ final class SettingsModel: ObservableObject {
   func jump(to hit: SearchHit) {
     if hit.id.hasPrefix("app:") { appsPage.filter = "" }
     selection = hit.section
+    pluginPage = hit.page
     focus = hit.id
     query = ""
   }
@@ -485,6 +492,10 @@ struct SettingsDetail: View {
       } else if model.share == nil {
         ContentUnavailableView("No settings yet", systemImage: "gearshape",
           description: Text("Hammerspoon writes them when it loads, with the olmapp piece on."))
+      } else if let section = model.current, let plugin = model.pluginPage,
+        section.settings.contains(where: { $0.page == plugin }) {
+        SectionPage(section: section, model: model, plugin: plugin)
+          .id(section.id + "/" + plugin)
       } else if let section = model.current {
         SectionPage(section: section, model: model)
           .id(section.id)
@@ -590,12 +601,33 @@ struct SectionPage: View {
   static let header: CGFloat = 60
   let section: SettingsSection
   @ObservedObject var model: SettingsModel
+  /// The plugin whose own page this is, its switch first and its settings after, nil for the
+  /// section's own page, which leaves those settings to each plugin's page.
+  var plugin: String? = nil
+
+  /// The plugin's switch in Plugins, whose title and picture its page wears.
+  private var owner: Setting? { section.settings.first { $0.plugin != nil && $0.plugin == plugin } }
+
+  private var rows: [Setting] {
+    guard let plugin else { return section.settings.filter { $0.page == nil } }
+    return (owner.map { [$0] } ?? []) + section.settings.filter { $0.page == plugin }
+  }
+
+  /// The plugins that have a page of their own, each reached from its switch.
+  private var pages: Set<String> { Set(section.settings.compactMap(\.page)) }
 
   var body: some View {
     ScrollViewReader { proxy in
     ScrollView {
       GlassGroup {
         VStack(alignment: .leading, spacing: Space.group) {
+          if plugin != nil {
+            Button { model.pluginPage = nil } label: {
+              Label(section.title, systemImage: "chevron.left")
+            }
+            .buttonStyle(.borderless)
+            .help("Back to \(section.title)")
+          }
           HStack(spacing: Space.pad + 4) {
             Image(systemName: section.symbol)
               // The window follows the system's look and not the chooser's.
@@ -605,8 +637,8 @@ struct SectionPage: View {
               .frame(width: Self.header, height: Self.header)
               .glassCircle()
             VStack(alignment: .leading, spacing: Space.row) {
-              Text(section.title).font(.largeTitle.weight(.semibold))
-              Text(section.settings.count == 1 ? "1 setting" : "\(section.settings.count) settings")
+              Text(owner?.title ?? section.title).font(.largeTitle.weight(.semibold))
+              Text(rows.count == 1 ? "1 setting" : "\(rows.count) settings")
                 .font(.callout).foregroundStyle(.secondary)
             }
             Spacer(minLength: Space.group)
@@ -616,11 +648,25 @@ struct SectionPage: View {
           }
           .frame(height: Self.header)
           VStack(spacing: 0) {
-            ForEach(Array(section.settings.enumerated()), id: \.element.id) { index, setting in
+            ForEach(Array(rows.enumerated()), id: \.element.id) { index, setting in
               if index > 0 { Divider().padding(.leading, Space.pad + 4) }
-              SettingRow(setting: setting, model: model)
-                .padding(.horizontal, Space.pad + 4).padding(.vertical, Space.pad)
-                .searchMark(model, SearchTarget.setting(setting.id))
+              HStack(spacing: Space.pad) {
+                SettingRow(setting: setting, model: model)
+                // A plugin with a page of its own is reached by the button after its switch. The
+                // button's room is kept on every row of the list, so the switches stay in one column.
+                if plugin == nil && !pages.isEmpty {
+                  let target = setting.plugin.flatMap { pages.contains($0) ? $0 : nil }
+                  Button { model.pluginPage = target } label: {
+                    Image(systemName: "gearshape").frame(width: Space.mark)
+                  }
+                  .buttonStyle(.borderless)
+                  .help("Settings of \(setting.title)")
+                  .opacity(target == nil ? 0 : 1)
+                  .disabled(target == nil)
+                }
+              }
+              .padding(.horizontal, Space.pad + 4).padding(.vertical, Space.pad)
+              .searchMark(model, SearchTarget.setting(setting.id))
             }
           }
           .glassCard(cornerRadius: 20)
@@ -633,7 +679,7 @@ struct SectionPage: View {
     // pane, so the page sits the same distance from all four edges.
     .ignoresSafeArea(.container, edges: .top)
     .softTopEdge()
-    .searchJump(model, proxy, Set(section.settings.map { SearchTarget.setting($0.id) }))
+    .searchJump(model, proxy, Set(rows.map { SearchTarget.setting($0.id) }))
     }
   }
 
@@ -745,6 +791,11 @@ struct SettingRow: View {
     case .switch:
       Toggle(setting.title, isOn: flag)
         .toggleStyle(.switch)
+    case .checkbox:
+      Toggle(setting.title, isOn: flag)
+        .toggleStyle(.checkbox)
+    case .text:
+      TextSetting(setting: setting, model: model)
     case .number:
       HStack(spacing: Space.pad) {
         if let lo = setting.min, let hi = setting.max, lo < hi {
@@ -774,6 +825,31 @@ struct SettingRow: View {
     case .other:
       Text(String(describing: setting.value))
     }
+  }
+}
+
+/// A text setting's field, sent when Return is pressed or the field is left, a text past its length
+/// cut there as it is typed.
+struct TextSetting: View {
+  let setting: Setting
+  @ObservedObject var model: SettingsModel
+  @FocusState private var focused: Bool
+
+  var body: some View {
+    TextField(setting.title, text: Binding(get: { model.texts[setting.id] ?? setting.value.text ?? "" }, set: { value in
+      model.texts[setting.id] = setting.maxLength.map { String(value.prefix($0)) } ?? value
+    }), prompt: setting.placeholder.map { Text($0) })
+    .textFieldStyle(.roundedBorder)
+    .frame(width: Space.slider)
+    .focused($focused)
+    .onSubmit(send)
+    .onChange(of: focused) { if !focused { send() } }
+    .onDisappear(perform: send)
+  }
+
+  private func send() {
+    guard let text = model.texts.removeValue(forKey: setting.id) else { return }
+    if text != (setting.value.text ?? "") { model.change(setting, to: .text(text)) }
   }
 }
 

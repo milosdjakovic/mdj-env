@@ -251,8 +251,12 @@ function M.check(decl, value)
   elseif kind == "font" then
     if type(value) ~= "string" or value == "" then return false, "is not a font name" end
     return true
-  elseif kind == "switch" then
+  elseif kind == "switch" or kind == "checkbox" then
     if type(value) ~= "boolean" then return false, "is not on or off" end
+    return true
+  elseif kind == "text" then
+    if type(value) ~= "string" then return false, "is not words" end
+    if decl.maxLength and #value > decl.maxLength then return false, "is longer than " .. decl.maxLength end
     return true
   elseif kind == "keys" then
     if type(value) ~= "table" then return false, "is not a table of actions and their keys" end
@@ -336,7 +340,7 @@ end
 -- A plugin's own settings, its manifest's settings list
 --------------------------------------------------------------------------------
 
-local KINDS = { number = true, switch = true, choice = true, apps = true, sizes = true }
+local KINDS = { number = true, switch = true, checkbox = true, text = true, choice = true, apps = true, sizes = true }
 
 -- Whether a choice spec lists its choices, each a value and a title, and ships one of them.
 local function readChoices(spec)
@@ -352,7 +356,10 @@ end
 
 --- M.fromManifest(identity, specs) -> declarations, problems
 --- A plugin's settings list read into declarations, docs/DESIGN-APP-SETTINGS.md S.4. Each spec is
---- { key, at, title, section, kind, keywords, detail, and for a number min, max, step, unit, shipped }, detail a line shown under the title. at
+--- { key, at, title, section, kind, keywords, detail, and for a number min, max, step, unit, shipped }, detail a line shown under the title.
+--- kind is number, switch, checkbox, text, choice, apps or sizes, a text taking an optional
+--- placeholder and maxLength. section is optional, and a setting naming none is drawn on the
+--- plugin's own page, which its switch in Plugins opens. at
 --- is the path into the plugin's own data, its first word a need the manifest declares with source
 --- user, so the saved value is laid over what the plugin is handed and the plugin reads it with no
 --- word of its own. The id is the identity, a dot and the key, so no plugin can take another's or
@@ -375,8 +382,15 @@ function M.fromManifest(identity, specs)
     elseif seen[spec.key] then why = "repeats the key " .. spec.key
     elseif type(spec.at) ~= "table" or #spec.at == 0 then why = "names no path into the plugin's data in at"
     elseif type(spec.title) ~= "string" or spec.title == "" then why = "has no title"
-    elseif not sections[spec.section] then why = "names no section of the window, " .. tostring(spec.section)
-    elseif not KINDS[spec.kind] then why = "has the kind " .. tostring(spec.kind) .. ", where a number, a switch or a choice is read"
+    elseif spec.section ~= nil and not sections[spec.section] then why = "names no section of the window, " .. tostring(spec.section)
+    elseif not KINDS[spec.kind] then
+      why = "has the kind " .. tostring(spec.kind) .. ", where a number, a switch, a checkbox, a text or a choice is read"
+    elseif spec.section == nil and (spec.kind == "apps" or spec.kind == "sizes") then
+      why = "is a " .. spec.kind .. " setting with no section, and only its own section draws one"
+    elseif spec.kind == "text" and spec.maxLength ~= nil and not (type(spec.maxLength) == "number" and spec.maxLength > 0) then
+      why = "is a text with a maxLength that is not a length"
+    elseif spec.placeholder ~= nil and type(spec.placeholder) ~= "string" then
+      why = "has a placeholder that is not words"
     elseif spec.kind == "choice" and not readChoices(spec) then
       why = "is a choice with no list of two or more, each a value and a title, shipping one of them"
     elseif spec.kind == "number" and not (type(spec.min) == "number" and type(spec.max) == "number"
@@ -394,7 +408,11 @@ function M.fromManifest(identity, specs)
       seen[spec.key] = true
       local target = { identity }
       for _, word in ipairs(spec.at) do target[#target + 1] = word end
-      out[#out + 1] = { id = identity .. "." .. spec.key, section = spec.section, title = spec.title,
+      -- A setting naming no section lives on the plugin's own page, reached from its switch in
+      -- Plugins, asked by Milos on 2026-11-24.
+      out[#out + 1] = { id = identity .. "." .. spec.key, section = spec.section or "plugins",
+        page = spec.section == nil and identity or nil, title = spec.title,
+        placeholder = spec.placeholder, maxLength = spec.maxLength,
         detail = type(spec.detail) == "string" and spec.detail or nil, kind = spec.kind, target = target, min = spec.min, max = spec.max, step = spec.step,
         unit = spec.unit, shipped = copy(spec.shipped), keywords = copy(spec.keywords or {}),
         choices = spec.kind == "choice" and readChoices(spec) or nil,
@@ -724,6 +742,8 @@ function M.new(opts)
           keywords = copy(decl.keywords or {}), applies = self.applies(decl.id),
           choices = copy(decl.choices), min = decl.min, max = decl.max, step = decl.step, unit = decl.unit,
           locked = decl.locked,
+          page = decl.page, plugin = decl.member and decl.member.name or nil,
+          placeholder = decl.placeholder, maxLength = decl.maxLength,
           default = copy(defaults[decl.id]),
         }
         if type(decl.extraFrom) == "function" then

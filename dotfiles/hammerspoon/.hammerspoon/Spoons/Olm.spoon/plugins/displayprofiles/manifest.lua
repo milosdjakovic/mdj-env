@@ -142,6 +142,16 @@ return {
   -- submodule, which needs its own configure, for the view deps this root injects
   -- on top of the api this plugin's own configure already hands it, and its own
   -- start before it can be shown at all.
+  -- Drawn on this plugin's own page in Olm Settings, reached from its switch in Plugins, since it
+  -- names no section. The wait is laid over settleDelay before configure, so the engine reads it
+  -- with no word of its own.
+  settings = {
+    { key = "settleDelay", at = { "settleDelay" }, title = "Settle Delay", kind = "number",
+      min = 0.2, max = 5, step = 0.1, unit = "seconds", shipped = 1.5,
+      detail = "How long to wait after the displays change before arranging them.",
+      keywords = { "wait", "debounce", "monitor", "screen" } },
+  },
+
   wiring = {
     { method = "start" },
     { target = "chooser", method = "configure" },

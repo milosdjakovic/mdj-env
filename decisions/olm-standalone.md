@@ -1682,3 +1682,11 @@ setting and each choice of a menu, every application, window layout and size, an
 in a dropdown under the field, and choosing a result opens its section, scrolls to its row and
 lights it for a moment. Considered and rejected: keeping the narrowing beside the dropdown, since two
 answers to one query disagree about where a result is.
+
+2026-11-24 11:36, a plugin's own settings page, asked by Milos. A plugin declares simple settings in
+its manifest, a number, a switch, a checkbox, a text or a choice, and one naming no section is drawn
+on the plugin's own page inside Plugins, opened by a gear after its switch, Back at the top left.
+Olm draws every control, so a plugin still builds no surface. The olm-plugin skill said settings
+earned a row and never a page of its own, which this replaces, since the page is Olm's and not the
+plugin's. A text's draft is kept on the model rather than in the view, since the command line tools
+the app builds with ship no SwiftUI macros. DisplayProfiles' settle delay is the first page.

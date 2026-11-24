@@ -404,6 +404,42 @@ do
   check("import hands each value to change", appsSettings.value("apps.apps")["a.b"].mode, "cycle")
   check("and a value the declaration refuses is said", refused[1] and refused[1].id, "rowLimit")
   check("and a saved value the file leaves out is reset", appsSettings.saved("keys"), nil)
+  -- A plugin's own page, a setting naming no section, and the text and checkbox kinds, asked by
+  -- Milos on 2026-11-24.
+  local pageFiles, pageIo = disk()
+  local pageSettings = M.new({ store = newStore(pageFiles, pageIo, {}), log = { w = function() end } })
+  local pageData = {}
+  local pageProblems = pageSettings.plugin("dp", {
+    { key = "label", at = { "label" }, title = "Label", kind = "text", placeholder = "Desk", maxLength = 8, shipped = "" },
+    { key = "quiet", at = { "quiet" }, title = "Quiet", kind = "checkbox", shipped = false },
+    { key = "wait", at = { "wait" }, title = "Wait", kind = "number", min = 0, max = 5, step = 0.5, shipped = 1.5 },
+    { key = "grid", at = { "grid" }, title = "Grid", kind = "sizes" },
+    { key = "long", at = { "long" }, title = "Long", kind = "text", maxLength = 0 },
+  }, pageData)
+  check("a sizes setting with no section is a problem", pageProblems[1],
+    "settings[4] is a sizes setting with no section, and only its own section draws one, so it is left out")
+  check("a text with no length is a problem", pageProblems[2], "settings[5] is a text with a maxLength that is not a length, so it is left out")
+  check("a setting naming no section is on the plugin's page", pageSettings.declaration("dp.label").page, "dp")
+  check("inside Plugins", pageSettings.declaration("dp.label").section, "plugins")
+  check("a text takes words", (pageSettings.change("dp.label", "Home")), true)
+  check("not past its length", (pageSettings.change("dp.label", "Somewhere far")), false)
+  check("not a number", (pageSettings.change("dp.label", 3)), false)
+  check("a checkbox takes on or off", (pageSettings.change("dp.quiet", true)), true)
+  check("and nothing else", (pageSettings.change("dp.quiet", "yes")), false)
+  local pageRow
+  for _, section in ipairs(pageSettings.share().sections) do
+    for _, row in ipairs(section.settings) do if row.id == "dp.label" then pageRow = row end end
+  end
+  check("the share names the page", pageRow and pageRow.page, "dp")
+  check("and the placeholder", pageRow and pageRow.placeholder, "Desk")
+  check("and the value", pageRow and pageRow.value, "Home")
+  pageSettings.declare("plugin.dp", { section = "plugins", kind = "switch", title = "DP",
+    member = { list = "plugins.off", name = "dp" } })
+  local switchRow
+  for _, section in ipairs(pageSettings.share().sections) do
+    for _, row in ipairs(section.settings) do if row.id == "plugin.dp" then switchRow = row end end
+  end
+  check("a plugin's switch names its plugin", switchRow and switchRow.plugin, "dp")
   local _, wrong = M.fromManifest("x", "words")
   check("a settings field that is not a list is a problem", wrong[1], "settings is a string rather than a list")
 end

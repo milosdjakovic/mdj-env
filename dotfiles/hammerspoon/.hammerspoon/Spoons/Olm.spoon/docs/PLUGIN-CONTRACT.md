@@ -1619,9 +1619,16 @@ A plugin's own settings, shown in Olm Settings, docs/DESIGN-APP-SETTINGS.md S.4.
 title, and for a number `min`, `max`, `step`, `unit` and `shipped`. `at` is a path into the
 plugin's own data, its first word a `needs.data` field the plugin declares with source user, and
 `shipped` is the value the data takes when the person's file leaves the key out, filled in before
-`configure` since 2026-11-23, so the manifest is the one statement of a default. `section` is one of the window's sections in
-`lib/settings.lua`'s `SECTIONS`, and `kind` is `number`, `switch`, `choice`, `apps` or `sizes`,
-the last two drawn by a page of their own, Applications and Window Management. `extra` names a member
+`configure` since 2026-11-23, so the manifest is the one statement of a default. `kind` is
+`number`, `switch`, `checkbox`, `text`, `choice`, `apps` or `sizes`. A switch and a checkbox are both
+on or off, drawn as a macOS switch or a check box. A text is words, with an optional `placeholder`
+the empty field shows and a `maxLength`. A choice lists `choices`, each a `value` and a `title`, and
+ships one of them. `apps` and `sizes` are drawn by a page of their own, Applications and Window
+Management. `section` is optional. Naming one of the window's sections in `lib/settings.lua`'s
+`SECTIONS` puts the setting on that section's page. Naming none puts it on the plugin's own page,
+since 2026-11-24, asked by Milos, which a gear after the plugin's switch in Plugins opens, Back at its
+top left leading back, its switch first and its settings after, and the sidebar search lands there
+too. `apps` and `sizes` always name their section. `extra` names a member
 of the plugin the root calls as the share is written, its answer handed to that page.
 
 The root reads the list with `lib/settings.lua`'s `fromManifest` once the plugin's data is merged
