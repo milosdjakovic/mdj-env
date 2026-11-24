@@ -174,11 +174,10 @@ the app claims every global key, every row still run in Hammerspoon.
 `kEventHotKeyExclusive`, measured by binding one and seeing a second exclusive claim refused with
 -9878, and the app registered with no option, so macOS answered a claimed key as well and a tap of
 fn showed its own input source picker beside Olm's cycle. The app claims exclusively now, so a
-claim is an ownership another program cannot share. The one way back is the Olm Settings switch
-macOS Picker on the Globe Key, `globeSystemPicker` in `lib/settings.lua`, off as shipped, which
-puts the Globe key in the share's `systemKeys`, the codes the app claims without the flag. It
-applies on the reload the window's close runs. Where the socket is down, Hammerspoon's own hotkey
-holds the key and is always exclusive, so the switch reads only while the app holds the keys.
+claim is an ownership another program cannot share. macOS's own picker is no setting, 2026-11-24.
+Input Sources owns the Globe key while it is on and disables macOS's picker by holding it, and
+switched off it binds nothing, so macOS answers the tap with its own Globe key setting. The share's
+`systemKeys`, the codes the app claims without the flag, stays in the format and is always empty.
 
 ## Rejected
 

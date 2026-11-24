@@ -109,11 +109,8 @@ M.DECLARED = {
     { "input source", "keyboard", "language", "globe", "fn" }),
   n("cheatSheetDelay", "behaviour", "Cheat sheet delay", { "policy", "chord", "holdDelay" }, 0.1, 2, 0.05,
     "seconds", 0.6, { "hold", "reveal", "leader", "hyper", "meta" }),
-  -- Whether macOS's own input source picker answers a tap of fn beside Olm's cycle. Off, Olm.app
-  -- claims the Globe key exclusively, as hs.hotkey claims every key, and macOS shows nothing.
-  { id = "globeSystemPicker", section = "behaviour", title = "macOS Picker on the Globe Key", kind = "switch",
-    applies = "reload", target = { "policy", "globeSystemPicker" }, shipped = false,
-    keywords = { "input source", "keyboard", "language", "globe", "fn", "system", "both" } },
+  -- macOS's own input source picker on a tap of fn is no setting. Input Sources owns the Globe key
+  -- while it is on, claimed exclusively so macOS shows nothing, and with it off macOS answers the tap.
 
   -- Window Management's steps and sizes are the window manager's, declared in its manifest and
   -- read by M.fromManifest, since only a plugin may name itself.

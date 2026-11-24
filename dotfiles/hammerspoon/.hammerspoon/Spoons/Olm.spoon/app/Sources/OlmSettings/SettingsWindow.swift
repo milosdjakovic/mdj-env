@@ -27,6 +27,11 @@ final class SettingsModel: ObservableObject {
   @Published var share: SettingsShare?
   @Published var selection: String?
   @Published var query = ""
+  /// The search result highlighted in the dropdown, by its place.
+  @Published var hit = 0
+  /// The row a search chose, which its page scrolls to once it holds it, and the row lit for it.
+  @Published var focus: String?
+  @Published var lit: String?
   /// A slider's value while it is dragged, sent when it is let go.
   @Published var drafts: [String: Double] = [:]
   /// The last change Hammerspoon refused, the setting's title and why.
@@ -56,11 +61,23 @@ final class SettingsModel: ObservableObject {
     appsPage.warm(share)
   }
 
-  /// The share's sections a search finds, then the Permissions page when it has any to list.
+  /// The share's sections, then the Permissions page when it has any to list. A search never
+  /// narrows them, it answers in the dropdown under the field.
   var sections: [SettingsSection] {
-    var out = share?.matching(query) ?? []
-    if !permissions.isEmpty, PermissionsPage.matches(query, permissions) { out.append(PermissionsPage.section) }
+    var out = share?.sections ?? []
+    if !permissions.isEmpty { out.append(PermissionsPage.section) }
     return out
+  }
+
+  /// What the search finds now.
+  var hits: [SearchHit] { SettingsSearch.find(query, in: SettingsSearch.index(self)) }
+
+  /// Opens the hit's section and hands its page the row to go to, closing the dropdown.
+  func jump(to hit: SearchHit) {
+    if hit.id.hasPrefix("app:") { appsPage.filter = "" }
+    selection = hit.section
+    focus = hit.id
+    query = ""
   }
 
   /// Asks macOS about each permission again, publishing only a change.
@@ -346,8 +363,11 @@ struct SettingsSidebar: View {
   @ObservedObject var model: SettingsModel
 
   var body: some View {
+    let hits = model.query.isEmpty ? [] : model.hits
     VStack(alignment: .leading, spacing: Space.group) {
-      SearchField(text: $model.query, move: move)
+      SearchField(text: $model.query, move: { move($0, hits.count) }, submit: {
+        if hits.indices.contains(model.hit) { model.jump(to: hits[model.hit]) }
+      })
       ScrollView {
         VStack(spacing: Space.row) {
           ForEach(model.sections) { section in
@@ -358,6 +378,13 @@ struct SettingsSidebar: View {
         }
       }
       .scrollIndicators(.never)
+      // The dropdown stands over the sections while something is typed, so nothing below moves.
+      .overlay(alignment: .top) {
+        if !model.query.isEmpty {
+          SearchResults(model: model, page: model.appsPage, hits: hits, highlighted: model.hit) { model.jump(to: $0) }
+            .fixedSize(horizontal: false, vertical: hits.count < 12)
+        }
+      }
       AppIdentity(model: model).padding(.horizontal, Space.pad)
     }
     .padding(.horizontal, model.leading)
@@ -366,16 +393,16 @@ struct SettingsSidebar: View {
     .padding(.top, model.buttonsBottom + Space.group)
     .padding(.bottom, model.leading)
     .ignoresSafeArea(.container, edges: .top)
-    .onChange(of: model.query) {
-      let sections = model.sections
-      if let first = sections.first, !sections.contains(where: { $0.id == model.selection }) {
-        model.selection = first.id
-      }
-    }
+    .onChange(of: model.query) { model.hit = 0 }
   }
 
-  /// Up and down in the search move between the sections, as in System Settings.
-  private func move(_ by: Int) {
+  /// Up and down in the search move through the results while there are any, and between the
+  /// sections otherwise, as in System Settings.
+  private func move(_ by: Int, _ count: Int) {
+    if !model.query.isEmpty {
+      if count > 0 { model.hit = min(max(model.hit + by, 0), count - 1) }
+      return
+    }
     let sections = model.sections
     guard !sections.isEmpty else { return }
     let at = sections.firstIndex(where: { $0.id == model.current?.id }) ?? 0
@@ -418,6 +445,7 @@ struct SidebarRow: View {
 struct SearchField: View {
   @Binding var text: String
   let move: (Int) -> Void
+  let submit: () -> Void
 
   var body: some View {
     HStack(spacing: Space.pad) {
@@ -426,6 +454,7 @@ struct SearchField: View {
         .textFieldStyle(.plain)
         .onKeyPress(.downArrow) { move(1); return .handled }
         .onKeyPress(.upArrow) { move(-1); return .handled }
+        .onSubmit(submit)
       Button { text = "" } label: {
         Image(systemName: "xmark.circle.fill").foregroundStyle(.secondary)
       }
@@ -563,6 +592,7 @@ struct SectionPage: View {
   @ObservedObject var model: SettingsModel
 
   var body: some View {
+    ScrollViewReader { proxy in
     ScrollView {
       GlassGroup {
         VStack(alignment: .leading, spacing: Space.group) {
@@ -590,6 +620,7 @@ struct SectionPage: View {
               if index > 0 { Divider().padding(.leading, Space.pad + 4) }
               SettingRow(setting: setting, model: model)
                 .padding(.horizontal, Space.pad + 4).padding(.vertical, Space.pad)
+                .searchMark(model, SearchTarget.setting(setting.id))
             }
           }
           .glassCard(cornerRadius: 20)
@@ -602,6 +633,8 @@ struct SectionPage: View {
     // pane, so the page sits the same distance from all four edges.
     .ignoresSafeArea(.container, edges: .top)
     .softTopEdge()
+    .searchJump(model, proxy, Set(section.settings.map { SearchTarget.setting($0.id) }))
+    }
   }
 
   private var note: (text: String, symbol: String) {

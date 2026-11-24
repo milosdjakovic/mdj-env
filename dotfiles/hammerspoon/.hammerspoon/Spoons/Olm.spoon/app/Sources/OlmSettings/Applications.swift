@@ -319,10 +319,10 @@ enum AppColumns {
   /// The Customize button and the key control, one width so the two read as a pair.
   static let menu: CGFloat = 110
   static let recorder: CGFloat = 110
-  /// A reset or a remove, kept in place when hidden so nothing moves.
+  /// The key's reset, kept in place when hidden so nothing moves.
   static let mark: CGFloat = 16
-  /// The marks column, the key's reset and the remove.
-  static let marks: CGFloat = mark * 2 + Space.related
+  /// The marks column, the key's reset alone. Removing an added application is on the row's menu.
+  static let marks: CGFloat = mark
 }
 
 struct AppsView: View {
@@ -332,12 +332,14 @@ struct AppsView: View {
 
   var body: some View {
     let all = entries
+    ScrollViewReader { proxy in
     ScrollView {
       VStack(alignment: .leading, spacing: Space.group) {
         header
         if let mode = modeSetting {
           SettingRow(setting: mode, model: model)
             .padding(.horizontal, Space.pad + 4).padding(.vertical, Space.pad)
+            .searchMark(model, SearchTarget.setting(mode.id))
             .glassCard(cornerRadius: 20)
         }
         HStack(spacing: Space.pad) {
@@ -359,6 +361,9 @@ struct AppsView: View {
       .frame(maxWidth: .infinity, alignment: .leading)
     }
     .ignoresSafeArea(.container, edges: .top)
+    .searchJump(model, proxy, Set(all.map { SearchTarget.app($0.bundle) }
+      + (modeSetting.map { [SearchTarget.setting($0.id)] } ?? [])))
+    }
     .onAppear {
       let apps = setting.catalog.map { ($0.bundle, $0.path) } + table.map { ($0.key, $0.value.path) }
       page.scan(also: apps)
@@ -427,6 +432,7 @@ struct AppsView: View {
               customize: { customize(entry) }, reset: { resetCustom(entry) }, remove: { remove(entry) },
               record: { record(entry) }, resetKey: { resetKey(entry) })
               .padding(.horizontal, Space.pad + 4).padding(.vertical, Space.pad - 4)
+              .searchMark(model, SearchTarget.app(entry.bundle))
           }
         }
         .background(RoundedRectangle(cornerRadius: 20, style: .continuous).fill(.quaternary.opacity(0.5)))
@@ -675,11 +681,16 @@ struct AppRow: View {
       .frame(maxWidth: .infinity, alignment: .leading)
       mode
       key
-      HStack(spacing: Space.related) {
-        mark("arrow.uturn.backward", shown: keyOwn, help: resetKeyHelp, action: resetKey)
-        mark("minus.circle", shown: entry.removable, help: "Remove \(entry.name) from Olm", action: remove)
+      mark("arrow.uturn.backward", shown: keyOwn, help: resetKeyHelp, action: resetKey)
+        .frame(width: AppColumns.marks)
+    }
+    .contentShape(Rectangle())
+    .contextMenu {
+      Button("Back to the Default", action: reset).disabled(!entry.customized)
+      if entry.removable {
+        Divider()
+        Button("Remove \(entry.name) from Olm", action: remove)
       }
-      .frame(width: AppColumns.marks)
     }
     .disabled(busy)
   }
@@ -697,9 +708,6 @@ struct AppRow: View {
       .help(entry.customized
         ? AppCustomize.words(entry.own)
         : "How \(entry.name)'s key acts and where its window goes")
-      .contextMenu {
-        Button("Back to the Default", action: reset).disabled(!entry.customized)
-      }
     }
   }
 

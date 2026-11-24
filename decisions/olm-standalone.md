@@ -1670,3 +1670,15 @@ typed there, until the launcher's choosing moves.
   `KeyRecording.hold`, and the recorder reads the modifiers, four as Hyper, shift ctrl alt as META,
   any other set but Shift alone as a plain combination. Considered and rejected: a session event tap
   for the recorder, since suspending the claims is the smaller change and needs no new grant path.
+
+**2026-11-24 09:43, three Settings window changes, asked by Milos.** An Applications row showed an
+undo and a minus side by side. It keeps only the undo, the key's reset, and removing an added
+application moved to the row's right click menu beside Back to the Default. macOS Picker on the
+Globe Key, the switch of 2026-11-23 10:03, is gone. Milos's call is that Input Sources disables
+macOS's picker by owning the Globe key, so with the plugin on the claim is exclusive and with it off
+nothing binds the key and macOS answers it; `systemKeys` stays in the share, always empty. The
+sidebar's search no longer narrows the sections. It searches everything the window holds, every
+setting and each choice of a menu, every application, window layout and size, and every permission,
+in a dropdown under the field, and choosing a result opens its section, scrolls to its row and
+lights it for a moment. Considered and rejected: keeping the narrowing beside the dropdown, since two
+answers to one query disagree about where a result is.

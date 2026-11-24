@@ -42,15 +42,6 @@ public struct Permission: Identifiable, Sendable {
 enum PermissionsPage {
   static let id = "olm.permissions"
   static let section = SettingsSection(id: id, title: "Permissions", symbol: "lock.shield", settings: [])
-
-  /// Whether a sidebar search finds the page, by its title or any permission's words.
-  static func matches(_ query: String, _ permissions: [Permission]) -> Bool {
-    let words = query.lowercased().split(whereSeparator: { $0.isWhitespace }).map(String.init)
-    if words.isEmpty { return true }
-    let hay = (["permissions", "privacy", "security", "grant"] + permissions.flatMap { [$0.title, $0.detail] })
-      .joined(separator: " ").lowercased()
-    return words.allSatisfy { hay.contains($0) }
-  }
 }
 
 /// The page: its header, then one card holding a row per permission.
@@ -60,6 +51,7 @@ struct PermissionsView: View {
   private let tick = Timer.publish(every: 1, on: .main, in: .common).autoconnect()
 
   var body: some View {
+    ScrollViewReader { proxy in
     ScrollView {
       GlassGroup {
         VStack(alignment: .leading, spacing: Space.group) {
@@ -82,6 +74,7 @@ struct PermissionsView: View {
               if index > 0 { Divider().padding(.leading, Space.pad + 4) }
               PermissionRow(permission: permission, granted: model.granted[permission.id] ?? false)
                 .padding(.horizontal, Space.pad + 4).padding(.vertical, Space.pad)
+                .searchMark(model, SearchTarget.permission(permission.id))
             }
           }
           .glassCard(cornerRadius: 20)
@@ -92,6 +85,8 @@ struct PermissionsView: View {
     }
     .ignoresSafeArea(.container, edges: .top)
     .softTopEdge()
+    .searchJump(model, proxy, Set(model.permissions.map { SearchTarget.permission($0.id) }))
+    }
     .onAppear { model.recheck() }
     .onReceive(tick) { _ in model.recheck() }
   }

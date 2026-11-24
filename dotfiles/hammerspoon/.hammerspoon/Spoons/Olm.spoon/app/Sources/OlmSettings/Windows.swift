@@ -70,6 +70,7 @@ struct WindowsView: View {
   @ObservedObject var editor: SizeEditor
 
   var body: some View {
+    ScrollViewReader { proxy in
     ScrollView {
       VStack(alignment: .leading, spacing: Space.group) {
         header
@@ -84,6 +85,10 @@ struct WindowsView: View {
       .frame(maxWidth: .infinity, alignment: .leading)
     }
     .ignoresSafeArea(.container, edges: .top)
+    .searchJump(model, proxy, Set(setting.windowActions.map { SearchTarget.window($0.action) }
+      + (setting.value.sizes ?? []).map { SearchTarget.size($0.id) }
+      + section.settings.map { SearchTarget.setting($0.id) }))
+    }
     .onDisappear { page.stop() }
     .sheet(isPresented: Binding(get: { editor.draft != nil }, set: { if !$0 { editor.draft = nil } })) {
       SizeSheet(editor: editor, save: save)
@@ -128,6 +133,7 @@ struct WindowsView: View {
             Text(a.title).frame(maxWidth: .infinity, alignment: .leading)
             recorder(a.action)
           }
+          .searchMark(model, SearchTarget.window(a.action))
         }
       }
     }
@@ -165,6 +171,7 @@ struct WindowsView: View {
             .disabled(z.shipped)
           recorder(action(of: z))
         }
+        .searchMark(model, SearchTarget.size(z.id))
       }
     }
   }
@@ -173,7 +180,9 @@ struct WindowsView: View {
     let numbers = section.settings.filter { $0.kind != .sizes }
     return VStack(alignment: .leading, spacing: Space.related) {
       cardHeader("Steps and Sizes")
-      rows(numbers.count) { i in SettingRow(setting: numbers[i], model: model) }
+      rows(numbers.count) { i in
+        SettingRow(setting: numbers[i], model: model).searchMark(model, SearchTarget.setting(numbers[i].id))
+      }
     }
   }
 

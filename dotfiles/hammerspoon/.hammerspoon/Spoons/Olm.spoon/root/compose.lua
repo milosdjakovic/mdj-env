@@ -72,7 +72,7 @@ local keyShareLib = load("lib/keyshare.lua")
 -- ~/.olm/run/keymap.json and the rows are wrapped so each run sends keyFired, which the app's shadow
 -- of the keys pairs with what it resolved itself, step 5.1, docs/DESIGN-APP-KEYS.md. With no bridge
 -- the rows are bound as they are.
-local function sharedKeys(bridge, bound, leaderSpecs, keyTable, leaders, plain, systemPicker)
+local function sharedKeys(bridge, bound, leaderSpecs, keyTable, leaders, plain)
   if not (bridge and type(bridge.share) == "function" and type(bridge.notify) == "function") then return bound end
   bridge:share("keymap", function()
     local share = keyShareLib.share(bound, leaderSpecs, { bindable = binderLib.bindable, keycodes = keyTable })
@@ -82,9 +82,9 @@ local function sharedKeys(bridge, bound, leaderSpecs, keyTable, leaders, plain, 
     if type(bridge.windowsInApp) == "function" then share.windowsInApp = bridge:windowsInApp() end
     -- Whether the app keeps the app catalog, each app's key, mode and place, step 6.2b.
     if type(bridge.switchOn) == "function" then share.appCatalog = bridge:switchOn("appCatalog") end
-    -- The keys the app claims without excluding macOS, so its own answer runs beside Olm's, the
-    -- Globe key where Olm Settings lets macOS's input source picker show too.
-    share.systemKeys = systemPicker == true and keyTable.globe and { keyTable.globe } or {}
+    -- No key is claimed beside macOS. Input Sources owns the Globe key while it is on, so macOS's own
+    -- picker never shows beside its cycle.
+    share.systemKeys = {}
     return share
   end)
   local wrapped = keyShareLib.wrap(bound, function(method, params) bridge:notify(method, params) end)
@@ -3533,7 +3533,7 @@ function obj.run(olm, cfg)
   -- each run, sharedKeys above. A call rather than locals here, since this function is at Lua 5.4's
   -- limit of 200.
   for _, problem in ipairs(binderLib.bind(sharedKeys(forwardApps(atoms.appfocus, modules[plan.identity.bridge or "bridge"]), keymap.bound,
-    leaderSpecs, keyTable, leadersByName, plainLeader, policy.globeSystemPicker), {
+    leaderSpecs, keyTable, leadersByName, plainLeader), {
     engines = leadersByName,
     plain = plainLeader,
   })) do
