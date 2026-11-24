@@ -146,6 +146,27 @@ Steps.
 3. **The flip**, with Milos's trial, then removing `HammerspoonCatalog` and `config/toggles.lua`
    once every machine has run the app, rule 6.
 
+As built, 2026-11-24.
+
+- **Step 1.** `OlmSettings/AppCatalog.swift` is the table's rules, pure: the seed, the applications
+  with a key, a second on one combination left out, and what a press runs. The key is `AppKey` in
+  `AppOverride`, checked in Lua by `lib/settings.lua`. The app seeds when `~/.olm/state/apps-seeded`
+  is missing and writes it after, so a key taken off is never laid in again. `Keymap.replacing`
+  leaves Hammerspoon's `apptoggler` rows out and lays the app's in, dropping one whose combination
+  another row holds, a plain one with no modifier, or one on a leader not in use. The Settings
+  service takes the keys again after a change to the table or the global mode, `retakeKeys`, so a
+  change is live before the window draws it. The setting is live through `liveWhen = "appCatalog"`
+  in the toggler's manifest, `lib/settings.lua`'s `applies`. The page offers a recorder on every
+  application, Hyper and the key, refusing one another application or a keymap action holds, and
+  Customize starts from the table alone, the styles having been seeded into it.
+- **Step 2.** The app sends `appsChanged` after every take, docs/PROTOCOL-BRIDGE.md. The root keeps
+  it at file level, `appKeys` in `root/compose.lua`, and lays it over each sheet's rows,
+  `withAppKeyRows`, its running and dormant groups its own, and over the launcher's app chords,
+  `withAppKeyDetails`, handing the catalog on again, `Launcher:catalogChanged`. `keyRan` names its
+  leader for an app key, since no row here has its id.
+- **Not yet.** Olm Keys still lists the keymap's app keys, Hammerspoon's, until it reads the table
+  too. The recorder offers Hyper only, the full recorder being the next part of 6.2.
+
 ## Steps
 
 1. **6.2, this.** The seam, `appRun` and `appsReady`, `app/Sources/OlmApps`, the Accessibility

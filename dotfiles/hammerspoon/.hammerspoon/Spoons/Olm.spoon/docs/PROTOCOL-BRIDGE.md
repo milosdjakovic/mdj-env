@@ -795,6 +795,23 @@ app's shadow, docs/DESIGN-APP-APPS.md. The app says whether it may act with its 
 `appsReady`, `{"ready":true}`, once each session opens and again whenever its Accessibility grant
 changes, and Hammerspoon forgets it with the session.
 
+## The app catalog, step 6.2b
+
+While the `appCatalog` switch is on, `keymap.json` carries `"appCatalog":true` and the app claims
+each app's key from Olm's table in place of Hammerspoon's `apptoggler` rows, docs/DESIGN-APP-APPS.md.
+A press runs in the app, which tells Hammerspoon `keyRan` with the id `app:` and the bundle id and the
+leader it sits on, `{"id":"app:com.apple.finder","leader":"hyper"}`, so that leader's sheet goes down,
+since no row here has that id. After every take of the keys the app sends the keys it claimed:
+
+```json
+{"apps":[{"bundle":"dev.herdr.app","leader":"hyper","key":"`","mods":[]}],"replaces":"apptoggler"}
+```
+
+as the notification `appsChanged`. Hammerspoon lays them over each leader's cheat sheet and the
+launcher's app rows, leaving out the rows of `replaces` that stand for an app, so both say what a
+press does with no reload. A launcher row's `appRun` still arrives, and the app runs it with the
+table's mode and place rather than what Lua sent.
+
 ## How it is tested
 
 The plan's bridge transcripts are this protocol as recorded conversations under

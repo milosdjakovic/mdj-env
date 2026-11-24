@@ -735,6 +735,15 @@ do
   eq(log[#log], "conceal meta", "listKey: and the sheet taken down")
   eq(methods.listKey.run({ leader = "meta", code = 0, mods = {} }).ran, false, "listKey: one no list ran says so")
   eq(methods.listKey.run({ leader = "super", code = 38 }).ran, false, "listKey: a leader not released runs nothing")
+  -- An app's key the app keeps, step 6.2b, is no row here and names its leader itself.
+  methods.keyRan.run({ id = "app:com.apple.finder", leader = "meta" })
+  eq(log[#log], "conceal meta", "keyRan: an app key takes the leader it names down")
+  local heard
+  kb:onAppsChanged(function(apps, replaces) heard = { apps = apps, replaces = replaces } end)
+  methods.appsChanged.run({ apps = { { bundle = "com.apple.finder", leader = "hyper", key = "f", mods = {} } },
+    replaces = "apptoggler" })
+  eq(heard and heard.apps[1].bundle, "com.apple.finder", "appsChanged: the app keys reach who listens")
+  eq(heard and heard.replaces, "apptoggler", "appsChanged: with the rows they stand in for")
   kb:_reclaimKeys()
   local reclaimed = 0
   for _, line in ipairs(log) do if line == "reclaim meta" then reclaimed = reclaimed + 1 end end

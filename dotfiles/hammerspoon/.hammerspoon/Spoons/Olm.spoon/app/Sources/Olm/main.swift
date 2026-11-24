@@ -334,7 +334,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             let bundle = String(id.dropFirst(AppCatalog.prefix.count))
             if AppFocus.allowed {
               appFocus.run(AppsHeld.shared.press(id, bundle: bundle))
-              await bridgeForApps.notify("keyRan", .object(["id": .string(id)]))
+              let leader = AppsHeld.shared.leader(bundle).map { JSON.string($0) } ?? .null
+              await bridgeForApps.notify("keyRan", .object(["id": .string(id), "leader": leader]))
             } else if let lua = AppsHeld.shared.luaAction(bundle) {
               _ = try? await bridgeForApps.request("runKey", .object(["id": .string(lua), "depth": .number(0)]))
             } else {
@@ -418,6 +419,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
           let made = keymap.replacing(AppCatalog.luaPrefix, with: rows)
           for row in made.clashes { NSLog("Olm apps: %@'s key is held by another action, so it is left out", row.id) }
           await owner.take(made.keymap)
+          // The keys claimed, told to Hammerspoon so its Hyper sheet and the launcher's app rows say
+          // what a press does, in place of the toggler's own rows.
+          let claimed = made.keymap.rows.filter { $0.id.hasPrefix(AppCatalog.prefix) }
+          AppsHeld.shared.leaders(claimed.map { (String($0.id.dropFirst(AppCatalog.prefix.count)), $0.leader) })
+          let list: [JSON] = claimed.map { row in
+            .object(["bundle": .string(String(row.id.dropFirst(AppCatalog.prefix.count))),
+              "leader": row.leader.map { .string($0) } ?? .null, "key": .string(row.key),
+              "mods": .array((row.mods ?? []).map(\.rawValue).sorted().map { .string($0) })])
+          }
+          await bridgeForApps.notify("appsChanged", .object(["apps": .array(list),
+            "replaces": .string(String(AppCatalog.luaPrefix.dropLast()))]))
         }
       }
       Self.retakeKeys = takeKeys
@@ -597,6 +609,20 @@ final class AppsHeld: @unchecked Sendable {
     lock.lock(); defer { lock.unlock() }
     let p = AppCatalog.press(bundle, table: table, global: global)
     return AppPress(id: id, bundle: bundle, hides: p.hides, placement: p.place, lua: nil)
+  }
+
+  private var leaderOf: [String: String] = [:]
+
+  /// The leader each app's claimed key sits on, for keyRan.
+  func leaders(_ pairs: [(String, String?)]) {
+    lock.lock(); defer { lock.unlock() }
+    leaderOf = [:]
+    for (bundle, leader) in pairs { if let leader { leaderOf[bundle] = leader } }
+  }
+
+  func leader(_ bundle: String) -> String? {
+    lock.lock(); defer { lock.unlock() }
+    return leaderOf[bundle]
   }
 
   /// Hammerspoon's action for an app, where its catalog has one, for a press the app cannot run.

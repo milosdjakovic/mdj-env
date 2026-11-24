@@ -1179,6 +1179,15 @@ end
 --- Who is handed the catalog again after each pick, the bridge writing the app's share. It is
 --- handed it once a few seconds after the load too, off the load's own path, since building the
 --- static rows is work. The timer's handle is kept, since one nothing refers to can be collected.
+--- Launcher:catalogChanged()
+--- Method
+--- Hands the catalog to its listener again, the app's keys having changed, step 6.2b.
+function obj:catalogChanged()
+  if not self._onCatalog then return end
+  local ok, err = pcall(self._onCatalog)
+  if not ok then log.w("the catalog share raised, " .. tostring(err)) end
+end
+
 function obj:onCatalog(fn)
   self._onCatalog = type(fn) == "function" and fn or nil
   if self._catalogTimer then self._catalogTimer:stop() end

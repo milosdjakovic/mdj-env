@@ -341,6 +341,13 @@ function obj:serveLauncher(provider)
   return conn
 end
 
+--- obj:onAppsChanged(fn)
+--- fn is handed the app keys the app keeps, step 6.2b, a list of { bundle, leader, key, mods }, each
+--- time it sends them.
+function obj:onAppsChanged(fn)
+  self._onAppsChanged = type(fn) == "function" and fn or nil
+end
+
 --- obj:switchOn(name) -> whether one of the bridge's switches is on, by its name in
 --- config/plugins.lua, so a setting may apply live while its owner is the app.
 local SWITCHES = { appCatalog = "_appCatalog", windowsInApp = "_windowsInApp", appToggler = "_appToggler" }
@@ -451,10 +458,21 @@ function obj:_keyMethods(methods)
   end }
   -- A row the app ran itself, the window manager's since 6.3b, told so the row's leader takes its
   -- sheet down as a press run here would. A notification, so the press waits on nothing.
+  -- An app's key the app keeps, step 6.2b, is no row here, so it names its leader itself.
   methods.keyRan = { run = function(params)
     local entry = (self._keyRuns or {})[tostring(params.id)]
-    local leader = entry and entry.leader and (self._keyLeaders or {})[entry.leader]
+    local name = entry and entry.leader or (type(params.leader) == "string" and params.leader or nil)
+    local leader = name and (self._keyLeaders or {})[name]
     if leader then leader:conceal() end
+    return true
+  end }
+  -- The app's own app keys, step 6.2b, docs/DESIGN-APP-APPS.md, sent each time the app takes its
+  -- keys, so the Hyper sheet and the launcher's app rows say what a press does with no reload.
+  methods.appsChanged = { run = function(params)
+    if self._onAppsChanged and type(params.apps) == "table" then
+      local ok, err = pcall(self._onAppsChanged, params.apps, params.replaces)
+      if not ok then log.w("the app keys the app sent raised, " .. tostring(err)) end
+    end
     return true
   end }
   -- A press the app claimed on a list key's combination, run by the leader's list pass while a list

@@ -296,6 +296,7 @@ function M.appChords(opts)
               out[descriptor.app] = {
                 chord = { leader = not plain and (row.role or row.leader) or nil, key = row.key, mods = row.shownMods },
                 description = row.description,
+                owner = identity,
               }
             end
           end

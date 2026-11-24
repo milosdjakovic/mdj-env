@@ -441,6 +441,79 @@ local function savedKeys(keymap, settings)
   return out
 end
 
+-- The app keys Olm.app keeps, step 6.2b, docs/DESIGN-APP-APPS.md, as it last sent them with
+-- appsChanged: the list of { bundle, leader, key, mods }, the identity whose app rows they stand in
+-- for, and what follows a change, the sheets laid out again and the launcher's catalog handed on.
+-- nil until the app sends them, so a load with no app is as before. Kept at file level so it never
+-- counts against obj.run's locals.
+local appKeys = { list = nil, replaces = nil, onChange = {} }
+
+-- The two groups an app key's sheet row is filed under, running and not, the second faded, as the
+-- app toggler's rows were, read from one enumeration of the running apps a quarter second old at most.
+local APP_RUNNING, APP_DORMANT = { title = "RUNNING" }, { title = "DORMANT", faded = true }
+local appsRunning = { at = nil, set = nil }
+local function appRunning(bundle)
+  local now = hs.timer.secondsSinceEpoch()
+  if not appsRunning.set or not appsRunning.at or now - appsRunning.at >= 0.25 then
+    local set = {}
+    for _, app in ipairs(hs.application.runningApplications()) do
+      local id = app:bundleID()
+      if id then set[id] = true end
+    end
+    appsRunning.set, appsRunning.at = set, now
+  end
+  return appsRunning.set[bundle] == true
+end
+
+local function appKeysChanged(params)
+  if type(params) ~= "table" or type(params.apps) ~= "table" then return end
+  appKeys.list = params.apps
+  appKeys.replaces = type(params.replaces) == "string" and params.replaces or nil
+  for name, fn in pairs(appKeys.onChange) do
+    local ok, err = pcall(fn)
+    if not ok then log.w("Olm compose, the app keys' " .. name .. " raised, " .. tostring(err)) end
+  end
+end
+
+-- A leader's sheet rows with the rows the app's keys stand in for left out and one row per app key
+-- on that leader laid in their place, under the same owner, so the block keeps its place.
+local function withAppKeyRows(rows, leaderName)
+  if not appKeys.list then return rows end
+  local out = {}
+  for _, row in ipairs(rows) do
+    if not (row.app ~= nil and row.owner == appKeys.replaces) then out[#out + 1] = row end
+  end
+  for _, a in ipairs(appKeys.list) do
+    if type(a) == "table" and a.leader == leaderName and type(a.bundle) == "string" and type(a.key) == "string" then
+      local bundle = a.bundle
+      out[#out + 1] = { key = a.key, mods = type(a.mods) == "table" and #a.mods > 0 and a.mods or nil,
+        action = "app:" .. bundle, app = bundle, owner = appKeys.replaces,
+        group = function() return appRunning(bundle) and APP_RUNNING or APP_DORMANT end }
+    end
+  end
+  return out
+end
+
+-- The launcher's app chords with the app's keys laid over them, the chords of the rows they stand
+-- in for left out.
+local function withAppKeyDetails(details)
+  return function()
+    local base = details()
+    if not appKeys.list then return base end
+    local out = {}
+    for bundle, d in pairs(base) do
+      if d.owner ~= appKeys.replaces then out[bundle] = d end
+    end
+    for _, a in ipairs(appKeys.list) do
+      if type(a) == "table" and type(a.bundle) == "string" and type(a.key) == "string" then
+        out[a.bundle] = { chord = { leader = a.leader, key = a.key,
+          mods = type(a.mods) == "table" and #a.mods > 0 and a.mods or nil } }
+      end
+    end
+    return out
+  end
+end
+
 local function settingsService(deps)
   local reloadDue = false
   local function appearanceSet(value)
@@ -3239,6 +3312,11 @@ function obj.run(olm, cfg)
     end
     -- Every setting the Olm Settings window shows, each plugin a person can switch off among them,
     -- with what this load has, docs/DESIGN-APP-SETTINGS.md. Written once at load.
+    -- The app's own app keys, laid over the sheets and the launcher as it sends them, step 6.2b.
+    appKeys.list, appKeys.replaces = nil, nil
+    if bridgeModule and type(bridgeModule.onAppsChanged) == "function" then
+      bridgeModule:onAppsChanged(function(apps, replaces) appKeysChanged({ apps = apps, replaces = replaces }) end)
+    end
     -- A plugin setting naming a switch in liveWhen applies live while the bridge has it on.
     if bridgeModule and type(bridgeModule.switchOn) == "function" then
       olmSettings.liveWhen(function(name) return bridgeModule:switchOn(name) end)
@@ -3704,11 +3782,13 @@ function obj.run(olm, cfg)
       if not path or path == "" then return nil end
       return { name = hs.application.nameForBundleID(bundleID), icon = hs.image.imageFromAppBundle(bundleID) }
     end
+    -- Laid out again whenever the app sends its app keys, step 6.2b, so the sheet says what a press does.
+    local function sheetsNow()
     local sheets = {}
     for _, spec in ipairs(leaderSpecs) do
       if spec.policy.sheet and spec.inUse then
         local layout = leaderLib.sheetLayout(spec.policy, cheatSheetAtom.DEFAULTS, spec.heading)
-        local rows = hintsLib.sheetRows(keymap, plan, spec.name, { registry = wiredRegistry })
+        local rows = withAppKeyRows(hintsLib.sheetRows(keymap, plan, spec.name, { registry = wiredRegistry }), spec.name)
         sheets[#sheets + 1] = {
           name = spec.name,
           -- Nil on a leader of modifiers, whose sheet the host finds by name.
@@ -3723,6 +3803,12 @@ function obj.run(olm, cfg)
           }),
         }
       end
+    end
+    return sheets
+    end
+    local sheets = sheetsNow()
+    appKeys.onChange.sheets = function()
+      leaderSheetModule:configure({ sheets = sheetsNow() })
     end
     -- The renderer and the predicates are given again beside the sheets, and the table is keyed
     -- by DIRECTORY in lateData rather than by identity, since that is how a manifest is keyed and
@@ -3940,12 +4026,16 @@ function obj.run(olm, cfg)
     -- What an app row shows beyond the app, the chord of an action whose descriptor names that
     -- app, built from the descriptors and the keymap, so the launcher reads no person data, names
     -- no plugin, and no plugin answers anything for an app row.
-    local appDetails = contributionsLib.appChords({
+    local appDetails = withAppKeyDetails(contributionsLib.appChords({
       plan = plan,
       actions = pluginActions,
       actionOrder = actionOrder,
       keymap = keymap,
-    })
+    }))
+    appKeys.onChange.launcher = function()
+      local m = modules[plan.identity.launcher or "launcher"]
+      if m and type(m.catalogChanged) == "function" then m:catalogChanged() end
+    end
 
     -- The launcher's own Aliases row is root policy with no tool behind it, a catalog row of kind
     -- special with no owner, so the registry has no presentation for it. This is the one place the
