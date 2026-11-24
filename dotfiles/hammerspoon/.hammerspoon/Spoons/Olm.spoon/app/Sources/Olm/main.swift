@@ -158,11 +158,19 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         detail: "Browser Switcher, listing each browser's profiles",
         symbol: "externaldrive",
         settingsURL: "x-apple.systempreferences:com.apple.preference.security?Privacy_AllFiles",
+        // Any of a few files only Full Disk Access opens, since which ones macOS guards moves between
+        // versions, the user's TCC database alone answering not allowed with access given on 27.
         check: {
-          let tcc = home.appendingPathComponent("Library/Application Support/com.apple.TCC/TCC.db").path
-          guard let handle = FileHandle(forReadingAtPath: tcc) else { return false }
-          try? handle.close()
-          return true
+          let probes = [
+            "Library/Safari/Bookmarks.plist",
+            "Library/Application Support/com.apple.TCC/TCC.db",
+            "Library/Application Support/Google/Chrome/Local State",
+            "Library/Containers/com.apple.Safari/Data/Library/Safari/Bookmarks.plist",
+          ].map { home.appendingPathComponent($0).path } + ["/Library/Application Support/com.apple.TCC/TCC.db"]
+          for path in probes {
+            if let handle = FileHandle(forReadingAtPath: path) { try? handle.close(); return true }
+          }
+          return false
         }),
     ] + folders
   }

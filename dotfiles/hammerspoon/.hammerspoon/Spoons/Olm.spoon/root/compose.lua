@@ -531,8 +531,13 @@ local function settingsService(deps)
     change = function(id, value)
       local ok, why = olmSettings.change(id, value)
       if not ok then return false, why end
+      local decl = olmSettings.declaration and olmSettings.declaration(id)
       if live[id] then
         live[id](olmSettings.value(id))
+      elseif decl and type(decl.changed) == "function" then
+        -- A plugin setting naming onChange, told its key and value at once.
+        local told, why = pcall(decl.changed, decl.target and decl.target[#decl.target] or id, olmSettings.value(id))
+        if not told then log.e("Olm settings, " .. id .. "'s onChange failed, " .. tostring(why)) end
       else
         if olmSettings.applies(id) == "reload" then reloadDue = true end
       end
@@ -1561,9 +1566,9 @@ function obj.run(olm, cfg)
       fannedData[name] = fannedData[name] or {}
       -- A setting naming extra is answered by that member of the plugin as the share is written.
       for _, why in ipairs(olmSettings.plugin(name, manifest.settings, fannedData[name], function(member)
-        return function()
+        return function(...)
           local m = modules[name]
-          if m and type(m[member]) == "function" then return m[member](m) end
+          if m and type(m[member]) == "function" then return m[member](m, ...) end
         end
       end)) do
         log.e("Olm compose, " .. name .. " " .. why)

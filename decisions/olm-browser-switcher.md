@@ -58,3 +58,12 @@ old file kept in the session's scratch folder.
 
 Every link opens the picker. The rules setting, the matching and Option's override are gone, and
 rules come back as a table setting if he asks for them.
+
+### 2026-11-24 17:16, favourites live, the list only what is found, Full Disk Access read right
+
+Reported by Milos. Full Disk Access given showed Not allowed, since the check opened the user's TCC
+database, which macOS 27 keeps closed with access given, so it now tries a few files only that access
+opens. Checking a box dimmed the whole list while the save went over the bridge, so a picks list
+stays live and shows the click at once. Favourites waited for a reload, so a plugin setting may name
+`onChange`, a member told the new value, and then applies at once. A saved name the scan no longer
+finds is not shown and leaves on the next click, his Red Burst being the profile Redburst.

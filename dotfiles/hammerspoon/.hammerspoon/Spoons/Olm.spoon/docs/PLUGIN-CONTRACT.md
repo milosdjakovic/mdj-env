@@ -1634,7 +1634,9 @@ line break. A `handler` names a `scheme`, `https`, and no `at`, and is the app m
 scheme with, drawn by Olm.app as a menu of every app that can, read from the Mac and changed by
 asking macOS, so nothing is stored and the plugin never sees it. `picks` is a list of names checked
 off a list Olm.app finds, named by `source`, `browsers` the one today, with the `fixed` names after
-it, each a checkbox, and the plugin is handed the checked names in that order. A choice lists `choices`, each a `value` and a `title`, and
+it, each a checkbox, and the plugin is handed the checked names in that order. Any setting may name a member
+in `onChange`, which Olm calls with the setting's key and new value as it changes, and the setting
+then applies at once rather than on reload. A choice lists `choices`, each a `value` and a `title`, and
 ships one of them. `apps` and `sizes` are drawn by a page of their own, Applications and Window
 Management. `section` is optional. Naming one of the window's sections in `lib/settings.lua`'s
 `SECTIONS` puts the setting on that section's page. Naming none puts it on the plugin's own page,

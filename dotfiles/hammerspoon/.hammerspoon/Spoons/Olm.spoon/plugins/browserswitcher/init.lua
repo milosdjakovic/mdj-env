@@ -207,6 +207,11 @@ function M.verbs:copyLink()
   if cfg.stageHide then cfg.stageHide() end
 end
 
+--- M:settingChanged(key, value). Olm Settings changed one of this plugin's settings, onChange.
+function M:settingChanged(key, value)
+  cfg[key] = value
+end
+
 function M:configure(opts)
   cfg = opts or {}
   return M

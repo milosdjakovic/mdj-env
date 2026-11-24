@@ -508,6 +508,22 @@ do
   check("and the fixed names", row and row.fixed and row.fixed[1], "Copy Link")
 end
 
+-- onChange, a plugin setting told its value at once and applied live.
+do
+  local oFiles, oIo = disk()
+  local oSettings = M.new({ store = newStore(oFiles, oIo, {}), log = { w = function() end } })
+  local told
+  oSettings.plugin("bs", {
+    { key = "fav", at = { "fav" }, kind = "picks", source = "browsers", shipped = {}, title = "F", onChange = "changed" },
+    { key = "bad", at = { "bad" }, kind = "switch", shipped = false, title = "B", onChange = 3 },
+  }, {}, function(member) return function(...) told = { member, ... } end end)
+  check("a setting with onChange applies live", oSettings.applies("bs.fav"), "live")
+  check("and is told through the member it names", type(oSettings.declaration("bs.fav").changed), "function")
+  oSettings.declaration("bs.fav").changed("fav", { "Safari" })
+  check("with its key and value", told and told[1] .. " " .. told[2] .. " " .. told[3][1], "changed fav Safari")
+  check("an onChange naming nothing is left out", oSettings.declaration("bs.bad"), nil)
+end
+
 if failed then
   print("settings, FAILED")
   os.exit(1)

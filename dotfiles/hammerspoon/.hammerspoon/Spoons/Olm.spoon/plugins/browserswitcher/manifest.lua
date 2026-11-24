@@ -75,14 +75,15 @@ return {
     placeholder = { member = "placeholder", call = "dot" },
   },
 
-  -- Drawn on this plugin's own page in Olm Settings, the favourites laid over before configure.
+  -- Drawn on this plugin's own page in Olm Settings, the favourites laid over before configure and
+  -- told to settingChanged as they change, so a box checked shows in the next list.
   settings = {
     -- Read and changed by Olm.app, since which app opens a link is the Mac's, never stored here.
     { key = "defaultBrowser", kind = "handler", scheme = "https", title = "Default Browser",
       detail = "Choose Olm so the links you click come here. macOS asks before it changes.",
       keywords = { "default browser", "http", "url handler" } },
     { key = "favourites", at = { "favourites" }, title = "Favourites", kind = "picks", source = "browsers",
-      fixed = { "Copy Link" }, shipped = {},
+      fixed = { "Copy Link" }, shipped = {}, onChange = "settingChanged",
       detail = "What the list shows when a link asks. With none checked it shows every browser and profile, then Copy Link. Show All in the actions pane lists the rest.",
       keywords = { "browser", "profile", "picker" } },
   },

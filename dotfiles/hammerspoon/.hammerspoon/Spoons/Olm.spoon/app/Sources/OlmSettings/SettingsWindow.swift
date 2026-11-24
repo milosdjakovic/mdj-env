@@ -76,6 +76,8 @@ final class SettingsModel: ObservableObject {
   /// The browsers and profiles found, for a picks setting whose source is browsers, read as its row
   /// is shown.
   @Published var browsers: BrowserScan?
+  /// A picks setting's names as last clicked, shown until the save answers.
+  @Published var picksDrafts: [String: [String]] = [:]
 
   /// Each handler setting's scheme to the path of the app macOS opens it with now.
   @Published var handlers: [String: String] = [:]
@@ -140,6 +142,7 @@ final class SettingsModel: ObservableObject {
       let answer = await service.change(setting.id, value, reset)
       busy.remove(setting.id)
       drafts[setting.id] = nil
+      picksDrafts[setting.id] = nil
       if let share = answer.share { self.share = share }
       if answer.ok {
         refusal = nil
@@ -751,7 +754,8 @@ struct SettingRow: View {
       if setting.kind == .text, (setting.lines ?? 1) > 1 { TextSetting(setting: setting, model: model) }
       if setting.kind == .picks { PicksSetting(setting: setting, model: model) }
     }
-    .disabled(setting.locked != nil || model.busy.contains(setting.id))
+    // A list of checkboxes shows each click at once and stays live while it is saved.
+    .disabled(setting.locked != nil || (model.busy.contains(setting.id) && setting.kind != .picks))
     .help(setting.locked ?? "")
   }
 
@@ -909,6 +913,7 @@ struct PicksSetting: View {
   @ObservedObject var model: SettingsModel
 
   private var picked: [String] {
+    if let draft = model.picksDrafts[setting.id] { return draft }
     if case .names(let n) = setting.value { return n }
     return []
   }
@@ -920,17 +925,15 @@ struct PicksSetting: View {
     }
   }
 
-  private var options: [String] {
-    var all = found + setting.fixed
-    for name in picked where !all.contains(name) { all.append(name) }
-    return all
-  }
+  /// What is found now and the fixed names, and nothing else, so a name saved and gone is not
+  /// shown and leaves the saved list on the next click.
+  private var options: [String] { found + setting.fixed }
 
   var body: some View {
     VStack(alignment: .leading, spacing: Space.related) {
       ForEach(options, id: \.self) { name in
         Toggle(isOn: Binding(get: { picked.contains(name) }, set: { flip(name, $0) })) {
-          Text(found.contains(name) || setting.fixed.contains(name) ? name : "\(name), \(missing(name))")
+          Text(name)
         }
         .toggleStyle(.checkbox)
       }
@@ -954,19 +957,14 @@ struct PicksSetting: View {
     }
   }
 
-  /// Why a checked name is not in the list found now: its browser's profiles are hidden from Olm,
-  /// or it was not found at all.
-  private func missing(_ name: String) -> String {
-    let hidden = model.browsers?.hidden ?? []
-    if hidden.contains(where: { name.hasPrefix($0 + " (") }) { return "waiting for Full Disk Access" }
-    return "not found"
-  }
-
   private func flip(_ name: String, _ on: Bool) {
     var set = Set(picked)
     if on { set.insert(name) } else { set.remove(name) }
     let next = options.filter { set.contains($0) }
-    if next != picked { model.change(setting, to: .names(next)) }
+    if next != picked {
+      model.picksDrafts[setting.id] = next
+      model.change(setting, to: .names(next))
+    }
   }
 }
 

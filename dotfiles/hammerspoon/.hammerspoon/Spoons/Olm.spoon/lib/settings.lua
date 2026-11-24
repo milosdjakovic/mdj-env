@@ -389,6 +389,8 @@ function M.fromManifest(identity, specs)
     elseif seen[spec.key] then why = "repeats the key " .. spec.key
     elseif spec.kind ~= "handler" and (type(spec.at) ~= "table" or #spec.at == 0) then
       why = "names no path into the plugin's data in at"
+    elseif spec.onChange ~= nil and not (type(spec.onChange) == "string" and spec.onChange ~= "") then
+      why = "has an onChange that names no member"
     elseif spec.kind == "picks" and not (type(spec.source) == "string" and spec.source ~= "") then
       why = "is a picks setting with no source, the list Olm.app finds its choices in, such as browsers"
     elseif spec.kind == "picks" and spec.fixed ~= nil and type(spec.fixed) ~= "table" then
@@ -442,7 +444,8 @@ function M.fromManifest(identity, specs)
         scheme = spec.kind == "handler" and spec.scheme or nil,
         source = spec.kind == "picks" and spec.source or nil,
         fixed = spec.kind == "picks" and copy(spec.fixed or {}) or nil,
-        applies = spec.kind == "handler" and "live" or "reload", owner = identity }
+        onChange = spec.onChange,
+        applies = (spec.kind == "handler" or spec.onChange) and "live" or "reload", owner = identity }
     end
   end
   return out, problems
@@ -651,6 +654,9 @@ function M.new(opts)
         node = node[word]
       end
       if decl.extra and type(resolve) == "function" then decl.extraFrom = resolve(decl.extra) end
+      -- A setting naming onChange is told its new value at once and applies live, so the plugin
+      -- reads it with no reload.
+      if decl.onChange and type(resolve) == "function" then decl.changed = resolve(decl.onChange) end
       self.declare(decl.id, decl)
     end
     self.overlay(identity, data, nil, true)
