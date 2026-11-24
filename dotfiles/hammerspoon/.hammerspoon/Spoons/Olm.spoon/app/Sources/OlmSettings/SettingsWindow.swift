@@ -930,23 +930,36 @@ struct PicksSetting: View {
     VStack(alignment: .leading, spacing: Space.related) {
       ForEach(options, id: \.self) { name in
         Toggle(isOn: Binding(get: { picked.contains(name) }, set: { flip(name, $0) })) {
-          Text(found.contains(name) || setting.fixed.contains(name) ? name : "\(name), not on this Mac")
+          Text(found.contains(name) || setting.fixed.contains(name) ? name : "\(name), \(missing(name))")
         }
         .toggleStyle(.checkbox)
       }
       if setting.source == "browsers", let hidden = model.browsers?.hidden, !hidden.isEmpty {
-        HStack(spacing: Space.related) {
-          Text("macOS keeps \(hidden.joined(separator: ", "))'s profiles from Olm until it has Full Disk Access.")
+        VStack(alignment: .leading, spacing: Space.related) {
+          Text("macOS lets Olm read \(hidden.joined(separator: " and "))'s profiles only with Full Disk Access. Add Olm to the list, turn it on, and come back here.")
             .font(.caption).foregroundStyle(.secondary)
-          Button("Open Permissions") { model.selection = PermissionsPage.id }
-            .buttonStyle(.link).font(.caption)
+            .fixedSize(horizontal: false, vertical: true)
+          Button("Open Full Disk Access") {
+            if let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_AllFiles") {
+              NSWorkspace.shared.open(url)
+            }
+          }
         }
+        .padding(.top, Space.related)
       }
     }
     .onAppear { if setting.source == "browsers" { model.browsers = Browsers.refresh() } }
     .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in
       if setting.source == "browsers" { model.browsers = Browsers.refresh() }
     }
+  }
+
+  /// Why a checked name is not in the list found now: its browser's profiles are hidden from Olm,
+  /// or it was not found at all.
+  private func missing(_ name: String) -> String {
+    let hidden = model.browsers?.hidden ?? []
+    if hidden.contains(where: { name.hasPrefix($0 + " (") }) { return "waiting for Full Disk Access" }
+    return "not found"
   }
 
   private func flip(_ name: String, _ on: Bool) {
