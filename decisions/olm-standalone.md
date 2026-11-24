@@ -1721,3 +1721,13 @@ rows may be open at once. Each plugin's switch under a permission turns it off f
 while Olm and the other plugins keep it, possible because the plugin only asks Olm, and the
 permission row keeps no switch for all plugins, since macOS's own switch already does that.
 `docs/DESIGN-APP-PLUGINS.md` has it. Nothing built.
+
+### 2026-11-24 18:53, abilities step 1 built, asked by Milos
+
+A plugin's manifest lists `abilities`, checked against Olm's list in `lib/abilities.lua`, and each is
+a switch on the plugin's page and under its permission, on until turned off. Receive Links and
+Browser Profiles are refused for real, since Olm performs both, the root before handing a link and
+Olm.app before reading profiles. The rest wait for the runner. Default Browser joined Olm's
+permissions, since Receive Links rides on it. The permission id for the clipboard gate is
+`pasteboard`, since the dry gate refuses the plugin's name in core code. Not built: when each was
+last used, and search opening a permission's row.

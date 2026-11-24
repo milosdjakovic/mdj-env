@@ -151,13 +151,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         symbol: "keyboard",
         settingsURL: "x-apple.systempreferences:com.apple.preference.security?Privacy_ListenEvent",
         check: { KeyTap.allowed }, ask: { KeyTap.ask() }),
-      // Browser Switcher's profiles, which macOS keeps in each browser's Application Support folder
-      // from any program without it. Read by opening a file only that access opens, since macOS has
-      // no question for it, so the button only takes the person to the list.
+      // What a plugin asks for, a browser's profiles, which macOS keeps in each browser's Application
+      // Support folder from any program without it. Olm uses it for nothing of its own. Read by
+      // opening a file only that access opens, since macOS has no question for it, so the button
+      // only takes the person to the list.
       Permission(id: "fullDiskAccess", title: "Full Disk Access",
-        detail: "Browser Switcher, listing each browser's profiles",
+        detail: "Reading what macOS keeps private, for the plugins that ask",
         symbol: "externaldrive",
         settingsURL: "x-apple.systempreferences:com.apple.preference.security?Privacy_AllFiles",
+        pluginsOnly: true,
         // Any of a few files only Full Disk Access opens, since which ones macOS guards moves between
         // versions, the user's TCC database alone answering not allowed with access given on 27.
         check: {
@@ -171,6 +173,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             if let handle = FileHandle(forReadingAtPath: path) { try? handle.close(); return true }
           }
           return false
+        }),
+      // Olm as the Mac's default browser, so the links clicked anywhere reach it and the plugin
+      // receiving links. Changed in Desktop & Dock or by the Default Browser setting.
+      Permission(id: "defaultBrowser", title: "Default Browser",
+        detail: "Receiving the links you click",
+        symbol: "globe",
+        settingsURL: "x-apple.systempreferences:com.apple.Desktop-Settings.extension",
+        ownUse: "Opening a link in Safari when no plugin takes it",
+        check: {
+          guard let probe = URL(string: "https://example.com"),
+            let app = NSWorkspace.shared.urlForApplication(toOpen: probe) else { return false }
+          return Bundle(url: app)?.bundleIdentifier == Bundle.main.bundleIdentifier
         }),
     ] + folders
   }

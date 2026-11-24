@@ -386,6 +386,26 @@ shadow where its rows can be compared, then flipped, which switches the Lua plug
 
 ## As built
 
+**Abilities, step 1 of the permissions plan, built 2026-11-24.**
+
+- **The list and the check.** `lib/abilities.lua` holds Olm's abilities and the permission each
+  rides on, and reads a manifest's `abilities`, an unknown one refused with a console line and kept
+  as refused. The root declares each as a switch, `ability.<identity>.<use>`, through
+  `lib/settings.lua`'s `abilities`, on until turned off, the off ones kept in `abilities.off`.
+  `test/settings.lua` pins both.
+- **Refused where Olm performs it.** Receive Links is asked before every link, so off sends the
+  next one to Safari, and a plugin providing links that declares no `receiveLinks` gets none.
+  Olm.app reads the browsers' profiles only while a plugin has Browser Profiles on, so off lists
+  each browser once. Every other ability is listed and switched, and is enforced with the runner.
+- **The Permissions page** folds open under each permission, `DisclosureRow`, with Olm's own use
+  greyed first and each plugin's switch under it, `AbilityRow`. Default Browser joined the list,
+  since Receive Links rides on it. A permission a plugin's ability names that Olm does not list,
+  Automation today, is shown after Olm's with nothing held.
+- **A plugin's page** has a Permissions group under its settings with the same switches, and the
+  gear in Plugins is in the accent while one is off.
+- **Not built yet.** When each was last used, and a search for a plugin's name opening the
+  permission holding it.
+
 **Step 1, the runner, the sandbox and a test plugin, built 2026-11-20.** `app/Sources/OlmPlugins`.
 
 - **Proved first, on macOS 27.0.1.** A probe started a child through `sandbox-exec` with rules

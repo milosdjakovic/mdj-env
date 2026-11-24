@@ -143,6 +143,12 @@ defect, not a choice.
    setting's kind decides its control, `SettingRow` draws every kind, and a page never draws a kind
    itself.
 7. **Spacing is `Space`, and nothing moves that was not touched,** the Layout section above.
+8. **A short list that belongs to a row folds open under it, `DisclosureRow`,** the chevron at its
+   left in a column every such row keeps. It is the one exception to rule 3, for a list switched in
+   place, the plugins under a permission, and several may be open at once. Added 2026-11-24.
+9. **An ability is `AbilityRow`, wherever it is shown,** on the plugin's page and under its
+   permission, undo then the mini switch, with a status line that is always there, so flipping it
+   grows no row. While Olm lacks the permission the switch keeps its value, greyed. Added 2026-11-24.
 
 ## What it holds, for Milos to trim
 

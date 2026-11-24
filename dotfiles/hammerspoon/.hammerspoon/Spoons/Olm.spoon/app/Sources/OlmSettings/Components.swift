@@ -117,3 +117,112 @@ struct SectionSymbol: View {
       .foregroundStyle(.tint)
   }
 }
+
+/// A row that folds open a short list belonging to it, switched in place, the chevron at its left
+/// in a column every such row keeps, folding or not, so the titles line up. The one exception to a
+/// page with Back, for a list that is part of its row, the plugins under a permission, asked by
+/// Milos on 2026-11-24. Several may be open at once. Opening one moves the rows below, which the
+/// person did.
+struct DisclosureRow<Header: View, Content: View>: View {
+  let open: Bool
+  /// Whether there is anything to fold open, the chevron's place kept empty when not.
+  let folds: Bool
+  let toggle: () -> Void
+  @ViewBuilder let header: Header
+  @ViewBuilder let content: Content
+
+  var body: some View {
+    VStack(alignment: .leading, spacing: 0) {
+      HStack(alignment: .center, spacing: Space.related) {
+        Button(action: toggle) {
+          Image(systemName: "chevron.right")
+            .rotationEffect(.degrees(open ? 90 : 0))
+            .foregroundStyle(.secondary)
+            .frame(width: Space.mark, height: Space.mark)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.borderless)
+        .opacity(folds ? 1 : 0)
+        .disabled(!folds)
+        .help(open ? "Fold" : "Show what uses it")
+        header
+      }
+      if open && folds {
+        VStack(alignment: .leading, spacing: 0) { content }
+          .padding(.leading, Space.mark + Space.related)
+          .padding(.top, Space.pad)
+      }
+    }
+  }
+}
+
+/// One ability a plugin declared, with its switch, on the plugin's page and under its permission on
+/// the Permissions page, one setting in both places, docs/DESIGN-APP-PLUGINS.md. Undo, then the
+/// switch, in the control column. While Olm lacks the permission the switch keeps what was set,
+/// greyed, and the row says what to fix. A refused ability says why and has no switch.
+struct AbilityRow: View {
+  let setting: Setting
+  @ObservedObject var model: SettingsModel
+  /// The plugin's name, shown under a permission, nil on the plugin's own page.
+  var plugin: String? = nil
+
+  private var ability: Ability? { setting.ability }
+
+  /// Whether Olm holds the permission now, an Olm gate always, a permission it does not list never.
+  private var held: Bool {
+    guard let ability else { return false }
+    if ability.olmGate { return true }
+    return model.granted[ability.permission] ?? false
+  }
+
+  private var flag: Binding<Bool> {
+    Binding(get: { setting.value.flag ?? false }, set: { value in
+      if value != setting.value.flag { model.change(setting, to: .flag(value)) }
+    })
+  }
+
+  var body: some View {
+    HStack(alignment: .center, spacing: Space.pad) {
+      VStack(alignment: .leading, spacing: Space.related / 2) {
+        Text(plugin ?? setting.title)
+        Text(line).font(.caption).foregroundStyle(.secondary)
+          .fixedSize(horizontal: false, vertical: true)
+        // Always there, so a switch flipped grows no row.
+        Text(status).font(.caption).foregroundStyle(.secondary)
+      }
+      Spacer(minLength: Space.pad)
+      HStack(spacing: Space.pad) {
+        Spacer(minLength: 0)
+        UndoButton(shown: setting.differs && setting.locked == nil, help: "Turn it back on") {
+          model.change(setting, to: .none, reset: true)
+        }
+        Toggle(setting.title, isOn: flag)
+          .toggleStyle(.switch)
+          .controlSize(.mini)
+          .labelsHidden()
+          .opacity(ability?.refused == nil ? 1 : 0)
+          .disabled(ability?.refused != nil || !held || model.busy.contains(setting.id))
+      }
+      .frame(width: Space.control)
+    }
+    .opacity(held || ability?.refused != nil ? 1 : 0.6)
+    .help(setting.locked ?? "")
+  }
+
+  /// Under a permission, the reason and the ability's name; on the plugin's page, the reason and the
+  /// permission it rides on.
+  private var line: String {
+    let why = setting.detail ?? ""
+    guard let ability else { return why }
+    if plugin != nil { return "\(why) · \(setting.title)" }
+    return ability.olmGate ? "\(why) · Olm's own gate" : "\(why) · \(ability.permissionTitle)"
+  }
+
+  private var status: String {
+    guard let ability else { return "" }
+    if let refused = ability.refused { return "Refused, it \(refused)" }
+    if !held { return "Waits for Olm to have \(ability.permissionTitle)" }
+    if setting.value.flag == false { return ability.breaks.map { "Off, \($0)" } ?? "Off" }
+    return "On"
+  }
+}

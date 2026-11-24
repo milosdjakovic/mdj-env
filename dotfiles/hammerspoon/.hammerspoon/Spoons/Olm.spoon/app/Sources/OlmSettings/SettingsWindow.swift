@@ -56,6 +56,22 @@ final class SettingsModel: ObservableObject {
   /// The permissions the Permissions page lists, and whether macOS gives each now.
   let permissions: [Permission]
   @Published var granted: [String: Bool] = [:]
+  /// The permissions folded open on the Permissions page, several at once, kept across visits.
+  @Published var openPermissions: Set<String> = []
+
+  func togglePermission(_ id: String) {
+    if openPermissions.contains(id) { openPermissions.remove(id) } else { openPermissions.insert(id) }
+  }
+
+  /// Every plugin's ability that rides on a permission, docs/DESIGN-APP-PLUGINS.md.
+  func abilities(riding permission: String) -> [Setting] {
+    (share?.abilities ?? []).filter { $0.ability?.permission == permission }
+  }
+
+  /// A plugin's name, its switch's title in Plugins, the identity where it has none.
+  func pluginTitle(_ identity: String) -> String {
+    share?.sections.flatMap(\.settings).first { $0.plugin == identity }?.title ?? identity
+  }
   /// The Applications page's own state, what is installed and the filter, kept across visits.
   let appsPage = AppsPageModel()
   /// The Window Management page's size being edited.
@@ -144,6 +160,8 @@ final class SettingsModel: ObservableObject {
       drafts[setting.id] = nil
       picksDrafts[setting.id] = nil
       if let share = answer.share { self.share = share }
+      // An ability turned on or off changes what Olm reads for the plugins, the browsers' profiles.
+      if setting.kind == .ability { browsers = Browsers.refresh(share: self.share) }
       if answer.ok {
         refusal = nil
         if setting.needsReload { reloadDue = true }
@@ -650,7 +668,13 @@ struct SectionPage: View {
 
   private var rows: [Setting] {
     guard let plugin else { return section.settings.filter { $0.page == nil } }
-    return (owner.map { [$0] } ?? []) + section.settings.filter { $0.page == plugin }
+    return (owner.map { [$0] } ?? []) + section.settings.filter { $0.page == plugin && $0.kind != .ability }
+  }
+
+  /// The plugin's abilities, its Permissions group under its settings, none on a section's page.
+  private var abilities: [Setting] {
+    guard let plugin else { return [] }
+    return section.settings.filter { $0.page == plugin && $0.kind == .ability }
   }
 
   /// The plugins that have a page of their own, each reached from its switch.
@@ -678,6 +702,22 @@ struct SectionPage: View {
             }
           }
           .glassCard(cornerRadius: 20)
+          if !abilities.isEmpty {
+            // What the plugin asks Olm to do with Olm's permissions, each turned off here or under
+            // the permission on the Permissions page, the same setting, docs/DESIGN-APP-PLUGINS.md.
+            VStack(alignment: .leading, spacing: Space.pad) {
+              Text("Permissions").font(.headline)
+              VStack(spacing: 0) {
+                ForEach(Array(abilities.enumerated()), id: \.element.id) { index, ability in
+                  if index > 0 { Divider().padding(.leading, Space.pad + 4) }
+                  AbilityRow(setting: ability, model: model)
+                    .padding(.horizontal, Space.pad + 4).padding(.vertical, Space.pad)
+                    .searchMark(model, SearchTarget.setting(ability.id))
+                }
+              }
+              .glassCard(cornerRadius: 20)
+            }
+          }
         }
         .padding(Space.edge)
         // Room under Back, which sits in the window's top bar beside its buttons.
@@ -690,7 +730,12 @@ struct SectionPage: View {
     .ignoresSafeArea(.container, edges: .top)
     .softTopEdge()
     .backBar(plugin == nil ? nil : section.title, model: model) { model.pluginPage = nil }
-    .searchJump(model, proxy, Set(rows.map { SearchTarget.setting($0.id) }))
+    .searchJump(model, proxy, Set((rows + abilities).map { SearchTarget.setting($0.id) }))
+    }
+    // Whether Olm holds each permission, which an ability's switch waits for.
+    .onAppear { if !abilities.isEmpty { model.recheck() } }
+    .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in
+      if !abilities.isEmpty { model.recheck() }
     }
   }
 
@@ -846,8 +891,8 @@ struct SettingRow: View {
         }
       }
       .fixedSize()
-    case .apps, .keys, .sizes:
-      // Drawn by their own page, AppsView, never as a row.
+    case .apps, .keys, .sizes, .ability:
+      // Drawn by their own page, AppsView, or an ability's own row, AbilityRow, never as a row here.
       EmptyView()
     case .other:
       Text(String(describing: setting.value))
@@ -951,9 +996,9 @@ struct PicksSetting: View {
         .padding(.top, Space.related)
       }
     }
-    .onAppear { if setting.source == "browsers" { model.browsers = Browsers.refresh() } }
+    .onAppear { if setting.source == "browsers" { model.browsers = Browsers.refresh(share: model.share) } }
     .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in
-      if setting.source == "browsers" { model.browsers = Browsers.refresh() }
+      if setting.source == "browsers" { model.browsers = Browsers.refresh(share: model.share) }
     }
   }
 

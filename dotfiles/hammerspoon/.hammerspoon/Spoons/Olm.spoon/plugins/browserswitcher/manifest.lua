@@ -45,7 +45,17 @@ return {
     },
   },
 
-  -- Olm.app's links come here, found by this capability and never by name.
+  -- What it asks Olm to do with permissions only Olm holds, each on until the person turns it off
+  -- on this plugin's page or under the permission, docs/DESIGN-APP-PLUGINS.md.
+  abilities = {
+    { use = "browserProfiles", why = "List each browser's profiles so a link can open in one",
+      breaks = "the list shows each browser once, with no profiles" },
+    { use = "receiveLinks", why = "Be asked where each clicked link opens",
+      breaks = "every link opens in Safari" },
+  },
+
+  -- Olm.app's links come here, found by this capability and never by name, and only while Receive
+  -- Links is on.
   provides = {
     -- A dot function, M.link(params), so the call is stated, since the default is a method call and
     -- handed every link to the module table in the place of params.

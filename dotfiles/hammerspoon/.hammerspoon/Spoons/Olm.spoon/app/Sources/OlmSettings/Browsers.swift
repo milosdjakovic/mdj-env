@@ -6,6 +6,9 @@
 // be opened into from outside, so Safari is one browser.
 //
 // What is found is written to ~/.olm/run/browsers.json, which the plugin reads to open a profile.
+//
+// The profiles are read only while a plugin has the browserProfiles ability on, the one ability Olm
+// performs itself, docs/DESIGN-APP-PLUGINS.md. Turned off, each browser is listed once, with none.
 
 import AppKit
 import Foundation
@@ -45,8 +48,8 @@ public enum Browsers {
     FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent("Library/Application Support")
   }
 
-  /// Every browser and each profile of one that has more than one.
-  public static func scan() -> BrowserScan {
+  /// Every browser, and each profile of one that has more than one when profiles is true.
+  public static func scan(profiles readProfiles: Bool = true) -> BrowserScan {
     var out = BrowserScan()
     guard let probe = URL(string: "https://example.com") else { return out }
     var seen = Set<String>()
@@ -57,6 +60,7 @@ public enum Browsers {
     }.sorted { $0.0.localizedCaseInsensitiveCompare($1.0) == .orderedAscending }
     for (name, bundle, url) in apps {
       out.targets.append(BrowserTarget(title: name, bundle: bundle, path: url.path, args: []))
+      guard readProfiles else { continue }
       var profiles: [(String, [String])]? = []
       if let folder = chromium[bundle] { profiles = chromiumProfiles(folder) }
       if let folder = firefox[bundle] { profiles = firefoxProfiles(folder) }
@@ -70,9 +74,10 @@ public enum Browsers {
     return out
   }
 
-  /// Scans and writes what it found for the plugin, answering it.
-  @discardableResult public static func refresh() -> BrowserScan {
-    let found = scan()
+  /// Scans and writes what it found for the plugin, answering it. The profiles are read when share,
+  /// the settings share, read from its file when not handed, has a plugin with browserProfiles on.
+  @discardableResult public static func refresh(share: SettingsShare? = nil) -> BrowserScan {
+    let found = scan(profiles: (share ?? SettingsShare.read())?.allows("browserProfiles") ?? false)
     if let data = try? JSONEncoder().encode(found) {
       try? FileManager.default.createDirectory(at: path.deletingLastPathComponent(), withIntermediateDirectories: true)
       try? data.write(to: path, options: .atomic)

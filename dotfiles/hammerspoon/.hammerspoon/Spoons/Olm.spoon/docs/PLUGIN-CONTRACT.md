@@ -1657,6 +1657,25 @@ out, the rest still declared. WindowManager's steps and sizes are the settled ex
 A setting of Olm itself is never declared here, it is a declaration in `lib/settings.lua`, since
 only the core may name the core.
 
+### abilities
+
+What the plugin asks Olm to do with a permission of macOS's that Olm holds and the plugin never
+does, docs/DESIGN-APP-PLUGINS.md, decided with Milos on 2026-11-24. A list, each entry
+`{ use, why, breaks }`. `use` is one of Olm's abilities, `lib/abilities.lua`'s `LIST`, a stem with
+its subject after a colon where it takes one, `controlApp:com.google.Chrome` or `readFiles:<path>`.
+`why` is the reason a person reads on the plugin's page and under the permission. `breaks`, optional,
+says what stops working while it is off, so the plugin keeps working with less.
+
+A plugin is allowed every ability it declares and nothing is asked. The person turns one off on the
+plugin's own page or under its permission on the Permissions page, the same switch, saved as
+`identity/use` in `abilities.off`. An ability not on Olm's list is refused with a console line and
+listed on the plugin's page as refused, and a plugin never holds a permission of macOS's as itself.
+Olm asks `settings.allowed(identity, use)` before every use, so off applies at once. While plugins
+run inside Hammerspoon, only what Olm itself performs is refused. Receive Links is checked before a
+link is handed to `provides.links`, and a plugin providing links without declaring `receiveLinks`
+gets none. Browser Profiles is checked by Olm.app before it reads the profiles. The rest are
+enforced once plugins run in Olm.app. Browser Switcher is the settled example.
+
 ## The stage pipeline
 
 Plugins do not choose when they run. Olm holds one fixed ordered pipeline and a plugin

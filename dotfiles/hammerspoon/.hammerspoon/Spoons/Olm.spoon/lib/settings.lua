@@ -179,6 +179,10 @@ M.DECLARED = {
 
   { id = "plugins.off", section = "plugins", title = "Plugins switched off", kind = "list", applies = "reload",
     hidden = true, shipped = {} },
+  -- Each ability a person turned off for one plugin, plugin/ability, docs/DESIGN-APP-PLUGINS.md.
+  -- Live, since Olm asks it before every use.
+  { id = "abilities.off", section = "plugins", title = "Abilities turned off", kind = "list", applies = "live",
+    hidden = true, shipped = {} },
 }
 
 local function copy(value)
@@ -663,6 +667,37 @@ function M.new(opts)
     return problems
   end
 
+  --- settings.abilities(identity, read)
+  --- A plugin's abilities, lib/abilities.lua's read of its manifest, each declared as a switch on
+  --- the plugin's own page, on until the person turns it off, kept in the list abilities.off as
+  --- identity/use. A refused ability is listed locked and off, so the page names it.
+  function self.abilities(identity, read)
+    for _, a in ipairs(read or {}) do
+      local about = a.about or {}
+      self.declare("ability." .. identity .. "." .. a.use, {
+        section = "plugins", kind = "ability", applies = "live", page = identity,
+        title = about.title or a.use, detail = a.why,
+        keywords = { a.use, about.permissionTitle or "permission", "permission", "ability" },
+        member = { list = "abilities.off", name = identity .. "/" .. a.use },
+        ability = { use = a.use, owner = identity, permission = about.permission,
+          permissionTitle = about.permissionTitle, olm = about.olm, does = about.does,
+          breaks = a.breaks, refused = a.refused },
+        locked = a.refused and ("refused, " .. a.refused) or nil,
+      })
+    end
+  end
+
+  --- settings.allowed(identity, use) -> whether Olm does use for identity now, declared, not refused
+  --- and not turned off. Asked before every use, so turning one off applies at once.
+  function self.allowed(identity, use)
+    local decl = byId["ability." .. identity .. "." .. use]
+    if decl == nil or decl.locked then return false end
+    for _, name in ipairs(self.value("abilities.off") or {}) do
+      if name == identity .. "/" .. use then return false end
+    end
+    return true
+  end
+
   --- settings.value(id) -> the saved value when it is one the declaration allows, else the default.
   function self.value(id)
     local decl = byId[id]
@@ -772,11 +807,16 @@ function M.new(opts)
           keywords = copy(decl.keywords or {}), applies = self.applies(decl.id),
           choices = copy(decl.choices), min = decl.min, max = decl.max, step = decl.step, unit = decl.unit,
           locked = decl.locked,
-          page = decl.page, plugin = decl.member and decl.member.name or nil,
+          page = decl.page, plugin = decl.member and not decl.ability and decl.member.name or nil,
           placeholder = decl.placeholder, maxLength = decl.maxLength, lines = decl.lines, scheme = decl.scheme,
           source = decl.source, fixed = copy(decl.fixed),
           default = copy(defaults[decl.id]),
         }
+        if decl.ability then
+          local a = decl.ability
+          row.ability, row.owner, row.permission, row.permissionTitle = a.use, a.owner, a.permission, a.permissionTitle
+          row.olmGate, row.does, row.breaks, row.refused = a.olm, a.does, a.breaks, a.refused
+        end
         if type(decl.extraFrom) == "function" then
           local ok, extra = pcall(decl.extraFrom)
           if ok and type(extra) == "table" then row.extra = extra end
@@ -785,8 +825,9 @@ function M.new(opts)
           local off = self.value(decl.member.list) or {}
           local isOff = false
           for _, name in ipairs(off) do if name == decl.member.name then isOff = true end end
-          row.value = not isOff
-          row.default = true
+          -- A refused ability reads off, a plugin switch locked in a config file keeps its state.
+          row.value = not isOff and not (decl.ability and decl.locked)
+          row.default = not decl.ability or not decl.locked
         else
           row.value = self.value(decl.id)
         end

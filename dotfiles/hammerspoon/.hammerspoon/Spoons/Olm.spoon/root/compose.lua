@@ -143,6 +143,9 @@ local switchLib = load("lib/pluginswitch.lua")
 -- Olm Settings, every setting the Olm Settings window shows and the one store on this Mac,
 -- ~/.olm/state/settings.json, docs/DESIGN-APP-SETTINGS.md.
 local settingsLib = load("lib/settings.lua")
+-- Olm's list of abilities, what a plugin may ask Olm to do with a permission only Olm holds,
+-- docs/DESIGN-APP-PLUGINS.md.
+local abilitiesLib = load("lib/abilities.lua")
 -- The one shot note a reload leaves for the load after it, where to reopen and what to say.
 local resumeLib = load("lib/resume.lua")
 local navLib = load("lib/nav.lua")
@@ -1573,6 +1576,16 @@ function obj.run(olm, cfg)
       end)) do
         log.e("Olm compose, " .. name .. " " .. why)
       end
+    end
+  end
+
+  -- Each plugin's abilities, checked against Olm's list and declared as switches on its page and
+  -- under each permission, an ability not on the list refused with a line, docs/DESIGN-APP-PLUGINS.md.
+  for name, manifest in pairs(manifests) do
+    if manifest.abilities ~= nil then
+      local read, problems = abilitiesLib.read(manifest.abilities)
+      for _, p in ipairs(problems) do log.e("Olm compose, " .. name .. " " .. p.where .. " " .. p.why) end
+      olmSettings.abilities(name, read)
     end
   end
 
@@ -3495,8 +3508,16 @@ function obj.run(olm, cfg)
           local spec = (manifest.provides or {}).links
           local member = spec ~= nil and registrarLib.memberSpec(spec) or nil
           local module = modules[identity] or modules[directory]
-          if member ~= nil and registrarLib.memberResolves(module, member) then
-            linkHandler = registrarLib.action(modules, identity, identity, spec)
+          local declared = olmSettings.declaration("ability." .. identity .. ".receiveLinks")
+          if member ~= nil and declared == nil then
+            log.e("Olm compose, '" .. tostring(identity) .. "' provides links but declares no receiveLinks ability, so links skip it")
+          elseif member ~= nil and registrarLib.memberResolves(module, member) then
+            -- Asked before every link, so turning Receive Links off sends the next one to Safari.
+            local handle = registrarLib.action(modules, identity, identity, spec)
+            linkHandler = function(params)
+              if not olmSettings.allowed(identity, "receiveLinks") then return false end
+              return handle(params)
+            end
             break
           elseif spec ~= nil then
             log.e("Olm compose, '" .. tostring(identity) .. "' provides links but it names no function on the module, so links skip it")

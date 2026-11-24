@@ -127,6 +127,12 @@ scheme with, or `picks`, checkboxes over a list Olm.app finds, applied on reload
 beside its switch in Plugins opens, with Back at its top left. The contract's `settings` section has
 the shape, DisplayProfiles is the example of a page and WindowManager of a setting on a section.
 
+`abilities` lists what the plugin asks Olm to do with a permission only Olm holds, each `{ use,
+why, breaks }`, `use` one of `lib/abilities.lua`'s list. Every one declared is on until the person
+turns it off, and one not on the list is refused. A plugin that provides links declares
+`receiveLinks`, or gets none. The contract's `abilities` section has it, Browser Switcher is the
+example.
+
 `matcher` is absent or `false`, nothing else. Absent inherits the root default, which is what
 a list wants, its supplier returning every row and the engine filtering. `false` is only for a
 level whose field is not a search, a typed name, a duration, a level or a confirm. A list never

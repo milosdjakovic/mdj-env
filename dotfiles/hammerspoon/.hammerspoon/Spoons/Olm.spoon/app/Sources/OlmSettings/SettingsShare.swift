@@ -293,7 +293,7 @@ public struct SettingChoice: Equatable, Sendable, Identifiable {
 }
 
 public struct Setting: Equatable, Sendable, Identifiable {
-  public enum Kind: String, Sendable { case choice, number, font, `switch`, checkbox, text, handler, picks, apps, keys, sizes, other }
+  public enum Kind: String, Sendable { case choice, number, font, `switch`, checkbox, text, handler, picks, ability, apps, keys, sizes, other }
 
   public let id: String
   public let title: String
@@ -329,9 +329,26 @@ public struct Setting: Equatable, Sendable, Identifiable {
   /// A picks setting's list Olm.app finds its choices in, browsers, and the names after them.
   public var source: String?
   public var fixed: [String] = []
+  /// An ability's own fields, docs/DESIGN-APP-PLUGINS.md: its name, the plugin that declared it, the
+  /// permission it rides on and its name, whether that is Olm's own gate rather than macOS's, what
+  /// Olm does for it, what stops working with it off, and why it was refused when it is not on
+  /// Olm's list.
+  public var ability: Ability?
 
   public var needsReload: Bool { applies == "reload" }
   public var differs: Bool { defaultValue != .none && value != defaultValue }
+}
+
+/// One ability a plugin declared, what Olm does for it with a permission only Olm holds.
+public struct Ability: Equatable, Sendable {
+  public let use: String
+  public let owner: String
+  public let permission: String
+  public let permissionTitle: String
+  public let olmGate: Bool
+  public let does: String?
+  public let breaks: String?
+  public let refused: String?
 }
 
 public struct SettingsSection: Equatable, Sendable, Identifiable {
@@ -427,6 +444,11 @@ public struct SettingsShare: Equatable, Sendable {
     made.scheme = r["scheme"] as? String
     made.source = r["source"] as? String
     made.fixed = r["fixed"] as? [String] ?? []
+    if kind == .ability, let use = r["ability"] as? String, let owner = r["owner"] as? String {
+      made.ability = Ability(use: use, owner: owner, permission: r["permission"] as? String ?? "",
+        permissionTitle: r["permissionTitle"] as? String ?? "", olmGate: r["olmGate"] as? Bool ?? false,
+        does: r["does"] as? String, breaks: r["breaks"] as? String, refused: r["refused"] as? String)
+    }
     if kind == .sizes {
       made.windowActions = ((r["extra"] as? [Any]) ?? []).compactMap { any -> WindowAction? in
         guard let e = any as? [String: Any], let action = e["action"] as? String, let title = e["title"] as? String
@@ -435,6 +457,15 @@ public struct SettingsShare: Equatable, Sendable {
       }
     }
     return made
+  }
+
+  /// Every ability every plugin declared, in the share's order.
+  public var abilities: [Setting] { sections.flatMap(\.settings).filter { $0.ability != nil } }
+
+  /// Whether Olm does use for some plugin now, one declaring it with it on, for what Olm.app itself
+  /// performs, the profile scan.
+  public func allows(_ use: String) -> Bool {
+    abilities.contains { $0.ability?.use == use && $0.ability?.refused == nil && $0.value.flag == true }
   }
 
   /// The sections holding a setting every word of query finds, by its title, its detail, its

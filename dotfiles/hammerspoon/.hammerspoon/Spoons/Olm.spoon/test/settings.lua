@@ -524,6 +524,57 @@ do
   check("an onChange naming nothing is left out", oSettings.declaration("bs.bad"), nil)
 end
 
+-- Abilities, lib/abilities.lua's list and each plugin's switches over it, docs/DESIGN-APP-PLUGINS.md.
+do
+  local A = assert(loadfile(here .. "../lib/abilities.lua"))()
+  local read, problems = A.read({
+    { use = "browserProfiles", why = "List profiles", breaks = "no profiles" },
+    { use = "receiveLinks", why = "Be asked" },
+    { use = "takeOver", why = "Everything" },
+    { use = "controlApp:com.google.Chrome", why = "Read tabs" },
+    { use = "controlApp", why = "Read tabs" },
+    { use = "receiveLinks", why = "Again" },
+    { use = "readClipboard" },
+  })
+  check("an ability on Olm's list is accepted", read[1].about and read[1].about.permission, "fullDiskAccess")
+  check("one off the list is kept, refused", read[3].refused, "is not one of Olm's abilities, so it is refused until Olm adds it")
+  check("and said", problems[1] and problems[1].where, "abilities[3] takeOver")
+  check("an app's control names the app", read[4].about and read[4].about.title, "Control com.google.Chrome")
+  check("and rides on Automation", read[4].about and read[4].about.permissionTitle, "Automation")
+  check("control with no app is a problem", problems[2] and problems[2].why, "needs its app after a colon, controlApp:<app>")
+  check("a repeat is a problem", problems[3] and problems[3].why, "repeats receiveLinks")
+  check("an ability with no why is a problem", problems[4] and problems[4].why, "says no why, the reason a person reads")
+  check("declares answers an accepted one", A.declares(read, "receiveLinks"), true)
+  check("and never a refused one", A.declares(read, "takeOver"), false)
+  check("the clipboard is Olm's own gate", A.describe("readClipboard").olm, true)
+
+  local aFiles, aIo = disk()
+  local aSettings = M.new({ store = newStore(aFiles, aIo, {}), log = { w = function() end } })
+  aSettings.abilities("bs", read)
+  check("a declared ability is allowed", aSettings.allowed("bs", "browserProfiles"), true)
+  check("an undeclared one is not", aSettings.allowed("bs", "moveWindows"), false)
+  check("a refused one is not", aSettings.allowed("bs", "takeOver"), false)
+  check("turning one off is taken", (aSettings.change("ability.bs.browserProfiles", false)), true)
+  check("and refuses it at once", aSettings.allowed("bs", "browserProfiles"), false)
+  check("leaving the other on", aSettings.allowed("bs", "receiveLinks"), true)
+  check("kept as plugin/ability", aSettings.value("abilities.off")[1], "bs/browserProfiles")
+  check("a refused one cannot be turned on", (aSettings.change("ability.bs.takeOver", true)), false)
+  local rows = {}
+  for _, section in ipairs(aSettings.share().sections) do
+    for _, r in ipairs(section.settings) do rows[r.id] = r end
+  end
+  local off = rows["ability.bs.browserProfiles"]
+  check("the share carries the ability", off and off.ability, "browserProfiles")
+  check("its owner, on its page", off and (off.owner .. " " .. off.page), "bs bs")
+  check("its permission", off and (off.permission .. " " .. off.permissionTitle), "fullDiskAccess Full Disk Access")
+  check("and that it is off", off and off.value, false)
+  check("with no plugin switch of its own", off and off.plugin, nil)
+  check("a refused one reads off and locked", rows["ability.bs.takeOver"] and tostring(rows["ability.bs.takeOver"].value)
+    .. " " .. tostring(rows["ability.bs.takeOver"].locked ~= nil), "false true")
+  check("the undo puts it back on", (aSettings.change("ability.bs.browserProfiles", nil)), true)
+  check("allowed again", aSettings.allowed("bs", "browserProfiles"), true)
+end
+
 if failed then
   print("settings, FAILED")
   os.exit(1)
