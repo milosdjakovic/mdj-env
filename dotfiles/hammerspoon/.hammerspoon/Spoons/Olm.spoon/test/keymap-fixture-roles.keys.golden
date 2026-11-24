@@ -25,6 +25,7 @@ field	,	cmd	inputsourcesOpen	100	inputsources
 field	,	cmd	launcherOpen	100	launcher
 field	,	cmd	menuSearchOpen	100	menuSearch
 field	,	cmd	obsidianOpen	100	obsidian
+field	,	cmd	olmAppPluginOpen	100	olmAppPlugin
 field	,	cmd	olmchooserOpen	100	olmchooser
 field	,	cmd	olmplacementOpen	100	olmplacement
 field	,	cmd	olmpluginsOpen	100	olmplugins
@@ -48,6 +49,7 @@ field	/	cmd	inputsourcesOpen	100	inputsources
 field	/	cmd	launcherOpen	100	launcher
 field	/	cmd	menuSearchOpen	100	menuSearch
 field	/	cmd	obsidianOpen	100	obsidian
+field	/	cmd	olmAppPluginOpen	100	olmAppPlugin
 field	/	cmd	olmchooserOpen	100	olmchooser
 field	/	cmd	olmplacementOpen	100	olmplacement
 field	/	cmd	olmpluginsOpen	100	olmplugins
@@ -71,6 +73,7 @@ field	/	cmd+shift	inputsourcesOpen	100	inputsources
 field	/	cmd+shift	launcherOpen	100	launcher
 field	/	cmd+shift	menuSearchOpen	100	menuSearch
 field	/	cmd+shift	obsidianOpen	100	obsidian
+field	/	cmd+shift	olmAppPluginOpen	100	olmAppPlugin
 field	/	cmd+shift	olmchooserOpen	100	olmchooser
 field	/	cmd+shift	olmplacementOpen	100	olmplacement
 field	/	cmd+shift	olmpluginsOpen	100	olmplugins
@@ -121,6 +124,7 @@ hyper	i	any	inputsourcesOpen	100	inputsources
 hyper	i	any	launcherOpen	100	launcher
 hyper	i	any	menuSearchOpen	100	menuSearch
 hyper	i	any	obsidianOpen	100	obsidian
+hyper	i	any	olmAppPluginOpen	100	olmAppPlugin
 hyper	i	any	olmchooserOpen	100	olmchooser
 hyper	i	any	olmplacementOpen	100	olmplacement
 hyper	i	any	olmpluginsOpen	100	olmplugins
@@ -145,6 +149,7 @@ hyper	j	any	inputsourcesOpen	100	inputsources
 hyper	j	any	launcherOpen	100	launcher
 hyper	j	any	menuSearchOpen	100	menuSearch
 hyper	j	any	obsidianOpen	100	obsidian
+hyper	j	any	olmAppPluginOpen	100	olmAppPlugin
 hyper	j	any	olmchooserOpen	100	olmchooser
 hyper	j	any	olmplacementOpen	100	olmplacement
 hyper	j	any	olmpluginsOpen	100	olmplugins
@@ -169,6 +174,7 @@ hyper	k	any	inputsourcesOpen	100	inputsources
 hyper	k	any	launcherOpen	100	launcher
 hyper	k	any	menuSearchOpen	100	menuSearch
 hyper	k	any	obsidianOpen	100	obsidian
+hyper	k	any	olmAppPluginOpen	100	olmAppPlugin
 hyper	k	any	olmchooserOpen	100	olmchooser
 hyper	k	any	olmplacementOpen	100	olmplacement
 hyper	k	any	olmpluginsOpen	100	olmplugins
@@ -187,6 +193,7 @@ hyper	o	any	browserTabsOpen	100	browserTabs
 hyper	o	any	clipboardOpen	100	clipboard
 hyper	o	any	displayProfilesOpen	100	displayProfiles
 hyper	o	any	fileSearchOpen	100	fileSearch
+hyper	o	any	olmAppPluginOpen	100	olmAppPlugin
 hyper	o	any	processesOpen	100	processes
 hyper	o	any	speedtestOpen	100	speedtest
 hyper	o	any	tmuxSessionsOpen	100	tmuxSessions
@@ -216,6 +223,7 @@ hyper	x	any	fileSearchOpen	100	fileSearch
 hyper	x	any	inputsourcesOpen	100	inputsources
 hyper	x	any	menuSearchOpen	100	menuSearch
 hyper	x	any	obsidianOpen	100	obsidian
+hyper	x	any	olmAppPluginOpen	100	olmAppPlugin
 hyper	x	any	olmchooserOpen	100	olmchooser
 hyper	x	any	olmplacementOpen	100	olmplacement
 hyper	x	any	olmpluginsOpen	100	olmplugins

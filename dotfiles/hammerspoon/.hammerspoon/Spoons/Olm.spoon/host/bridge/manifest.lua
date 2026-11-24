@@ -24,6 +24,17 @@ return {
     actions = "actions",
   },
 
+  -- The list of any plugin Olm.app runs, docs/DESIGN-APP-PLUGINS.md, which Hammerspoon knows nothing
+  -- else of, so the shared list keys, Hyper and J, K, I, X and O, reach it as they reach every list.
+  -- Each is a verb the bridge hands the app for the plugin's list that is up. Its actions are the
+  -- app's, answered by the plugin, so its actions pane is kept though it declares no verb here.
+  surface = {
+    context = "olmAppPlugin",
+    member = "_pluginSurface",
+    primary = { action = "insertSelected", description = "Open" },
+    actionsInApp = true,
+  },
+
   icons = {
     launcher = { emoji = "🧪", sf = "flask" },
     -- The mark Processes quits an app with, since this row quits one too, Milos finding eject wrong.

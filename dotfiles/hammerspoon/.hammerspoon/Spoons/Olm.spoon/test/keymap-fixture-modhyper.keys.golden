@@ -25,6 +25,7 @@ field	,	cmd	inputsourcesOpen	100	inputsources
 field	,	cmd	launcherOpen	100	launcher
 field	,	cmd	menuSearchOpen	100	menuSearch
 field	,	cmd	obsidianOpen	100	obsidian
+field	,	cmd	olmAppPluginOpen	100	olmAppPlugin
 field	,	cmd	olmchooserOpen	100	olmchooser
 field	,	cmd	olmplacementOpen	100	olmplacement
 field	,	cmd	olmpluginsOpen	100	olmplugins
@@ -48,6 +49,7 @@ field	/	cmd	inputsourcesOpen	100	inputsources
 field	/	cmd	launcherOpen	100	launcher
 field	/	cmd	menuSearchOpen	100	menuSearch
 field	/	cmd	obsidianOpen	100	obsidian
+field	/	cmd	olmAppPluginOpen	100	olmAppPlugin
 field	/	cmd	olmchooserOpen	100	olmchooser
 field	/	cmd	olmplacementOpen	100	olmplacement
 field	/	cmd	olmpluginsOpen	100	olmplugins
@@ -71,6 +73,7 @@ field	/	cmd+shift	inputsourcesOpen	100	inputsources
 field	/	cmd+shift	launcherOpen	100	launcher
 field	/	cmd+shift	menuSearchOpen	100	menuSearch
 field	/	cmd+shift	obsidianOpen	100	obsidian
+field	/	cmd+shift	olmAppPluginOpen	100	olmAppPlugin
 field	/	cmd+shift	olmchooserOpen	100	olmchooser
 field	/	cmd+shift	olmplacementOpen	100	olmplacement
 field	/	cmd+shift	olmpluginsOpen	100	olmplugins
@@ -102,6 +105,7 @@ field	i	alt+cmd+ctrl+shift	inputsourcesOpen	100	inputsources
 field	i	alt+cmd+ctrl+shift	launcherOpen	100	launcher
 field	i	alt+cmd+ctrl+shift	menuSearchOpen	100	menuSearch
 field	i	alt+cmd+ctrl+shift	obsidianOpen	100	obsidian
+field	i	alt+cmd+ctrl+shift	olmAppPluginOpen	100	olmAppPlugin
 field	i	alt+cmd+ctrl+shift	olmchooserOpen	100	olmchooser
 field	i	alt+cmd+ctrl+shift	olmplacementOpen	100	olmplacement
 field	i	alt+cmd+ctrl+shift	olmpluginsOpen	100	olmplugins
@@ -125,6 +129,7 @@ field	j	alt+cmd+ctrl+shift	inputsourcesOpen	100	inputsources
 field	j	alt+cmd+ctrl+shift	launcherOpen	100	launcher
 field	j	alt+cmd+ctrl+shift	menuSearchOpen	100	menuSearch
 field	j	alt+cmd+ctrl+shift	obsidianOpen	100	obsidian
+field	j	alt+cmd+ctrl+shift	olmAppPluginOpen	100	olmAppPlugin
 field	j	alt+cmd+ctrl+shift	olmchooserOpen	100	olmchooser
 field	j	alt+cmd+ctrl+shift	olmplacementOpen	100	olmplacement
 field	j	alt+cmd+ctrl+shift	olmpluginsOpen	100	olmplugins
@@ -148,6 +153,7 @@ field	k	alt+cmd+ctrl+shift	inputsourcesOpen	100	inputsources
 field	k	alt+cmd+ctrl+shift	launcherOpen	100	launcher
 field	k	alt+cmd+ctrl+shift	menuSearchOpen	100	menuSearch
 field	k	alt+cmd+ctrl+shift	obsidianOpen	100	obsidian
+field	k	alt+cmd+ctrl+shift	olmAppPluginOpen	100	olmAppPlugin
 field	k	alt+cmd+ctrl+shift	olmchooserOpen	100	olmchooser
 field	k	alt+cmd+ctrl+shift	olmplacementOpen	100	olmplacement
 field	k	alt+cmd+ctrl+shift	olmpluginsOpen	100	olmplugins
@@ -166,6 +172,7 @@ field	o	alt+cmd+ctrl+shift	browserTabsOpen	100	browserTabs
 field	o	alt+cmd+ctrl+shift	clipboardOpen	100	clipboard
 field	o	alt+cmd+ctrl+shift	displayProfilesOpen	100	displayProfiles
 field	o	alt+cmd+ctrl+shift	fileSearchOpen	100	fileSearch
+field	o	alt+cmd+ctrl+shift	olmAppPluginOpen	100	olmAppPlugin
 field	o	alt+cmd+ctrl+shift	processesOpen	100	processes
 field	o	alt+cmd+ctrl+shift	speedtestOpen	100	speedtest
 field	o	alt+cmd+ctrl+shift	tmuxSessionsOpen	100	tmuxSessions
@@ -198,6 +205,7 @@ field	x	alt+cmd+ctrl+shift	fileSearchOpen	100	fileSearch
 field	x	alt+cmd+ctrl+shift	inputsourcesOpen	100	inputsources
 field	x	alt+cmd+ctrl+shift	menuSearchOpen	100	menuSearch
 field	x	alt+cmd+ctrl+shift	obsidianOpen	100	obsidian
+field	x	alt+cmd+ctrl+shift	olmAppPluginOpen	100	olmAppPlugin
 field	x	alt+cmd+ctrl+shift	olmchooserOpen	100	olmchooser
 field	x	alt+cmd+ctrl+shift	olmplacementOpen	100	olmplacement
 field	x	alt+cmd+ctrl+shift	olmpluginsOpen	100	olmplugins

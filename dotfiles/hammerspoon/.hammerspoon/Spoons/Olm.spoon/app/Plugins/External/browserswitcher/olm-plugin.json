@@ -21,10 +21,6 @@
       { "action": "showFavourites", "title": "Show Favourites", "icon": "star" }
     ]
   },
-  "row": {
-    "detail": "open the last link elsewhere",
-    "keywords": ["default browser", "url", "link", "profile", "chrome", "safari", "firefox"]
-  },
   "settings": [
     { "key": "defaultBrowser", "kind": "handler", "scheme": "https", "title": "Default Browser",
       "detail": "Choose Olm so the links you click come here. macOS asks before it changes.",

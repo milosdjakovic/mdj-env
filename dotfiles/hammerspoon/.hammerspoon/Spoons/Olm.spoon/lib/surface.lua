@@ -429,6 +429,8 @@ function obj.context(name, decl, available, keys)
     bindings = bindings,
     panel = panel[1] and panel or nil,
     unmet = next(unmet) and unmet or nil,
+    -- The list's actions are answered where it is drawn, Olm.app, so its actions pane is kept.
+    actionsInApp = decl.actionsInApp == true or nil,
   }
 end
 

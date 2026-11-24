@@ -981,6 +981,25 @@ obj.RUNNING_TTL = 0.5
 
 obj.STATE_NOTE = "local.olm.Olm.state"
 obj.VERB_NOTE = "local.olm.Olm.verb"
+
+-- The identity the bridge's own list context answers under, a plugin Olm.app runs, whose list
+-- Hammerspoon knows only as up, docs/DESIGN-APP-PLUGINS.md.
+obj.PLUGIN_LISTS = "bridge"
+
+-- The surface the root resolves for that context while no such list is up.
+obj._pluginSurface = { isShowing = function() return false end }
+
+-- The tool of a list the app says is up that Hammerspoon does not serve, a plugin the app runs,
+-- nil for none, or when the app is not running.
+function obj:_pluginUp()
+  if not self:_runningNow() then return nil end
+  local served = {}
+  for identity in pairs(self._serves or {}) do served[identity:lower()] = true end
+  for tool in pairs(self._up or {}) do
+    if not served[tool] and tool ~= self.LAUNCHER:lower() then return tool end
+  end
+  return nil
+end
 obj.ASK_NOTE = "local.olm.Olm.ask"
 
 -- Starts listening for the app's up and down once, and asks a running app for its state, since a
@@ -1077,6 +1096,8 @@ end
 --- false, so a crash never leaves list keys bound to a list that is gone.
 function obj:showing(identity)
   if type(identity) ~= "string" then return false end
+  -- The list of a plugin Olm.app runs, the bridge's own context, olmAppPlugin.
+  if identity == self.PLUGIN_LISTS then return self:_pluginUp() ~= nil end
   if not self:_keyed(identity) then return false end
   local tool = identity:lower()
   if not (self._up[tool] or self._opening[tool]) then return false end
@@ -1099,6 +1120,11 @@ end
 --- never waited on. name is the method lib/nav.lua routes to, selectNext or insertSelected.
 function obj:verb(identity, name)
   if type(identity) ~= "string" or type(name) ~= "string" or not name:match("^%a%w*$") then return end
+  if identity == self.PLUGIN_LISTS then
+    local tool = self:_pluginUp()
+    if tool then self:_post(self.VERB_NOTE, tool .. ":" .. name) end
+    return
+  end
   -- A hosted list's key goes to the served list it sits in, whose stage runs it on the level on top.
   if not self:_keyed(identity) then identity = self:_hostOf(identity) or identity end
   self:_post(self.VERB_NOTE, identity:lower() .. ":" .. name)

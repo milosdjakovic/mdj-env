@@ -190,7 +190,7 @@ final class PluginHost {
     }
     let launcher = doc("launcherkeys.json") ?? [:]
     // The actions pane's chord as the person's keymap has it, read off any list that carries one.
-    var actionsChord: Any = [[["glyph": "\u{2726}", "symbol": "sparkle"], ["glyph": "O"]]]
+    var actionsChord: Any = [[["glyph": "\u{2726}", "symbol": "sparkle"], ["glyph": "O"]]] // kbd-exempt, the bar share's own shape for a plugin Hammerspoon writes no share for, until the keys move to the app
     let names = (try? FileManager.default.contentsOfDirectory(atPath: run.path)) ?? []
     search: for name in names where name.hasSuffix("keys.json") {
       for item in ((doc(name)?["bar"] as? [String: Any])?["right"] as? [[String: Any]]) ?? []
@@ -199,8 +199,8 @@ final class PluginHost {
         break search
       }
     }
-    let enter: [[String: Any]] = [["glyph": "\u{21A9}", "symbol": "return"]]
-    let cmdEnter: [[String: Any]] = [["glyph": "\u{2318}"], ["glyph": "\u{21A9}", "symbol": "return"]]
+    let enter: [[String: Any]] = [["glyph": "\u{21A9}", "symbol": "return"]] // kbd-exempt, the bar share's own shape for a plugin Hammerspoon writes no share for, until the keys move to the app
+    let cmdEnter: [[String: Any]] = [["glyph": "\u{2318}"], ["glyph": "\u{21A9}", "symbol": "return"]] // kbd-exempt, the bar share's own shape for a plugin Hammerspoon writes no share for, until the keys move to the app
     var right: [[String: Any]] = [["label": p.primary.title, "chord": [enter], "action": "insertSelected", "fit": true]]
     if let s = p.secondary { right.append(["label": s.title, "chord": [cmdEnter], "action": s.action, "fit": true]) }
     if !p.verbs.isEmpty { right.append(["label": "Actions", "chord": actionsChord, "action": "openActionsPane", "fit": false]) }

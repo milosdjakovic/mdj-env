@@ -506,6 +506,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         Task { await bridgeForApps.notify("appsReady", .object(["ready": .bool(now)])) }
       }
     }
+    // A plugin's list is told up by its own name too, and Hammerspoon's bridge, which serves no such
+    // list, answers for it with a list context of its own, so the shared list keys reach it.
     stage.onShowing = { tool, up in
       keyShadow.list(up: up)
       DistributedNotificationCenter.default().postNotificationName(Notification.Name("local.olm.Olm.state"),

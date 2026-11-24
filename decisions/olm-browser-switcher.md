@@ -74,3 +74,11 @@ The list, its favourites, Show All and Show Favourites, Copy Link on Command and
 the field and the launcher row that opens the last link again are the Lua plugin's, now
 `app/Plugins/External/browserswitcher`, sandboxed. The Lua plugin is switched off, not deleted,
 until Milos has tried the new one. `decisions/olm-standalone.md` has the rest.
+
+### 2026-11-24 20:26, no launcher row, and the Hyper list keys reach it, reported by Milos
+
+The launcher row that opened the last link again is gone, Milos finding nothing to do with it, and
+a plugin of Olm.app's now has a launcher row only when its manifest declares `row`. Hyper and O did
+nothing over the list, since Hammerspoon routes list keys only to lists it knows. Its bridge now
+has one list context for any list a plugin of the app shows. Telling the plugin's list up as the
+launcher's was tried first and dropped the same minute, since the launcher has no Hyper and O or X.

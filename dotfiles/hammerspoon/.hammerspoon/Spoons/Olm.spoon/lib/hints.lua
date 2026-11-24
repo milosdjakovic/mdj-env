@@ -637,7 +637,7 @@ function obj.dropIdleActionsPanes(plan, opts)
   local kinds = obj.actionKinds(plan, opts.kinds)
   local dropped = {}
   for name, ctx in pairs(plan.contexts or {}) do
-    if #obj.ownVerbs(name, plan, kinds) == 0 then
+    if not ctx.actionsInApp and #obj.ownVerbs(name, plan, kinds) == 0 then
       local kept, had = {}, false
       for _, b in ipairs(ctx.bindings or {}) do
         if b.shared == "openActionsPane" then had = true else kept[#kept + 1] = b end

@@ -402,7 +402,12 @@ and 4 in part, asked by Milos, the install page and the `olm` command left for t
   a plugin declaring Browser Profiles, the browsers Olm found, their profiles only while it is on.
 - **Its bar, actions pane and launcher row** are laid out by the app from `olm-plugin.json`'s
   `surface` and `row`, the leader legend and the shared keys taken from the launcher's share, since
-  Hammerspoon writes no share for it. `olm://<id>` opens its list too.
+  Hammerspoon writes no share for it. A plugin with no `row` has no launcher row, Browser Switcher's
+  dropped by Milos as a row nothing can be done with. `olm://<id>` opens its list too.
+- **Its Hyper list keys** reach it through one list context of Hammerspoon's bridge, `olmAppPlugin`,
+  which answers for whichever list the app says is up that Hammerspoon does not serve and hands each
+  key to the app as a verb, its actions pane kept by `actionsInApp`. Hyper and O did nothing before
+  it, reported by Milos.
 - **Its settings are the app's,** `~/.olm/state/plugins.json`, decided by Milos on 2026-11-24 so each
   settings file keeps one writer. `OlmSettings/ExternalPlugins.swift` draws its switch, settings and
   abilities on its page in Plugins and under each permission through the same parts, and the window
