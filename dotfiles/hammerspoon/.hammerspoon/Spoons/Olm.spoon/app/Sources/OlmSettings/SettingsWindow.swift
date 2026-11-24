@@ -789,8 +789,10 @@ struct SettingRow: View {
       }
       .fixedSize()
     case .switch:
+      // The mini switch System Settings draws, so a row's switch never outweighs its title.
       Toggle(setting.title, isOn: flag)
         .toggleStyle(.switch)
+        .controlSize(.mini)
     case .checkbox:
       Toggle(setting.title, isOn: flag)
         .toggleStyle(.checkbox)
