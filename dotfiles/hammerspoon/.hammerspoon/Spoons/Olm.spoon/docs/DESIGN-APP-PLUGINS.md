@@ -414,8 +414,8 @@ and 4 in part, asked by Milos, the install page and the `olm` command left for t
   sends their changes there rather than to Hammerspoon. Olm's list of abilities is kept in Swift
   beside `lib/abilities.lua` until Hammerspoon goes.
 - **Browser Switcher** is `app/Plugins/External/browserswitcher`, sandboxed with no permission of its
-  own, `src/setup-olmapp.sh` copying it into `~/.olm/plugins`. The Lua one is switched off in
-  `config/plugins.lua`, and the favourites saved for it were taken over once. Checked by driving the
+  own, `src/setup-olmapp.sh` copying it into `~/.olm/plugins`. The Lua one was switched off, then
+  deleted the same day once Milos confirmed this one, and the favourites saved for it were taken over once. Checked by driving the
   built program over its pipes, and `test/olmplugins.sh` still holds every case.
 - **Not yet.** Installing a plugin by dropping it on Olm Settings and asking for its sandbox
   permissions, offering a block with Allow, the `olm` command, and the plugin's own log in the window.

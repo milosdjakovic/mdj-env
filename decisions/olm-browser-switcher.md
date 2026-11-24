@@ -89,3 +89,10 @@ Copy Link was a row in the list and a favourite to check, beside Command and Ret
 Milos found that one too many, and a favourite the wrong place for it, since it is no browser. The
 list now holds browsers and profiles only, Favourites offers only those, and Copy Link stays on
 Command and Return and in the actions pane. A favourite of that name saved before is passed over.
+
+### 2026-11-24 22:34, the Lua plugin deleted
+
+Milos confirmed the Olm.app plugin works, so `plugins/browserswitcher` is gone, with its
+`browserSwitcher = false` line in `config/plugins.lua`. No Lua plugin provides links now. The
+contract keeps `provides.links` and Receive Links, and Olm.app takes each link first. The one
+time favourites migration in `app/Sources/Olm/Plugins.swift` still reads the old key.

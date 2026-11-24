@@ -600,8 +600,8 @@ field can wear, which is the only way a person finds out a typed sum answers at 
 `links` is the plugin Olm.app hands a web link to while Olm is the default browser, a member
 called with `{ url, ask, sourceBundle, sourceName }`, `ask` true when Option was held at the click,
 answering true when it took the link. The first plugin in load order that provides it gets every
-link, and a link none takes opens in Safari. Browser Switcher is the one that does,
-`docs/DESIGN-BROWSER-SWITCHER.md`.
+link, and a link none takes opens in Safari. No Lua plugin provides it today, since Browser Switcher
+runs in Olm.app, which takes every link first, `docs/DESIGN-BROWSER-SWITCHER.md`.
 
 `actions` is what a plugin can run, and the one way to declare anything runnable. It names a
 member answering a list, or a list itself, each entry a descriptor naming its own action in
@@ -1674,7 +1674,7 @@ Olm asks `settings.allowed(identity, use)` before every use, so off applies at o
 run inside Hammerspoon, only what Olm itself performs is refused. Receive Links is checked before a
 link is handed to `provides.links`, and a plugin providing links without declaring `receiveLinks`
 gets none. Browser Profiles is checked by Olm.app before it reads the profiles. The rest are
-enforced once plugins run in Olm.app. Browser Switcher is the settled example.
+enforced once plugins run in Olm.app. Browser Switcher's `olm-plugin.json` is the settled example.
 
 ## The stage pipeline
 

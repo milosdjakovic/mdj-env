@@ -41,10 +41,6 @@ local filesearch = require("config.filesearch")
 local processes  = require("config.processes")
 
 return {
-  -- Browser Switcher runs in Olm.app since 2026-11-24, an external plugin in Swift, so the Lua one
-  -- is off, Spoons/Olm.spoon/docs/DESIGN-APP-PLUGINS.md.
-  browserSwitcher = false,
-
   displayProfiles = {
     data = { profiles = displays.profiles, settleDelay = displays.settleDelay },
   },
