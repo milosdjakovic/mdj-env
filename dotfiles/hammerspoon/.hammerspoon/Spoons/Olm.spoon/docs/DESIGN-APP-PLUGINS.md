@@ -296,8 +296,12 @@ Access.
 
 **What the person sees.**
 
-- **Switching a plugin on the first time** shows its abilities with their reasons on one page, to
-  allow all or untick some, and asks nothing again. An update that adds one asks for that one alone.
+- **Switching a plugin on** allows every ability it declares and asks nothing, decided by Milos on
+  2026-11-24. Its abilities are listed on its page and under each permission, and any one is turned
+  off there afterwards. An update that adds an ability allows it the same way and says so once.
+- **An ability not on Olm's list is refused,** decided by Milos on 2026-11-24. The plugin keeps
+  working without it, as its `breaks` says, its page names the refused ability, and a plugin never
+  holds a permission of macOS's as itself. Olm adding the ability to its list is the only way in.
 - **The Permissions page** keeps one row per permission, Olm's own state from macOS and Open
   Settings, with a chevron and how many plugins use it. Open, it is an accordion of the plugins using
   that permission, each with its icon and name, its reason, when it last used it and a switch. Off
@@ -305,8 +309,17 @@ Access.
   with no switch, so the list is whole. The permission row itself has no switch, since only macOS
   can take Olm's permission away. A permission no plugin uses has no chevron and reads no plugins.
   While Olm lacks a permission its plugins' switches keep what was set, greyed, and the row says
-  what to fix. Collapsed at first, several may be open at once, and a search for a plugin's name
-  opens the accordion holding it.
+  what to fix. Collapsed at first, several may be open at once, decided by Milos on 2026-11-24, and
+  a search for a plugin's name opens the accordion holding it.
+- **Each plugin's switch under a permission turns that permission off for that plugin alone,** while
+  Olm keeps it and every other plugin keeps using it, decided by Milos on 2026-11-24. It is possible
+  because the plugin never holds the permission, it asks Olm, and Olm reads the switch before every
+  use, so off applies at once and macOS is never involved. There is no switch on the permission row
+  blocking it for every plugin, since each plugin has its own and macOS's own switch in System
+  Settings already takes the permission from Olm and so from all of them.
+- **Automation is switched one app at a time,** decided by Milos on 2026-11-24, since macOS grants
+  it per app. Under Automation each plugin lists the apps it declared, `controlApp:<app>`, each with
+  its own switch, so Chrome can be allowed and Safari not.
 
 ```
 Permissions                                   6 of 6 allowed
@@ -316,6 +329,12 @@ Permissions                                   6 of 6 allowed
 │ ▾ Full Disk Access     Olm: Allowed   1 plugin   [Open Settings]
 │     Browser Switcher                                     [ ● ]
 │        List each browser's profiles · used 2 min ago
+├──────────────────────────────────────────────────────────────┤
+├──────────────────────────────────────────────────────────────┤
+│ ▾ Automation           Olm: 2 apps    1 plugin   [Open Settings]
+│     Browser Tabs
+│        Google Chrome · read the open tabs                [ ● ]
+│        Safari · read the open tabs                       [ ○ ]
 ├──────────────────────────────────────────────────────────────┤
 │ ▸ Input Monitoring     Olm: Allowed   no plugins [Open Settings]
 └──────────────────────────────────────────────────────────────┘
@@ -341,15 +360,14 @@ signed afresh on every build, which can make macOS forget its permissions. Holdi
 that worse, so Olm.app is signed with one stable certificate made on the machine before this is
 relied on. Full Disk Access survived the rebuilds of 2026-11-24, which is luck rather than design.
 
-**Decided with Milos when it is built.**
+**Decided with Milos on 2026-11-24.**
 
-1. A plugin switched on asks for its abilities once, as proposed, or is allowed all it declares and
-   blocked later.
-2. A plugin needing something not on Olm's list is refused until Olm adds the ability, as proposed,
-   or may hold that permission as itself, flagged on its page.
-3. Controlling apps one app at a time, as proposed, or one switch for all.
-4. More than one accordion open at once, as proposed, or opening one closes the rest.
-5. A switch on the permission row blocking it for every plugin, proposed left out.
+1. A plugin switched on is allowed every ability it declares, and one is turned off later.
+2. An ability not on Olm's list is refused, never held by the plugin as itself.
+3. Automation is switched per app.
+4. Several accordions may be open at once.
+5. Each plugin has its own switch under each permission, which turns it off for that plugin alone,
+   and the permission row has no switch for all of them.
 
 **The order to build it in, each when Milos says.**
 

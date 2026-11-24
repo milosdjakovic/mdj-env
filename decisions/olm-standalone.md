@@ -1710,3 +1710,14 @@ plugin's page lists its abilities with the same switch. Turned down: plugins inh
 permissions, since every plugin would hold all of them and macOS's questions would name Olm, and each
 plugin holding its own, since a person would add each to each list by hand and a plugin built from
 source loses them when signed afresh. `docs/DESIGN-APP-PLUGINS.md` has the plan and five questions.
+
+### 2026-11-24 18:15, the five questions of plugin permissions answered by Milos
+
+A plugin switched on is allowed every ability it declares, with nothing asked, and any one is
+turned off afterwards. An ability not on Olm's list is refused, so no plugin ever holds a permission
+of macOS's as itself, which turned down the alternative of letting it, flagged on its page.
+Automation is switched per app under each plugin, since macOS grants it per app. Several permission
+rows may be open at once. Each plugin's switch under a permission turns it off for that plugin alone
+while Olm and the other plugins keep it, possible because the plugin only asks Olm, and the
+permission row keeps no switch for all plugins, since macOS's own switch already does that.
+`docs/DESIGN-APP-PLUGINS.md` has it. Nothing built.
