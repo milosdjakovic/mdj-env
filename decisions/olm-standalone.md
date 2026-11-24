@@ -1646,3 +1646,19 @@ typed there, until the launcher's choosing moves.
   with no reload and no restart, once its owner is in the app, Milos's call after a Customize save
   reloaded Hammerspoon on the window's close. Rule 11 of `docs/PLAN-STANDALONE.md` lists the
   reloads left and the step that ends each.
+
+- 2026-11-24 02:13, step 6.2b, the app catalog in the app, built and flipped. Asked by Milos after rule 11.
+  Each app's key, mode and place live in `apptoggler.apps` in Olm's store, seeded once from what
+  Hammerspoon binds and styles, 18 keys and the popup style of Ghostty, Herdr and Rex on this Mac,
+  Herdr's padding of 20 kept. The app claims every app key from that table and runs it, and a change
+  on the Applications page is taken again at once, the setting declared live through `liveWhen`.
+  The app sends `appsChanged` after every take, so the Hyper sheet and the launcher's app rows
+  follow with no reload. Behind `appCatalog` in `config/plugins.lua`, false the way back.
+  `config/apps.lua`, `config/toggles.lua` and this machine's keys file stay as Hammerspoon's
+  fallback and what other machines read, rule 6. Considered and not taken: Hammerspoon rebuilding
+  its keymap on a change, which is Lua work the bridge retires, rule 7, and the app drawing the
+  Hyper sheet's app section itself, the grid's port being stage 8's. Not yet: Olm Keys still lists
+  Hammerspoon's app keys, and the recorder offers Hyper only.
+- 2026-11-24 02:13, bug found. `plugins/apptoggler/init.lua` called `luaPlacement` above the line that
+  defined it, so a press Lua ran itself for an app with a place of its own raised, seen in the
+  console at 00:14. Both helpers now sit above their first use.

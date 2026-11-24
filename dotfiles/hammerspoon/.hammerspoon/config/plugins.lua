@@ -147,7 +147,7 @@ return {
     -- mode and place in Olm's config, seeded once from what Hammerspoon binds and styles, each key
     -- claimed and run by the app, and a change on the Applications page applied at once with no
     -- reload. False is the way back, the keys, modes and places Hammerspoon's again.
-    appCatalog = false,
+    appCatalog = true,
     -- The tools whose own list the app shows inside its launcher, step 3.3, so the launcher's row
     -- for one replaces its rows in place in the app's window. A tool joins in the step that hosts
     -- it, and taking it out leaves its row put in the app's launcher, as before. Since step 3.6

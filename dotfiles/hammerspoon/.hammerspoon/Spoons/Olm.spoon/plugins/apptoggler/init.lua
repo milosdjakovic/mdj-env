@@ -289,6 +289,24 @@ function obj:_setupPlacement(bundleID, placement)
   end)
 end
 
+-- An application's own place from the Applications page, written as the app reads it: display was,
+-- active or pointer, center, a size in points or a percent with a least and a most, and the padding.
+-- Where it was, kept and kept asks for nothing, so it is no placement at all.
+local function placeActs(place)
+  return type(place) == "table"
+    and ((place.display ~= nil and place.display ~= "was") or place.center == true or type(place.size) == "table")
+end
+
+-- What Lua can do of a place when the app cannot run the press, a centred window at a size in points.
+-- A display, a kept position, a percent and the least and the most are the app's alone, so a press Lua
+-- runs places only what it can and leaves the rest.
+local function luaPlacement(place)
+  if not placeActs(place) or place.center ~= true then return nil end
+  local size = type(place.size) == "table" and place.size or {}
+  local points = size.unit ~= "percent"
+  return { width = points and size.width or nil, height = points and size.height or nil, padding = place.padding }
+end
+
 --- AppToggler:_buildAction(spec, bundleID)
 --- Method
 --- Builds one styled app's run from its resolved spec, the show and hide or focus or cycle call
@@ -371,24 +389,6 @@ local MOVED = {
   modifiers = "modifiers belong in config/keymap.lua, written into the chord",
   url = "a pane is opened by its System Settings action, systemsettings.<pane>, named in config/keymap.lua",
 }
-
--- An application's own place from the Applications page, written as the app reads it: display was,
--- active or pointer, center, a size in points or a percent with a least and a most, and the padding.
--- Where it was, kept and kept asks for nothing, so it is no placement at all.
-local function placeActs(place)
-  return type(place) == "table"
-    and ((place.display ~= nil and place.display ~= "was") or place.center == true or type(place.size) == "table")
-end
-
--- What Lua can do of a place when the app cannot run the press, a centred window at a size in points.
--- A display, a kept position, a percent and the least and the most are the app's alone, so a press Lua
--- runs places only what it can and leaves the rest.
-local function luaPlacement(place)
-  if not placeActs(place) or place.center ~= true then return nil end
-  local size = type(place.size) == "table" and place.size or {}
-  local points = size.unit ~= "percent"
-  return { width = points and size.width or nil, height = points and size.height or nil, padding = place.padding }
-end
 
 local function sortedNames(t)
   local out = {}
