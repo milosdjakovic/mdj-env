@@ -116,6 +116,33 @@ at the foot. The search's magnifier, the sections' symbols and the app's icon sh
 - The pane is the window's own background. The accent wash behind it is gone, Milos never asked for a
   blue pane.
 
+## Parts, and keeping the window uniform
+
+Stated by Milos on 2026-11-24. Olm Settings is built from a small set of parts in
+`app/Sources/OlmSettings/Components.swift`, and every page uses them, so a thing done in one place
+looks and behaves the same in every other. These are rules, and a change that breaks one is a
+defect, not a choice.
+
+1. **One part per job.** Undo is `UndoButton`, a row's own page is `PageButton`, the gear, the way
+   back is `BackButton`, and a page's top is `PageHeader`. A page never draws its own copy of one.
+   A need none of them meets adds a part to `Components.swift` and a line to this list, never a one
+   off in the page's file.
+2. **A row's right group is undo, gear, control, in that order.** Undo first, the gear after it when
+   the row has a page of its own, the control last at the right edge. Each keeps its column while
+   hidden, so a row with no undo showing or no gear lines its control up with the rest.
+3. **A row's details open as a page in the window, never a sheet or a window of its own.** The gear opens it,
+   `BackButton` at its top left names the page it returns to, and leaving it, by Back or any other
+   way, keeps what it holds. What cannot be kept stays on the page with the reason in its header. A
+   plugin's settings and an application's mode and place both work this way.
+4. **What is set is drawn in the accent.** A value moved off the config files, and a gear whose page
+   holds one, wear the tint, and the rest is muted, so a scroll down a list catches what is set.
+5. **Words say only what is true now.** A row says it applies on reload only once its value has moved
+   off the one running, and its line is kept while hidden, so nothing moves.
+6. **The controls are the system's, at the size System Settings uses.** A switch is the mini one. A
+   setting's kind decides its control, `SettingRow` draws every kind, and a page never draws a kind
+   itself.
+7. **Spacing is `Space`, and nothing moves that was not touched,** the Layout section above.
+
 ## What it holds, for Milos to trim
 
 Sections and the settings in each. Live means applied at once, reload means once the window closes.

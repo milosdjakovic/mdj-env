@@ -8,9 +8,10 @@
 // utilities stay out, and an app that runs with no Dock icon, an agent or a background helper, is
 // left out too. One kept anywhere else is added with Add Application, a file picker.
 //
-// Each row is the app, then its Customize button, then its key at the far right. Customize opens a
-// sheet holding the app's mode and where its window goes when its key shows it, the display, the
-// position and the size. A row customized and a key that is set are drawn in the accent, a light tint
+// Each row is the app, then on its right the key's undo, the gear and the key, the order every row
+// of the window keeps, Components.swift. The gear opens the app's own page inside the window, Back at
+// its top left as a plugin's page has, holding the app's mode and where its window goes when its key
+// shows it, the display, the position and the size, saved as Back leaves it. A row customized and a key that is set are drawn in the accent, a light tint
 // and an outline, and the rest muted, so a scroll down the list catches what is set. A key is Olm's own setting `keys`, an action
 // to its chord, laid over the keymap's, so it travels with Olm's config when it is exported. A change
 // goes to Hammerspoon as every setting's does, the whole table at once, and applies on the reload the
@@ -316,8 +317,7 @@ enum AppsPage {
 /// column is as wide as its control, the row's spacing standing between them, and the name takes
 /// every point they leave. The marks, the key's reset and the remove, close the row on the right.
 enum AppColumns {
-  /// The Customize button and the key control, one width so the two read as a pair.
-  static let menu: CGFloat = 110
+  /// The key control.
   static let recorder: CGFloat = 110
   /// The key's reset, kept in place when hidden so nothing moves.
   static let mark: CGFloat = 16
@@ -331,8 +331,16 @@ struct AppsView: View {
   @ObservedObject var page: AppsPageModel
 
   var body: some View {
+    if page.customizing != nil {
+      CustomizePage(page: page, global: global, refusal: model.refusal, save: save)
+    } else {
+      list
+    }
+  }
+
+  private var list: some View {
     let all = entries
-    ScrollViewReader { proxy in
+    return ScrollViewReader { proxy in
     ScrollView {
       VStack(alignment: .leading, spacing: Space.group) {
         header
@@ -370,27 +378,12 @@ struct AppsView: View {
       page.fill(apps)
     }
     .onDisappear { page.stop() }
-    .sheet(isPresented: Binding(get: { page.customizing != nil }, set: { if !$0 { page.customizing = nil } })) {
-      CustomizeSheet(page: page, global: global, save: save)
-    }
   }
 
   private var header: some View {
-    HStack(spacing: Space.pad + 4) {
-      Image(systemName: "square.grid.2x2")
-        // look-exempt, the section's picture in its glass circle, sized as System Settings does.
-        .font(.system(size: 26, weight: .medium))
-        .foregroundStyle(.tint)
-        .frame(width: SectionPage.header, height: SectionPage.header)
-        .glassCircle()
-      VStack(alignment: .leading, spacing: Space.row) {
-        Text("Applications").font(.largeTitle.weight(.semibold))
-        Text(summary).font(.callout).foregroundStyle(.secondary)
-      }
-      Spacer(minLength: Space.group)
-      if let note { Note(text: note.text, symbol: note.symbol) }
+    PageHeader(title: "Applications", subtitle: summary, note: note) {
+      SectionSymbol(symbol: "square.grid.2x2")
     }
-    .frame(height: SectionPage.header)
   }
 
   private var summary: String {
@@ -411,11 +404,9 @@ struct AppsView: View {
       VStack(alignment: .leading, spacing: Space.related) {
         HStack(spacing: Space.pad) {
           Text(title).font(.headline).frame(maxWidth: .infinity, alignment: .leading)
-          Text("Behaviour").font(.caption).foregroundStyle(.secondary)
-            .frame(width: AppColumns.menu, alignment: .leading)
+          Color.clear.frame(width: AppColumns.marks + Space.pad + Space.mark, height: 1)
           Text("Shortcut").font(.caption).foregroundStyle(.secondary)
             .frame(width: AppColumns.recorder, alignment: .leading)
-          Color.clear.frame(width: AppColumns.marks, height: 1)
         }
         .padding(.horizontal, Space.pad + 4)
         // Every row made at once, a few hundred at most, so none appears as it scrolls into view.
@@ -679,10 +670,11 @@ struct AppRow: View {
         Text(detail).font(.caption).foregroundStyle(.secondary).lineLimit(1).truncationMode(.middle)
       }
       .frame(maxWidth: .infinity, alignment: .leading)
-      mode
+      UndoButton(shown: keyOwn, help: resetKeyHelp, action: resetKey)
+      PageButton(set: entry.customized, help: entry.customized
+        ? AppCustomize.words(entry.own)
+        : "How \(entry.name)'s key acts and where its window goes", action: customize)
       key
-      mark("arrow.uturn.backward", shown: keyOwn, help: resetKeyHelp, action: resetKey)
-        .frame(width: AppColumns.marks)
     }
     .contentShape(Rectangle())
     .contextMenu {
@@ -693,22 +685,6 @@ struct AppRow: View {
       }
     }
     .disabled(busy)
-  }
-
-  // The behaviour column. Its reset is the sheet's own Reset, and the button's menu.
-  private var mode: some View {
-    Group {
-      Button(action: customize) {
-        Field(width: AppColumns.menu, leading: false, set: entry.customized) {
-          Image(systemName: "slider.horizontal.3").font(.caption)
-          Text("Customize").padding(.leading, Space.related)
-        }
-      }
-      .buttonStyle(.plain)
-      .help(entry.customized
-        ? AppCustomize.words(entry.own)
-        : "How \(entry.name)'s key acts and where its window goes")
-    }
   }
 
   // The key column, the recorder alone, its reset among the marks.
@@ -724,15 +700,6 @@ struct AppRow: View {
       .disabled(!canRecord)
       .opacity(canRecord ? 1 : 0.5)
     }
-  }
-
-  /// A small borderless button that keeps its place while hidden.
-  private func mark(_ symbol: String, shown: Bool, help: String, action: @escaping () -> Void) -> some View {
-    Button(action: action) { Image(systemName: symbol).frame(width: AppColumns.mark) }
-      .buttonStyle(.borderless)
-      .help(help)
-      .opacity(shown ? 1 : 0)
-      .disabled(!shown)
   }
 
   private var detail: String {
@@ -824,17 +791,28 @@ struct AppCustomize: Equatable {
   }
 }
 
-/// An application's Customize sheet: what its key does, and where its window goes when the key shows
-/// it, the display, the position and the size, with what that comes to on each display connected now.
-struct CustomizeSheet: View {
+/// An application's own page, the gear on its row opens it: what its key does, and where its window
+/// goes when the key shows it, the display, the position and the size, with what that comes to on
+/// each display connected now. Back saves what it holds and returns to the list, and so does leaving
+/// the page any other way, unless what it holds cannot be kept, which it says.
+struct CustomizePage: View {
   @ObservedObject var page: AppsPageModel
   let global: String
+  let refusal: String?
   let save: (AppCustomize) -> Void
 
   var body: some View {
     if let c = page.customizing {
       VStack(alignment: .leading, spacing: Space.group) {
-        Text(c.name).font(.title2.weight(.semibold))
+        BackButton(title: "Applications") { done() }
+        PageHeader(title: c.name, subtitle: c.bundle,
+          note: problem(c.place).map { ($0, "exclamationmark.triangle") } ?? refusal.map { ($0, "exclamationmark.triangle") }) {
+          if let icon = page.icons[c.bundle] {
+            Image(nsImage: icon).resizable().frame(width: 40, height: 40)
+          } else {
+            SectionSymbol(symbol: "app")
+          }
+        }
         Form {
           Section("When the shortcut is pressed") {
             Picker("Mode", selection: bind(\.mode)) {
@@ -885,23 +863,19 @@ struct CustomizeSheet: View {
           }
         }
         .formStyle(.grouped)
-        if let why = problem(c.place) {
-          Text(why).font(.caption).foregroundStyle(.secondary)
-        }
+        .scrollContentBackground(.hidden)
         HStack {
-          Button("Reset") {
+          Button("Back to the Default") {
             page.customizing?.mode = "default"
             page.customizing?.place = AppPlace()
           }
           Spacer()
-          Button("Cancel") { page.customizing = nil }.keyboardShortcut(.cancelAction)
-          Button("Done") { done() }
-            .keyboardShortcut(.defaultAction)
-            .disabled(problem(c.place) != nil)
         }
       }
       .padding(Space.edge)
-      .frame(width: 560, height: 700)
+      .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+      .ignoresSafeArea(.container, edges: .top)
+      .onDisappear { if page.customizing != nil { done() } }
     }
   }
 
@@ -937,7 +911,9 @@ struct CustomizeSheet: View {
   private func done() {
     NSApp.keyWindow?.makeFirstResponder(nil)
     DispatchQueue.main.async {
-      guard let now = page.customizing, problem(now.place) == nil else { return }
+      guard let now = page.customizing else { return }
+      // What cannot be kept stays on the page, the reason in its header, rather than lost.
+      guard problem(now.place) == nil else { return }
       save(now)
     }
   }

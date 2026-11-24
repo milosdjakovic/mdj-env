@@ -227,11 +227,7 @@ struct WindowsView: View {
     let recording = page.recording == id(action)
     let held = chord(action)
     return HStack(spacing: Space.related) {
-      Button { resetKey(action) } label: { Image(systemName: "arrow.uturn.backward").frame(width: AppColumns.mark) }
-        .buttonStyle(.borderless)
-        .help("Back to the key in the config files")
-        .opacity(own ? 1 : 0)
-        .disabled(!own)
+      UndoButton(shown: own, help: "Back to the key in the config files") { resetKey(action) }
       Button { record(action) } label: {
         Field(width: AppColumns.recorder, leading: false, set: held != nil || recording) {
           Text(recording ? "Press a key" : (held.map(KeyName.words) ?? "None"))

@@ -640,39 +640,19 @@ struct SectionPage: View {
     ScrollView {
       GlassGroup {
         VStack(alignment: .leading, spacing: Space.group) {
-          if plugin != nil {
-            Button { model.pluginPage = nil } label: {
-              Label(section.title, systemImage: "chevron.left")
-            }
-            .buttonStyle(.borderless)
-            .help("Back to \(section.title)")
+          if plugin != nil { BackButton(title: section.title) { model.pluginPage = nil } }
+          PageHeader(title: owner?.title ?? section.title,
+            subtitle: rows.count == 1 ? "1 setting" : "\(rows.count) settings", note: note) {
+            SectionSymbol(symbol: section.symbol)
           }
-          HStack(spacing: Space.pad + 4) {
-            Image(systemName: section.symbol)
-              // The window follows the system's look and not the chooser's.
-              // look-exempt, the section's picture in its glass circle, sized as System Settings does.
-              .font(.system(size: 26, weight: .medium))
-              .foregroundStyle(.tint)
-              .frame(width: Self.header, height: Self.header)
-              .glassCircle()
-            VStack(alignment: .leading, spacing: Space.row) {
-              Text(owner?.title ?? section.title).font(.largeTitle.weight(.semibold))
-              Text(rows.count == 1 ? "1 setting" : "\(rows.count) settings")
-                .font(.callout).foregroundStyle(.secondary)
-            }
-            Spacer(minLength: Space.group)
-            // Left out when there is nothing to say, not made transparent, since glass draws its
-            // capsule whatever the opacity. The header's height is fixed, so this moves nothing.
-            if !note.text.isEmpty { Note(text: note.text, symbol: note.symbol) }
-          }
-          .frame(height: Self.header)
           VStack(spacing: 0) {
             ForEach(Array(rows.enumerated()), id: \.element.id) { index, setting in
               if index > 0 { Divider().padding(.leading, Space.pad + 4) }
               // A plugin with a page of its own is reached by the gear just before its switch, so
               // every switch stays in the one column at the right.
-              SettingRow(setting: setting, model: model,
-                page: plugin == nil ? setting.plugin.flatMap { pages.contains($0) ? $0 : nil } : nil)
+              let page = plugin == nil ? setting.plugin.flatMap { pages.contains($0) ? $0 : nil } : nil
+              SettingRow(setting: setting, model: model, page: page,
+                pageSet: page.map { p in section.settings.contains { $0.page == p && $0.differs } } ?? false)
               .padding(.horizontal, Space.pad + 4).padding(.vertical, Space.pad)
               .searchMark(model, SearchTarget.setting(setting.id))
             }
@@ -725,6 +705,8 @@ struct SettingRow: View {
   @ObservedObject var model: SettingsModel
   /// The plugin page the gear before the control opens, nil for a row with none.
   var page: String? = nil
+  /// Whether that page holds a value moved off the config files, the gear then in the accent.
+  var pageSet = false
 
   var body: some View {
     // The reset button sits a pad's gap before the control, in the control's column of fixed width,
@@ -736,21 +718,9 @@ struct SettingRow: View {
       Spacer(minLength: Space.pad)
       HStack(spacing: Space.pad) {
         Spacer(minLength: 0)
-        Button {
-          model.change(setting, to: .none, reset: true)
-        } label: {
-          Image(systemName: "arrow.uturn.backward").frame(width: Space.mark)
-        }
-        .buttonStyle(.borderless)
-        .help("Back to the value in the config files")
-        .opacity(canReset ? 1 : 0)
-        .disabled(!canReset)
+        UndoButton(shown: canReset) { model.change(setting, to: .none, reset: true) }
         if let page {
-          Button { model.pluginPage = page } label: {
-            Image(systemName: "gearshape").frame(width: Space.mark)
-          }
-          .buttonStyle(.borderless)
-          .help("Settings of \(setting.title)")
+          PageButton(set: pageSet, help: "Settings of \(setting.title)") { model.pluginPage = page }
         }
         control.labelsHidden()
       }

@@ -1690,3 +1690,12 @@ Olm draws every control, so a plugin still builds no surface. The olm-plugin ski
 earned a row and never a page of its own, which this replaces, since the page is Olm's and not the
 plugin's. A text's draft is kept on the model rather than in the view, since the command line tools
 the app builds with ship no SwiftUI macros. DisplayProfiles' settle delay is the first page.
+
+### 2026-11-24 15:29, Olm Settings built from one set of parts, asked by Milos
+
+Applications' Customize button and its sheet are replaced by the gear plugins use, opening the app's
+page inside the window with Back at its top left, saved as it is left. Every row's right group is
+undo, gear, control in that order, Applications having had its undo last. The parts live in
+`app/Sources/OlmSettings/Components.swift` and the rules under Parts in
+`docs/DESIGN-APP-SETTINGS.md`. A sheet for a row's details is turned down, since a plugin's page
+and an application's would then open two ways. He preferred pages.

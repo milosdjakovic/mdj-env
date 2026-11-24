@@ -53,6 +53,15 @@ part a person sees. The **outer padding** and the **inner padding** are the two 
 `spacing.outer` and `spacing.inner` in `config/settings.lua`, see Corners in
 `docs/DESIGN-UI-KIT.md`.
 
+## Olm Settings, one set of parts
+
+Before changing any page of the Olm Settings window, read Parts in `docs/DESIGN-APP-SETTINGS.md`.
+Every page is built from the parts in `app/Sources/OlmSettings/Components.swift`: undo, the gear,
+Back and the page header. A row's right group is undo, gear, control in that order. A row's details
+open as a page in the window with Back at its top left, never a sheet. What is set is drawn in the
+accent. A need the parts do not meet adds a part there and a rule to that list, never a one off,
+stated by Milos on 2026-11-24.
+
 ## Goldens, refreshed in the commit that moves them
 
 The goldens under `test/` record every bound chord, the launcher's catalog and each cheat sheet,
