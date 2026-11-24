@@ -34,3 +34,13 @@ first with the table planned, all set through the plugin settings API. Built as 
 headless through Hammerspoon, a rule copying a link and the rows listing Chrome, Safari, Switchbar
 and Copy Link. The machine's https handler was Switchbar when this was built, so nothing reaches
 Olm until Make Olm the Default Browser is chosen.
+
+### 2026-11-24 16:26, every link fell to Safari, the handler called as a method
+
+Reported by Milos, the list flashed and the link opened in a browser. The manifest declared
+`links = "link"`, a string spec, which the registrar calls as a method, so `M.link` got the module
+table where the link belonged and raised on every link, and the app opened each in Safari. The
+headless check of 15:21 called `M.link` directly and never went through the registrar, which is how
+it passed. Now `{ member = "link", call = "dot" }`, checked through `registrar.action`. Rows are
+titled `Chrome (Personal)` with no second line, and the field shows the link shortened in the
+middle, both asked by him.

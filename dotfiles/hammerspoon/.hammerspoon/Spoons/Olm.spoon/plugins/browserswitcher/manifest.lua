@@ -49,7 +49,9 @@ return {
 
   -- Olm.app's links come here, found by this capability and never by name.
   provides = {
-    links = "link",
+    -- A dot function, M.link(params), so the call is stated, since the default is a method call and
+    -- handed every link to the module table in the place of params.
+    links = { member = "link", call = "dot" },
   },
 
   defaults = {
@@ -84,12 +86,12 @@ return {
       keywords = { "default browser", "http", "url handler" } },
     { key = "favourites", at = { "favourites" }, title = "Favourites", kind = "text", lines = 6,
       shipped = "",
-      placeholder = "Google Chrome: Work\nGoogle Chrome: Personal\nSafari\nCopy Link",
-      detail = "What the list shows when a link asks, in this order, one per line, a browser, a browser and its profile after a colon, or Copy Link. Show All in the actions pane lists the rest. Left empty, the list shows everything.",
+      placeholder = "Chrome (Work)\nChrome (Personal)\nSafari\nCopy Link",
+      detail = "What the list shows when a link asks, in this order, one per line, a browser, a browser with its profile in brackets, or Copy Link. Show All in the actions pane lists the rest. Left empty, the list shows everything.",
       keywords = { "browser", "profile", "picker", "order" } },
     { key = "rules", at = { "rules" }, title = "Rules", kind = "text", lines = 8,
       shipped = "",
-      placeholder = "github.com => Safari\n*.zoom.us => Google Chrome: Work\napp:Slack => Google Chrome: Work",
+      placeholder = "github.com => Safari\n*.zoom.us => Chrome (Work)\napp:Slack => Chrome (Work)",
       detail = "A link a rule matches opens at once, the first match winning. A site, with * for any part, or app: and the app the link came from, then => and a favourite's name. Hold Option as you click to be asked anyway.",
       keywords = { "browser", "url", "domain", "host", "route" } },
   },

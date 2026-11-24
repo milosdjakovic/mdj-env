@@ -108,7 +108,7 @@ local function targets()
     if profiles == nil then hidden[#hidden + 1] = b.name; profiles = {} end
     if #profiles > 1 then
       for _, p in ipairs(profiles) do
-        out[#out + 1] = { id = b.bundle .. "#" .. p.name, title = b.name .. ": " .. p.name, bundle = b.bundle,
+        out[#out + 1] = { id = b.bundle .. "#" .. p.name, title = b.name .. " (" .. p.name .. ")", bundle = b.bundle,
           path = b.path, profile = p.name, args = p.args or { p.arg } }
       end
     end
@@ -208,10 +208,21 @@ function M.link(params)
   return true
 end
 
+-- The link itself, its scheme left off and cut in the middle past a field's width, so the start of
+-- the address and its end both show.
+local LINK_ROOM = 64
+
 function M.placeholder()
-  local host = pending and hostOf(pending.url) or ""
-  if host == "" then return "Open link in" end
-  return "Open " .. host .. " in"
+  if not pending then return "Open link in" end
+  local text = pending.url:gsub("^https?://", ""):gsub("^www%.", "")
+  if utf8.len(text) and utf8.len(text) > LINK_ROOM then
+    local head = math.floor(LINK_ROOM * 0.6)
+    local tail = LINK_ROOM - head - 1
+    local chars = {}
+    for _, c in utf8.codes(text) do chars[#chars + 1] = utf8.char(c) end
+    text = table.concat(chars, "", 1, head) .. "…" .. table.concat(chars, "", #chars - tail + 1, #chars)
+  end
+  return text
 end
 
 function M.rows()
@@ -240,11 +251,9 @@ function M.rows()
     local row = { title = t.title, key = t.id, filterText = t.title, item = t }
     if t.copy then
       row.icon = "copy"
-      row.subTitle = pending.url
     else
       -- The browser's own picture, a real image rather than an icon key.
       row.image = hs.image.imageFromAppBundle(t.bundle)
-      row.subTitle = t.profile and "Profile" or "Browser"
     end
     out[#out + 1] = row
   end
