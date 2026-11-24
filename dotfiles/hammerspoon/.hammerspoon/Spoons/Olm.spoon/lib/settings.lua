@@ -74,10 +74,12 @@ M.LEADER_SENDS = {
   { value = "fkey", title = "A Function Key" },
 }
 
-M.LEADER_SENDS_DETAIL = "A function key needs nothing installed and goes deaf while an app holds a "
-  .. "password field, Olm then naming the app. Real modifiers come from kanata, work in password "
-  .. "fields and take their combinations from every app. A left modifier as a leader no longer "
-  .. "types as itself."
+M.LEADER_SENDS_DETAIL = "A function key needs nothing extra, but stops working while any app has a "
+  .. "password field open, and Olm tells you which app. Real modifiers need kanata and keep working "
+  .. "in password fields, but other apps lose the shortcuts they use. Both picks whichever arrives."
+
+M.LEADER_KEY_DETAIL = "A left Shift, Control, Option or Command made a leader stops working as "
+  .. "itself, so use the right one for that."
 
 M.DECLARED = {
   { id = "chooser", section = "general", title = "Chooser", kind = "choice", applies = "reload",
@@ -148,21 +150,21 @@ M.DECLARED = {
   -- section of config/keymap.lua is laid, gives each its default from there, and locks a leader that
   -- section names. They apply on a reload, since Hammerspoon still builds the leaders.
   { id = "leader.hyper.key", section = "leaders", title = "Hyper Key", kind = "choice", applies = "reload",
-    choices = M.LEADER_KEYS, keywords = { "hyper", "leader", "modifier", "remap", "caps lock", "left", "right" } },
+    choices = M.LEADER_KEYS, detail = M.LEADER_KEY_DETAIL, keywords = { "hyper", "leader", "modifier", "remap", "caps lock", "left", "right" } },
   { id = "leader.hyper.sends", section = "leaders", title = "Hyper Sends", kind = "choice", applies = "reload",
     choices = M.LEADER_SENDS, detail = M.LEADER_SENDS_DETAIL,
     keywords = { "hyper", "leader", "kanata", "karabiner", "function key", "password", "secure input", "modifiers" } },
   { id = "leader.hyper.sheet", section = "leaders", title = "Hyper Cheat Sheet on Hold", kind = "switch",
     applies = "reload", keywords = { "hyper", "leader", "cheat sheet", "shortcuts", "hold" } },
   { id = "leader.meta.key", section = "leaders", title = "META Key", kind = "choice", applies = "reload",
-    choices = M.LEADER_KEYS, keywords = { "meta", "leader", "modifier", "remap", "caps lock", "left", "right" } },
+    choices = M.LEADER_KEYS, detail = M.LEADER_KEY_DETAIL, keywords = { "meta", "leader", "modifier", "remap", "caps lock", "left", "right" } },
   { id = "leader.meta.sends", section = "leaders", title = "META Sends", kind = "choice", applies = "reload",
     choices = M.LEADER_SENDS, detail = M.LEADER_SENDS_DETAIL,
     keywords = { "meta", "leader", "kanata", "karabiner", "function key", "password", "secure input", "modifiers" } },
   { id = "leader.meta.sheet", section = "leaders", title = "META Cheat Sheet on Hold", kind = "switch",
     applies = "reload", keywords = { "meta", "leader", "cheat sheet", "shortcuts", "hold" } },
   { id = "leader.super.key", section = "leaders", title = "SUPER Key", kind = "choice", applies = "reload",
-    choices = M.LEADER_KEYS, keywords = { "super", "leader", "modifier", "remap", "caps lock", "left", "right" } },
+    choices = M.LEADER_KEYS, detail = M.LEADER_KEY_DETAIL, keywords = { "super", "leader", "modifier", "remap", "caps lock", "left", "right" } },
   { id = "leader.super.sends", section = "leaders", title = "SUPER Sends", kind = "choice", applies = "reload",
     choices = M.LEADER_SENDS, detail = M.LEADER_SENDS_DETAIL,
     keywords = { "super", "leader", "kanata", "karabiner", "function key", "password", "secure input", "modifiers" } },
