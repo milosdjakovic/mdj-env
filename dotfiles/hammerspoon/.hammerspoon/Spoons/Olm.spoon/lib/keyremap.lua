@@ -38,15 +38,22 @@ obj.license = "MIT"
 local log = hs.logger.new("KeyRemap", "info")
 
 -- Friendly name -> HID keyboard usage code, every key a held leader may name. The list is the allow
--- list, so a key is admitted by a row here and nowhere else. The right modifiers and Caps Lock do
--- not send a clean press and release, so they are remapped to a function key. F13 to F20 do, and
+-- list, so a key is admitted by a row here and nowhere else. The modifiers of both hands and Caps
+-- Lock do not send a clean press and release, so they are remapped to a function key. A left one
+-- was refused until 2026-11-24, when Milos asked for both hands on the Leaders page, which says
+-- under the choice that a left modifier made a leader no longer types as itself. F13 to F20 do, and
 -- are used as they are, which is also how a pedal, a macro pad or a programmable keyboard becomes
 -- a leader, by being told in its own firmware to send one of them.
 local USAGE = {
   capsLock     = 0x700000039,
-  rightCommand = 0x7000000E7,
-  rightOption  = 0x7000000E6,
+  leftControl  = 0x7000000E0,
+  leftShift    = 0x7000000E1,
+  leftOption   = 0x7000000E2,
+  leftCommand  = 0x7000000E3,
   rightControl = 0x7000000E4,
+  rightShift   = 0x7000000E5,
+  rightOption  = 0x7000000E6,
+  rightCommand = 0x7000000E7,
   f13          = 0x700000068,
   f14          = 0x700000069,
   f15          = 0x70000006A,

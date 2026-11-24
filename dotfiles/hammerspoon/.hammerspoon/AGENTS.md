@@ -172,16 +172,20 @@ so each apply is idempotent and frees any dropped key.
 | Key | Fn | Name | Policy | Role |
 |-----|-------|------|-------|------|
 | Right Option, or shift ctrl alt | F16 | META | driven repeat, quiet over lists, window sheet | the active window leader: bare arrow = **resize** (halves + full-height + reasonable), `WASD` = **move** (W up, A left, S down, D right); return = maximize; `C` = center; `,`/`.` = prev/next display; letters = presets + grow/shrink |
-| Right Command | F17 | SUPER | the same as META | shipped but **unused**, so it is not remapped and Right Command is a normal key; `roles = { window = "super" }` in `config/keymap.lua` swaps it in |
+| Right Command, or ctrl alt cmd | F17 | SUPER | the same as META | shipped but **unused**, so it is not remapped and Right Command is a normal key; `roles = { window = "super" }` in `config/keymap.lua` swaps it in |
 | Caps Lock, or shift ctrl alt cmd | F18 | HYPER | ranked, Hyper sheet | hold + letter = app toggles; quick tap = `hs.hid.capslock.toggle()` |
 
 A held leader is not limited to those three keys. Its `key` may be any key on the allow list,
-which is the `USAGE` table in `lib/keyremap.lua`, Caps Lock, Right Command, Right Option, Right
-Control and F13 to F20. Anything else, a letter, a left modifier or F1 to F12, which carry
-brightness and media, is a problem line naming the allowed keys, and the leader keeps its shipped
-default. F13 to F20 are heard as they are and need no remap, which is how a foot pedal, a macro
+which is the `USAGE` table in `lib/keyremap.lua`, Caps Lock, the Shift, Control, Option and Command
+of either hand, and F13 to F20. Anything else, a letter or F1 to F12, which carry brightness and
+media, is a problem line naming the allowed keys, and the leader keeps its shipped default. The left
+modifiers joined on 2026-11-24, asked by Milos, and one made a leader no longer types as itself. The
+Leaders section of Olm Settings sets each shipped leader's key, whether it sends a function key,
+its real modifiers or both, and its sheet, saved in `~/.olm/state/settings.json` and laid over
+`SHIPPED_LEADERS` by `lib/keymap.lua`'s `savedLeaders` before the keymap is read, a leader the
+`leaders` section names being locked on the page. F13 to F20 are heard as they are and need no remap, which is how a foot pedal, a macro
 pad or a programmable keyboard becomes a leader, by being set in its own firmware to send one of
-them. Caps Lock and the right modifiers are remapped to a function key, `remapTo` in the entry when
+them. Caps Lock and the modifiers are remapped to a function key, `remapTo` in the entry when
 it states one, otherwise the preferred key, Caps Lock F18, Right Option F16 and Right Command F17,
 otherwise the first free key from F13 to F20. A key is not free when another leader uses it
 directly or already holds it as its target, and a preferred key that is taken sends the leader to

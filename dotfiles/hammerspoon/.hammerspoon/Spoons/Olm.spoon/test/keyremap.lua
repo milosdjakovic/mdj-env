@@ -104,11 +104,11 @@ end
 -- The allow list is every key USAGE holds.
 do
   local sources = KeyRemap.sources()
-  for _, name in ipairs({ "capsLock", "rightCommand", "rightOption", "rightControl",
-    "f13", "f14", "f15", "f16", "f17", "f18", "f19", "f20" }) do
+  for _, name in ipairs({ "capsLock", "rightCommand", "rightOption", "rightControl", "rightShift",
+    "leftCommand", "leftOption", "leftControl", "leftShift", "f13", "f14", "f15", "f16", "f17", "f18", "f19", "f20" }) do
     eq(sources[name], true, name .. " is on the allow list")
   end
-  for _, name in ipairs({ "leftCommand", "space", "f12", "f21", "a" }) do
+  for _, name in ipairs({ "fn", "space", "f12", "f21", "a" }) do
     eq(sources[name], nil, name .. " is not on the allow list")
   end
 end

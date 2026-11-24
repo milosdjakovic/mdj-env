@@ -387,6 +387,62 @@ local function listLeaders(merged, out)
   return identities, chordLeaders
 end
 
+--- obj.savedLeaders(keymap, settings, shipped) -> keymap
+--- The Leaders page's settings laid over the keymap's leaders section, docs/DESIGN-APP-LEADERS.md.
+-- Each shipped leader gets its three defaults from SHIPPED_LEADERS, its key, how it sends and its
+-- sheet, and a leader the person's config/keymap.lua names is locked on the page, that section
+-- winning. A leader whose saved values differ from what it ships becomes one entry of the section,
+-- its trigger the key, the modifiers or both, and its sheet, so the reader treats it as the
+-- person's own and every rule of the section holds. settings answers declare and value, the root's
+-- store, and shipped is SHIPPED_LEADERS, so the root alone names either.
+function obj.savedLeaders(keymap, settings, shipped)
+  if type(keymap) ~= "table" or not settings then return keymap end
+  local config = type(keymap.leaders) == "table" and keymap.leaders or {}
+  local out, leaders, changed = {}, {}, false
+  for k, v in pairs(keymap) do out[k] = v end
+  for k, v in pairs(config) do leaders[k] = v end
+  for _, name in ipairs({ "hyper", "meta", "super" }) do
+    local entry = shipped[name] or {}
+    local key, mods = entry.key, entry.mods
+    for _, t in ipairs(entry.triggers or {}) do
+      if t.key ~= nil then key = t.key end
+      if t.mods ~= nil then mods = t.mods end
+    end
+    local sends = (key and mods) and "both" or (mods and "mods" or "fkey")
+    local id = "leader." .. name
+    settings.declare(id .. ".key", { default = key or "none" })
+    settings.declare(id .. ".sends", { default = sends })
+    settings.declare(id .. ".sheet", { default = entry.sheet == true })
+    local own = nil
+    for k in pairs(config) do if type(k) == "string" and k:lower() == name then own = k end end
+    if own then
+      for _, field in ipairs({ ".key", ".sends", ".sheet" }) do
+        settings.declare(id .. field, { locked = "set in config/keymap.lua" })
+      end
+    else
+      local k, how, sheet = settings.value(id .. ".key"), settings.value(id .. ".sends"), settings.value(id .. ".sheet")
+      local fields = {}
+      if k ~= (key or "none") or how ~= sends then
+        if k == "none" or how == "mods" then
+          fields.mods = mods
+        elseif how == "fkey" or not mods then
+          fields.key = k
+        else
+          fields.triggers = { { key = k }, { mods = mods } }
+        end
+      end
+      if sheet ~= (entry.sheet == true) then fields.sheet = sheet end
+      if next(fields) ~= nil then
+        leaders[name] = fields
+        changed = true
+      end
+    end
+  end
+  if not changed then return keymap end
+  out.leaders = leaders
+  return out
+end
+
 --- obj.readConfig(config, opts) -> { keys, leaders, roles, aliases, lists, allocation, problems, notes }
 --- config/keymap.lua as one shape, every entry checked here so the rest of Olm reads clean data.
 ---   opts.leaders    the leaders Olm ships, lowercase name to an entry in the shape of the leaders

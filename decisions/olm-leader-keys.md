@@ -317,3 +317,15 @@ Keys heading. That legend is the one place a symbol is explained.
 to ◆ at row size, and it was never more than a loose stand in for the Windows key, which is what
 Super means on Linux. A star, a diamond and a circle are three shapes none can be taken for
 another. The entry above keeps ❖ as what was first shipped.
+
+2026-11-24 10:55. Milos answered the three questions in `docs/DESIGN-APP-LEADERS.md`. Both hands, so
+the allow list in `lib/keyremap.lua` gains Left Shift, Control, Option and Command and Right Shift,
+and the refusal of a left modifier as a leader, which taxes typing, no longer holds because a
+person now chooses it on a page that says the cost under the choice. SUPER's real modifiers are
+⌃⌥⌘, so it ships on Right Command and on those three like Hyper and META ship on two triggers, and
+claims nothing while no row uses it. No password on each change, so kanata may listen on a
+localhost port for a reload, which step 4 checks before relying on. Step 1 landed the same day, the
+Leaders section in Olm Settings with each leader's key, what it sends and its cheat sheet switch,
+saved in the settings store and laid over `SHIPPED_LEADERS` by `lib/keymap.lua`'s `savedLeaders`,
+applied in the one reload as the window closes, since Hammerspoon still builds the leaders. The
+design said live, which is corrected there, live waits for the app to own the leaders.

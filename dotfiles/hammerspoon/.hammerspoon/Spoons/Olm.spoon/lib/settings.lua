@@ -26,6 +26,7 @@ M.SECTIONS = {
   { id = "appearance", title = "Appearance", symbol = "paintbrush" },
   { id = "motion", title = "Motion", symbol = "wind" },
   { id = "behaviour", title = "Behaviour", symbol = "hand.tap" },
+  { id = "leaders", title = "Leaders", symbol = "command" },
   { id = "applications", title = "Applications", symbol = "square.grid.2x2" },
   { id = "windows", title = "Window Management", symbol = "macwindow" },
   { id = "plugins", title = "Plugins", symbol = "puzzlepiece.extension" },
@@ -50,6 +51,33 @@ local function n(id, section, title, target, min, max, step, unit, shipped, keyw
   return { id = id, section = section, title = title, kind = "number", target = target, min = min,
     max = max, step = step, unit = unit, shipped = shipped, keywords = keywords or {}, applies = "reload" }
 end
+
+--- M.LEADER_KEYS, the physical keys a leader may sit on, lib/keyremap.lua's allow list in the order
+--- the menu lists them, left and right apart, and none for a leader of real modifiers alone.
+M.LEADER_KEYS = {
+  { value = "capsLock", title = "Caps Lock" },
+  { value = "leftShift", title = "Left Shift" }, { value = "rightShift", title = "Right Shift" },
+  { value = "leftControl", title = "Left Control" }, { value = "rightControl", title = "Right Control" },
+  { value = "leftOption", title = "Left Option" }, { value = "rightOption", title = "Right Option" },
+  { value = "leftCommand", title = "Left Command" }, { value = "rightCommand", title = "Right Command" },
+  { value = "f13", title = "F13" }, { value = "f14", title = "F14" }, { value = "f15", title = "F15" },
+  { value = "f16", title = "F16" }, { value = "f17", title = "F17" }, { value = "f18", title = "F18" },
+  { value = "f19", title = "F19" }, { value = "f20", title = "F20" },
+  { value = "none", title = "None, Real Modifiers Only" },
+}
+
+--- M.LEADER_SENDS, how the key reaches Olm, a function key through hidutil, the leader's real
+--- modifiers through kanata, or both, which is how Hyper and META ship.
+M.LEADER_SENDS = {
+  { value = "both", title = "Real Modifiers and a Function Key" },
+  { value = "mods", title = "Real Modifiers" },
+  { value = "fkey", title = "A Function Key" },
+}
+
+M.LEADER_SENDS_DETAIL = "A function key needs nothing installed and goes deaf while an app holds a "
+  .. "password field, Olm then naming the app. Real modifiers come from kanata, work in password "
+  .. "fields and take their combinations from every app. A left modifier as a leader no longer "
+  .. "types as itself."
 
 M.DECLARED = {
   { id = "chooser", section = "general", title = "Chooser", kind = "choice", applies = "reload",
@@ -114,6 +142,32 @@ M.DECLARED = {
 
   -- Window Management's steps and sizes are the window manager's, declared in its manifest and
   -- read by M.fromManifest, since only a plugin may name itself.
+
+  -- The three leaders, each its physical key, how that key reaches Olm and whether a hold shows its
+  -- cheat sheet, docs/DESIGN-APP-LEADERS.md. The root lays them over SHIPPED_LEADERS as the leaders
+  -- section of config/keymap.lua is laid, gives each its default from there, and locks a leader that
+  -- section names. They apply on a reload, since Hammerspoon still builds the leaders.
+  { id = "leader.hyper.key", section = "leaders", title = "Hyper Key", kind = "choice", applies = "reload",
+    choices = M.LEADER_KEYS, keywords = { "hyper", "leader", "modifier", "remap", "caps lock", "left", "right" } },
+  { id = "leader.hyper.sends", section = "leaders", title = "Hyper Sends", kind = "choice", applies = "reload",
+    choices = M.LEADER_SENDS, detail = M.LEADER_SENDS_DETAIL,
+    keywords = { "hyper", "leader", "kanata", "karabiner", "function key", "password", "secure input", "modifiers" } },
+  { id = "leader.hyper.sheet", section = "leaders", title = "Hyper Cheat Sheet on Hold", kind = "switch",
+    applies = "reload", keywords = { "hyper", "leader", "cheat sheet", "shortcuts", "hold" } },
+  { id = "leader.meta.key", section = "leaders", title = "META Key", kind = "choice", applies = "reload",
+    choices = M.LEADER_KEYS, keywords = { "meta", "leader", "modifier", "remap", "caps lock", "left", "right" } },
+  { id = "leader.meta.sends", section = "leaders", title = "META Sends", kind = "choice", applies = "reload",
+    choices = M.LEADER_SENDS, detail = M.LEADER_SENDS_DETAIL,
+    keywords = { "meta", "leader", "kanata", "karabiner", "function key", "password", "secure input", "modifiers" } },
+  { id = "leader.meta.sheet", section = "leaders", title = "META Cheat Sheet on Hold", kind = "switch",
+    applies = "reload", keywords = { "meta", "leader", "cheat sheet", "shortcuts", "hold" } },
+  { id = "leader.super.key", section = "leaders", title = "SUPER Key", kind = "choice", applies = "reload",
+    choices = M.LEADER_KEYS, keywords = { "super", "leader", "modifier", "remap", "caps lock", "left", "right" } },
+  { id = "leader.super.sends", section = "leaders", title = "SUPER Sends", kind = "choice", applies = "reload",
+    choices = M.LEADER_SENDS, detail = M.LEADER_SENDS_DETAIL,
+    keywords = { "super", "leader", "kanata", "karabiner", "function key", "password", "secure input", "modifiers" } },
+  { id = "leader.super.sheet", section = "leaders", title = "SUPER Cheat Sheet on Hold", kind = "switch",
+    applies = "reload", keywords = { "super", "leader", "cheat sheet", "shortcuts", "hold" } },
 
   -- Every key set in Olm Settings, an action id to its chord, hyper+C, or false for none, laid over
   -- config/keymap.lua and this machine's app keys by the root before the keymap is read, so a key

@@ -1,7 +1,8 @@
 # The Leaders page
 
-Status. Designed on 2026-11-24, asked by Milos, not built. Waiting on his answers to the open
-questions at the end. Part of 6.2 in `docs/PLAN-STANDALONE.md`, the recorder's leaders, and it
+Status. Designed on 2026-11-24, asked by Milos. He answered the questions at the end the same day,
+both hands, ⌃⌥⌘ for SUPER and no password on a change, and step 1 is built, the page as three rows
+per leader, its key, what it sends and its cheat sheet on a hold. Part of 6.2 in `docs/PLAN-STANDALONE.md`, the recorder's leaders, and it
 settles open question 4 there, leaders in a password field.
 
 ## What a person gets
@@ -57,9 +58,10 @@ does today.
 - **Saving.** The page writes a `leaders` setting in `~/.olm/state/settings.json`, laid over
   `SHIPPED_LEADERS` the way the `leaders` section of `config/keymap.lua` is today. A leader that
   section sets is locked on the page with "Set in config/keymap.lua", the rule every setting keeps.
-- **A function key, live.** `lib/keyremap.lua` already writes one `hidutil` table for every held
-  leader. Its allow list, `USAGE`, gains the left modifiers, and a change applies at once with no
-  reload, which is rule 11.
+- **A function key.** `lib/keyremap.lua` already writes one `hidutil` table for every held
+  leader. Its allow list, `USAGE`, gained the modifiers of both hands. A change applies in the one
+  reload as the window closes, since Hammerspoon still builds the leaders, which corrects the first
+  draft's live, and turns live once the app owns them, rule 11.
 - **Real modifiers, live.** The kanata config gets its leader lines from what the page saved, the
   `defsrc` keys and the `tap-hold` aliases, and nothing else in it moves. For kanata to pick up a
   change with no password, the daemon would be started once with its TCP port on localhost, and Olm
@@ -83,7 +85,10 @@ does today.
 The function key leaders stay heard by Hammerspoon's tap until the app has a tap of its own, since a
 Carbon claim can't hold a function key down as a leader.
 
-## Open questions for Milos
+## Open questions for Milos, answered on 2026-11-24
+
+Both hands, with the caveat under the choice. SUPER on ⌃⌥⌘. No password, kanata listening on a
+localhost port for a reload, checked in step 4 before it is relied on.
 
 1. Left modifiers as leaders were refused on 2026-10-22, since a left key taxes typing. You asked
    for left and right, so the page offers both with the caveat. Is that what you want, or right side

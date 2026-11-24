@@ -38,12 +38,14 @@
 -- problem line, and the leader keeps its shipped default, a new name is ignored. A leader may
 -- listen on one of each at once, written triggers = { { key = ... }, { mods = ... } }, with a
 -- remapTo inside the key trigger. More than two, or two of one kind, is a problem line. Only these keys
--- may be a held leader, capsLock, rightCommand, rightOption, rightControl and f13 to f20. Anything
--- else is a problem line naming them, since a letter as a leader taxes every word typed with it
--- and the left modifiers and F1 to F12 are what ordinary shortcuts and the media keys need. f13 to
+-- may be a held leader, capsLock, the modifiers of either hand, leftShift to rightCommand, and f13 to
+-- f20. Anything else is a problem line naming them, since a letter as a leader taxes every word typed
+-- with it and F1 to F12 are what the media keys need. A left modifier made a leader no longer types
+-- as itself, so its other hand's key does. Olm Settings' Leaders page sets the same three leaders,
+-- and an entry here locks that leader there. f13 to
 -- f20 are how extra hardware becomes a leader, since a foot pedal, a macro pad or a programmable
 -- keyboard can be set in its own firmware to send one of them, and Olm hears it as it is.
--- capsLock and the right modifiers are remapped to a function key instead. remapTo, beside key,
+-- capsLock and the modifiers are remapped to a function key instead. remapTo, beside key,
 -- pins which one, one of f13 to f20, and without it Olm uses the key's preferred one, capsLock f18,
 -- rightOption f16 and rightCommand f17, and rightControl or a taken preference gets the first free
 -- one. A taken preference is said in one routine console line. remapTo is a problem line beside

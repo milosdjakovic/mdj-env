@@ -233,9 +233,9 @@ do
   check("the share has its version", share.version, 1)
   local order = {}
   for _, section in ipairs(share.sections) do order[#order + 1] = section.id end
-  check("sections in order", table.concat(order, ","), "general,appearance,motion,behaviour,applications,plugins")
+  check("sections in order", table.concat(order, ","), "general,appearance,motion,behaviour,leaders,applications,plugins")
   -- Applications holds Olm's own keys setting, Window Management only the window manager's.
-  check("an empty section is not shared", #share.sections, 6)
+  check("an empty section is not shared", #share.sections, 7)
   local rows = {}
   for _, section in ipairs(share.sections) do
     for _, row in ipairs(section.settings) do rows[row.id] = row end

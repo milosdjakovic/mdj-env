@@ -310,7 +310,8 @@ local SHIPPED_LEADERS = {
   meta  = { triggers = { { key = "rightOption" }, { mods = { "shift", "ctrl", "alt" } } },
     drivenRepeat = true, sheet = true,
     sheetLayout = { columns = 2, colWidth = 250, badgeWidth = 44, gap = 12 } },
-  super = { key = "rightCommand", drivenRepeat = true, sheet = true,
+  super = { triggers = { { key = "rightCommand" }, { mods = { "ctrl", "alt", "cmd" } } },
+    drivenRepeat = true, sheet = true,
     sheetLayout = { columns = 2, colWidth = 250, badgeWidth = 44, gap = 12 } },
 }
 
@@ -791,7 +792,8 @@ function obj.run(olm, cfg)
   -- adapter, so a key Hammerspoon does not name is spelled the same way everywhere.
   local keyTable = keycodesLib.new(hs.keycodes.map)
   atoms.leader.keycodes = keyTable
-  local keymapConfig = keymapLib.readConfig(savedKeys(cfg.keymap, olmSettings), {
+  local keymapConfig = keymapLib.readConfig(keymapLib.savedLeaders(savedKeys(cfg.keymap, olmSettings), olmSettings,
+    SHIPPED_LEADERS), {
     leaders = SHIPPED_LEADERS,
     sources = keyRemapAtom.sources(),
     allocate = keyRemapAtom.allocate,

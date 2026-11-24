@@ -846,7 +846,7 @@ runs them from programs rather than `swift test`, decided at 1.1. A part moves
    no restart of the app and the Settings window left open, so a step that moves an owner also
    turns its settings live. A reload stays only where Hammerspoon still owns the setting, and each
    one left is listed below with the step that ends it. The applications, their keys, the Globe
-   key and the plugin switches, 6.2 and stage 4. The chooser, the fonts and the icon set, which the
+   key and the plugin switches, 6.2 and stage 4. The Leaders page, until the app owns the leaders. The chooser, the fonts and the icon set, which the
    Lua kit reads at load, once the app draws every list. A plugin's own settings, once its plugin
    is the app's.
 

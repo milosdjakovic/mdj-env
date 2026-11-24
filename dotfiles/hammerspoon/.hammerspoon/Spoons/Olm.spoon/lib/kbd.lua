@@ -83,6 +83,7 @@ M.Question = key("?", "?", "key")
 -- right before the modifier's own glyph, two keys of one chord, so it stays the glyph a person knows.
 M.CapsLock = key("capslock", "\u{21EA}", "key", "capslock")
 M.RightHand = key("righthand", "right", "side")
+M.LeftHand = key("lefthand", "left", "side")
 
 -- The shipped leaders, each a symbol rather than a word so a chord stays a row of glyphs, a star,
 -- a diamond and a dot, three shapes none of which can be taken for another. A leader the person
@@ -114,15 +115,18 @@ local SHIFTED = { ["/"] = M.Question }
 local plain = {}
 
 --- kbd.physical(name) -> chord. A held leader's physical key, a USAGE name from lib/keyremap.lua,
---- as the keys a person reads. A name of the right hand side and a modifier, rightOption or
---- rightShift, is right and that modifier's own key, read from the name rather than listed, so a key
+--- as the keys a person reads. A name of either hand and a modifier, rightOption or leftShift, is
+--- the hand's word and that modifier's own key, read from the name rather than listed, so a key
 --- added to the allow list draws with no edit here. Every other name is kbd.named's, Caps Lock its
 --- symbol and a function key itself.
 function M.physical(name)
   assert(type(name) == "string" and name ~= "", "kbd.physical takes a key name, got " .. tostring(name))
-  local side = name:lower():match("^right(.+)$")
-  local modifier = side and NAMED[side]
-  if modifier and modifier.kind == "modifier" then return M.chord({ M.RightHand, modifier }) end
+  local lower = name:lower()
+  for _, hand in ipairs({ { "^right(.+)$", M.RightHand }, { "^left(.+)$", M.LeftHand } }) do
+    local side = lower:match(hand[1])
+    local modifier = side and NAMED[side]
+    if modifier and modifier.kind == "modifier" then return M.chord({ hand[2], modifier }) end
+  end
   return M.chord({ M.named(name) })
 end
 

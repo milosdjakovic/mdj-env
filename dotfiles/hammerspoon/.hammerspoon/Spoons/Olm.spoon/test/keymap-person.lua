@@ -270,13 +270,15 @@ do
   -- A key off the allow list is a problem line naming the keys it allows.
   r = read({ leaders = { hyper = { key = "space" }, pedal = { key = "a" }, odd = { key = 3 }, low = { key = "f12" },
     left = { key = "leftCommand" } } })
+  -- A left modifier is admitted since 2026-11-24, asked by Milos for the Leaders page.
   by = byName(r)
   text = whys(r.problems)
   eq(has(text, "leaders hyper | has a key of 'space', which is not a key Olm can make a leader"), true, "allow: a key off the list is named")
-  eq(has(text, "capsLock, f13, f14, f15, f16, f17, f18, f19, f20, rightCommand, rightControl, rightOption"), true,
+  eq(has(text, "capsLock, f13, f14, f15, f16, f17, f18, f19, f20, leftCommand, leftControl, leftOption, leftShift, "
+    .. "rightCommand, rightControl, rightOption, rightShift"), true,
     "allow: with the keys it allows, from keyremap")
   eq(has(text, "leaders low | has a key of 'f12'"), true, "allow: F12 carries brightness and is refused")
-  eq(has(text, "leaders left | has a key of 'leftCommand'"), true, "allow: a left modifier is refused")
+  eq(has(text, "leaders left |"), false, "allow: a left modifier is admitted")
   eq(by.hyper.key, "capsLock", "allow: a shipped leader keeps its key")
   eq(by.pedal, nil, "allow: a new name is ignored")
   eq(by.odd, nil, "allow: a key that is no word is ignored")
@@ -1759,6 +1761,75 @@ do
   local freed = buildGlobe({ keys = { globe = false } })
   eq(#freed.problems, 0, "globe: freeing the Globe key is no problem")
   eq(chordsOf(freed, "inputs", "cycle"), "", "globe: the plugin's row there is dropped")
+end
+
+-- The Leaders page's settings laid over the leaders section, keymap.savedLeaders, over a fake of the
+-- root's settings, declare and value, its defaults read from the shipped leaders.
+do
+  local BOTH = {
+    hyper = { triggers = { { key = "capsLock" }, { mods = { "shift", "ctrl", "alt", "cmd" } } }, ranked = true, sheet = true },
+    meta = { triggers = { { key = "rightOption" }, { mods = { "shift", "ctrl", "alt" } } }, drivenRepeat = true, sheet = true },
+    super = { triggers = { { key = "rightCommand" }, { mods = { "ctrl", "alt", "cmd" } } }, drivenRepeat = true, sheet = true },
+  }
+  local function fake(saved)
+    local decls, defaults = {}, {}
+    return {
+      declare = function(id, fields)
+        decls[id] = decls[id] or {}
+        for k, v in pairs(fields) do
+          if k == "default" then defaults[id] = v else decls[id][k] = v end
+        end
+      end,
+      value = function(id) if saved[id] ~= nil then return saved[id] end return defaults[id] end,
+      decls = decls, defaults = defaults,
+    }
+  end
+  local function readBoth(config)
+    return keymap.readConfig(config, { leaders = BOTH, sources = SOURCES, allocate = KeyRemap.allocate,
+      roleWords = ROLE_WORDS, keycodes = KEYCODES })
+  end
+
+  local plain = { keys = {} }
+  local s = fake({})
+  eq(keymap.savedLeaders(plain, s, BOTH), plain, "saved leaders: nothing saved leaves the keymap as it is")
+  eq(s.defaults["leader.hyper.key"], "capsLock", "saved leaders: Hyper's key defaults to Caps Lock")
+  eq(s.defaults["leader.super.key"], "rightCommand", "saved leaders: SUPER's to Right Command")
+  eq(s.defaults["leader.meta.sends"], "both", "saved leaders: a leader on a key and modifiers sends both")
+  eq(s.defaults["leader.meta.sheet"], true, "saved leaders: its sheet defaults on")
+
+  local out = keymap.savedLeaders(plain, fake({ ["leader.super.key"] = "leftShift", ["leader.super.sends"] = "fkey" }), BOTH)
+  eq(out.leaders.super.key, "leftShift", "saved leaders: a function key alone is its key")
+  eq(out.leaders.super.triggers, nil, "saved leaders: and no modifiers")
+  local r = readBoth(out)
+  eq(byName(r).super.key, "leftShift", "saved leaders: the reader takes a left modifier")
+  eq(byName(r).super.mods, nil, "saved leaders: with no modifiers")
+  eq(#r.problems, 0, "saved leaders: and no problem")
+
+  out = keymap.savedLeaders(plain, fake({ ["leader.meta.key"] = "rightShift" }), BOTH)
+  eq(out.leaders.meta.triggers[1].key, "rightShift", "saved leaders: both keeps the key")
+  eq(table.concat(out.leaders.meta.triggers[2].mods, "+"), "shift+ctrl+alt", "saved leaders: and the shipped modifiers")
+
+  out = keymap.savedLeaders(plain, fake({ ["leader.hyper.key"] = "none" }), BOTH)
+  eq(out.leaders.hyper.key, nil, "saved leaders: none is no key")
+  eq(#out.leaders.hyper.mods, 4, "saved leaders: and the modifiers alone")
+  out = keymap.savedLeaders(plain, fake({ ["leader.hyper.sends"] = "mods" }), BOTH)
+  eq(#out.leaders.hyper.mods, 4, "saved leaders: real modifiers alone are the modifiers")
+
+  out = keymap.savedLeaders(plain, fake({ ["leader.meta.sheet"] = false }), BOTH)
+  eq(out.leaders.meta.sheet, false, "saved leaders: a sheet switched off is said")
+  eq(out.leaders.meta.key or out.leaders.meta.triggers, nil, "saved leaders: and the trigger is left as it ships")
+  eq(byName(readBoth(out)).meta.key, "rightOption", "saved leaders: so META keeps Right Option")
+
+  s = fake({ ["leader.hyper.key"] = "f19" })
+  out = keymap.savedLeaders({ leaders = { Hyper = { key = "f13" } } }, s, BOTH)
+  eq(out.leaders.Hyper.key, "f13", "saved leaders: the keymap's own entry stands")
+  eq(out.leaders.hyper, nil, "saved leaders: and the saved one is not laid beside it")
+  eq(s.decls["leader.hyper.key"].locked, "set in config/keymap.lua", "saved leaders: the page is locked there")
+  eq(s.decls["leader.meta.key"].locked, nil, "saved leaders: and only that leader is")
+
+  r = readBoth(keymap.savedLeaders(plain, fake({ ["leader.super.key"] = "capsLock", ["leader.super.sends"] = "fkey" }), BOTH))
+  eq(has(whys(r.problems), "leaders super"), true, "saved leaders: two leaders on one key are said")
+  eq(byName(r).super.key, "rightCommand", "saved leaders: and SUPER keeps what it ships")
 end
 
 if failures > 0 then

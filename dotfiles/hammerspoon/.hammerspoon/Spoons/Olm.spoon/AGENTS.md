@@ -295,8 +295,8 @@ kind it is, which is what the roles, the remap record and the sheet heading spel
 spells it lowercase. One scheme for both kinds is what keeps a role naming the same leader when
 Hyper changes kind. The physical key stays in the entry, and `lib/keyremap.lua` says which
 function key the engine listens on for each held leader, `KeyRemap.allocate`. That file keeps the
-allow list of keys a held leader may name, `USAGE`, which is Caps Lock, Right Command, Right Option,
-Right Control and F13 to F20, so admitting another key is one row there and the reader in
+allow list of keys a held leader may name, `USAGE`, which is Caps Lock, the modifiers of either
+hand and F13 to F20, so admitting another key is one row there and the reader in
 `lib/keymap.lua` holds no list of its own. The reader is handed the allow list and `allocate` as
 options, since only the root names the remap, and it drops the person's trigger of every entry the
 allocation cannot place, the shipped one coming back or a new name being ignored, and asks again
