@@ -67,3 +67,10 @@ opens. Checking a box dimmed the whole list while the save went over the bridge,
 stays live and shows the click at once. Favourites waited for a reload, so a plugin setting may name
 `onChange`, a member told the new value, and then applies at once. A saved name the scan no longer
 finds is not shown and leaves on the next click, his Red Burst being the profile Redburst.
+
+### 2026-11-24 20:00, rewritten in Swift and run by Olm.app
+
+The list, its favourites, Show All and Show Favourites, Copy Link on Command and Return, the link in
+the field and the launcher row that opens the last link again are the Lua plugin's, now
+`app/Plugins/External/browserswitcher`, sandboxed. The Lua plugin is switched off, not deleted,
+until Milos has tried the new one. `decisions/olm-standalone.md` has the rest.

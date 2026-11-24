@@ -1747,3 +1747,14 @@ system compares its hash. Found while testing: codesign over a locked keychain o
 dialog and waits, so the build unlocks first and stops when it cannot. Full Disk Access held across
 the switch and a rebuild, seen live. A grant given before today stores the old requirement, the
 bundle id alone, until it is removed and given again.
+
+### 2026-11-24 20:00, Browser Switcher runs in Olm.app as the first external plugin, asked by Milos
+
+Milos chose Browser Switcher as the first plugin of ours and, asked, chose the kit, the loading and
+the plugin now with the install page and the `olm` command next, and Olm.app owning an app run
+plugin's settings over Hammerspoon reading its manifest, so each settings file has one writer,
+`~/.olm/state/plugins.json` for the app's plugins. The plugin holds no sandbox permission: Olm reads
+the profiles and opens the link for it, by the same `open` request any plugin has. Shadow before the
+flip, the plan's rule, was skipped, since a link goes to one handler and the two cannot answer the
+same click. The Lua plugin is switched off in config/plugins.lua and kept until Milos's trial. The
+app has no toast, so a plugin's line goes to Hammerspoon's over the bridge for now.

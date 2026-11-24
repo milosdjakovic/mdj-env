@@ -66,6 +66,8 @@ local SF, GLYPH = "sf", "emoji"
 --- opts.link        function(params) -> handled, a web link Olm.app received as the default browser,
 ---                  params url, ask, sourceBundle and sourceName, handed to the plugin that provides
 ---                  links, docs/DESIGN-BROWSER-SWITCHER.md, optional, every link unhandled without it
+--- opts.notify      function(text), one routine line on Olm's message toast, what a plugin Olm.app
+---                  runs says, docs/DESIGN-APP-PLUGINS.md, optional, notify refused without it
 --- opts.facade      host/bridge/facade.lua's, the stage words a hosted list's code calls during a
 ---                  request recorded as effects, optional
 function M.new(opts)
@@ -843,6 +845,15 @@ function M.new(opts)
       return { handled = false }
     end
     return { handled = handled == true }
+  end }
+
+  -- A line a plugin Olm.app runs says, drawn on the message toast every message uses, since the
+  -- app has no toast of its own yet.
+  methods.notify = { run = function(params)
+    if type(params.text) ~= "string" then rpc.fail(rpc.PARAMS, "notify needs text") end
+    if type(opts.notify) ~= "function" then rpc.fail(rpc.PARAMS, "no message surface") end
+    opts.notify(params.text)
+    return {}
   end }
 
   methods.back = { run = function(params)

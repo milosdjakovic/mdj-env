@@ -118,9 +118,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
   private let shownLauncher: BridgedLauncher
   private let typedLauncher: BridgedLauncher
   private let launcherShadow: Shadow
+  // The external plugins the app runs, docs/DESIGN-APP-PLUGINS.md, Browser Switcher the first.
+  private let plugins: PluginHost
   // The Olm Settings window, its changes sent over the bridge, S.3 of docs/DESIGN-APP-SETTINGS.md.
-  private lazy var settingsWindow = SettingsWindow(service: Self.settingsService(bridge),
-    permissions: Self.permissions())
+  private lazy var settingsWindow = SettingsWindow(share: { ExternalPlugins.merged(SettingsShare.read()) },
+    service: Self.settingsService(bridge), permissions: Self.permissions())
 
   /// Every permission the app uses, for the Permissions page of Olm Settings: Accessibility for
   /// bringing an app forward, Input Monitoring for hearing the keys, and the three folders file
@@ -204,6 +206,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
   static func settingsService(_ bridge: Bridge) -> SettingsService {
     SettingsService(change: { id, value, reset in
+      // A plugin the app runs keeps its settings in the app's own store, never Hammerspoon's.
+      if id.hasPrefix(ExternalPlugins.prefix) {
+        let why = ExternalPlugins.change(id, value, reset: reset)
+        return SettingAnswer(ok: why == nil, why: why, share: ExternalPlugins.merged(SettingsShare.read()))
+      }
       do {
         let answer = try await bridge.request("setting", .object(["id": .string(id), "value": JSON(value.any),
           "reset": .bool(reset)]))
@@ -211,7 +218,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let share = o["share"].flatMap { try? JSONSerialization.data(withJSONObject: $0.any) }.flatMap(SettingsShare.parse)
         let ok = o["ok"] == .bool(true)
         if ok, id == AppCatalog.settingId || id == AppCatalog.modeId { retakeKeys?() }
-        return SettingAnswer(ok: ok, why: o["why"]?.string, share: share)
+        return SettingAnswer(ok: ok, why: o["why"]?.string, share: share.flatMap { ExternalPlugins.merged($0) })
       } catch {
         return SettingAnswer(ok: false, why: "was not changed, Hammerspoon did not answer (\(error))", share: nil)
       }
@@ -226,7 +233,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         return id + (r["why"].string.map { " " + $0 } ?? "")
       }
       let share = o["share"].flatMap { try? JSONSerialization.data(withJSONObject: $0.any) }.flatMap(SettingsShare.parse)
-      return (refused, share)
+      return (refused, share.flatMap { ExternalPlugins.merged($0) })
     })
   }
 
@@ -248,7 +255,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     // asked of Hammerspoon, or the whole list asked as before while the launcherCatalog switch is off.
     let typedLauncher = BridgedLauncher(bridge: bridge, shown: true, typed: true, natives: natives)
     self.typedLauncher = typedLauncher
-    let inUse = NativeLauncher(inner: typedLauncher, fallback: shownLauncher, run: context.run)
+    let plugins = PluginHost(bridge: bridge)
+    self.plugins = plugins
+    let inUse = NativeLauncher(inner: typedLauncher, fallback: shownLauncher, run: context.run,
+      externals: { PluginHost.launcherRows() }, external: { id in await plugins.source(id) })
     // Passed through a tee, so each answer it settles on once typing pauses is compared with what
     // Hammerspoon's whole list would have been. A list a typed word handed over is left out.
     let compared = ShadowTee(inUse) { [searcher] query, answer, level in
@@ -277,6 +287,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     // The browsers and their profiles for Browser Switcher, found once at launch and again before
     // each link and whenever its page is shown.
     DispatchQueue.global(qos: .utility).async { Browsers.refresh() }
+    // The external plugins, each built when its sources moved and loaded, off the main thread.
+    plugins.start()
     // LaunchServices keeps one instance for a bundle it opens, LSMultipleInstancesProhibited in
     // Info.plist. A second copy started some other way, the executable run by hand, leaves at once.
     let me = NSRunningApplication.current
@@ -563,7 +575,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
   func application(_ application: NSApplication, open urls: [URL]) {
     for url in urls {
-      if Links.isWeb(url) { Links.route(url, bridge: bridge); continue }
+      if Links.isWeb(url) {
+        // A plugin the app runs takes it when one may, else Hammerspoon's, else Safari.
+        if !plugins.takeLink(url, sender: Links.sender(), stage: stage) { Links.route(url, bridge: bridge) }
+        continue
+      }
       guard url.scheme == "olm" else { continue }
       let items = URLComponents(url: url, resolvingAgainstBaseURL: false)?.queryItems ?? []
       func item(_ name: String) -> String? { items.first(where: { $0.name == name })?.value }
@@ -604,6 +620,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
       } else if let host = url.host, let source = sources[host] {
         stage.open(source, query: item("query") ?? "", screen: item("screen"))
+      } else if let host = url.host, ExternalPlugins.plugin(host) != nil {
+        // A plugin the app runs, its list opened as its launcher row opens it.
+        let plugins = plugins, stage = stage, query = item("query") ?? "", screen = item("screen")
+        Task { @MainActor in
+          guard let source = await plugins.source(host) else { return }
+          stage.open(source, query: query, screen: screen)
+        }
       } else {
         NSLog("Olm: an olm URL this app does not know, %@", url.absoluteString)
       }

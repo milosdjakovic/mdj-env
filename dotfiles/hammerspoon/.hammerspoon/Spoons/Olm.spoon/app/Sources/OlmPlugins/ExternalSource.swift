@@ -17,11 +17,15 @@ public actor ExternalSource: ListSource {
   private var level: BridgedLevel?
   /// Why the list could not be served, said as its status in place of rows.
   private var trouble: String?
+  /// What the list is opened with, a link for a plugin receiving links, handed to the plugin's open.
+  private let context: JSON
 
-  init(plugin: RunningPlugin, runner: PluginRunner) {
+  /// actions, the actions pane's and the secondary's, which the stage runs through this source.
+  init(plugin: RunningPlugin, runner: PluginRunner, context: JSON = .null, actions: [Action] = []) {
     self.plugin = plugin
     self.runner = runner
-    manifest = Manifest(name: plugin.manifest.id, title: plugin.manifest.title,
+    self.context = context
+    manifest = Manifest(name: plugin.manifest.id, title: plugin.manifest.title, actions: actions,
       statusFallback: StatusLook(title: plugin.manifest.title, symbol: "exclamationmark.triangle"))
   }
 
@@ -32,8 +36,8 @@ public actor ExternalSource: ListSource {
       return Level(placeholder: title)
     }
     do {
-      let answer = try await plugin.request("open", .object(["what": .object(["tool": .string(plugin.manifest.id)]),
-        "query": .string(query)]))
+      let answer = try await plugin.request("open", .object(["what": .object(["tool": .string(plugin.manifest.id),
+        "context": context]), "query": .string(query)]))
       let opened = BridgedLevel(bridge: plugin, wire: answer["level"], defaultRowLimit: 50,
         log: { NSLog("Olm plugin: %@", $0) })
       await plugin.hold(opened)

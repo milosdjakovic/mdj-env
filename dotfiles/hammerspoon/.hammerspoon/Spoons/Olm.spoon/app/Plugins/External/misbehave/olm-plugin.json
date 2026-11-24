@@ -3,6 +3,7 @@
   "title": "Misbehave",
   "version": "0.1.0",
   "protocol": 1,
+  "test": true,
   "run": { "swift": "Sources" },
   "permissions": {
     "programs": ["caffeinate", "mullvad"],

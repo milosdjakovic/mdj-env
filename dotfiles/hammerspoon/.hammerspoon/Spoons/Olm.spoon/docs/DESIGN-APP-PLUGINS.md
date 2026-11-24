@@ -388,6 +388,33 @@ shadow where its rows can be compared, then flipped, which switches the Lua plug
 
 ## As built
 
+**Step 3 of the permissions plan, Browser Switcher run by Olm.app, built 2026-11-24.** Runner steps 2
+and 4 in part, asked by Milos, the install page and the `olm` command left for the next step.
+
+- **`OlmPluginKit`**, `app/PluginKit/OlmPluginKit.swift`, one file bundled with the app and compiled
+  into every plugin beside its own sources, so a plugin is its handlers, `open`, `rows`, `choose`,
+  `run` and `actions`, and asks Olm with `openLink`, `copy` and `notify`.
+- **The app runs them.** `Sources/Olm/Plugins.swift` finds each folder under `~/.olm/plugins`, builds
+  one whose sources or the kit are newer than its program, loads it into the runner, and answers what
+  it asks: `open` a link or file in a named application, a browser's profile by starting its program
+  with the profile, `copy`, and `notify`, drawn on Hammerspoon's message toast through the bridge
+  until the app has one. Its list opens with what it is opened with, the link, its settings and, for
+  a plugin declaring Browser Profiles, the browsers Olm found, their profiles only while it is on.
+- **Its bar, actions pane and launcher row** are laid out by the app from `olm-plugin.json`'s
+  `surface` and `row`, the leader legend and the shared keys taken from the launcher's share, since
+  Hammerspoon writes no share for it. `olm://<id>` opens its list too.
+- **Its settings are the app's,** `~/.olm/state/plugins.json`, decided by Milos on 2026-11-24 so each
+  settings file keeps one writer. `OlmSettings/ExternalPlugins.swift` draws its switch, settings and
+  abilities on its page in Plugins and under each permission through the same parts, and the window
+  sends their changes there rather than to Hammerspoon. Olm's list of abilities is kept in Swift
+  beside `lib/abilities.lua` until Hammerspoon goes.
+- **Browser Switcher** is `app/Plugins/External/browserswitcher`, sandboxed with no permission of its
+  own, `src/setup-olmapp.sh` copying it into `~/.olm/plugins`. The Lua one is switched off in
+  `config/plugins.lua`, and the favourites saved for it were taken over once. Checked by driving the
+  built program over its pipes, and `test/olmplugins.sh` still holds every case.
+- **Not yet.** Installing a plugin by dropping it on Olm Settings and asking for its sandbox
+  permissions, offering a block with Allow, the `olm` command, and the plugin's own log in the window.
+
 **Step 2, Olm.app signed with this Mac's certificate, built 2026-11-24.** `src/setup-olmapp.sh` makes
 a self signed code signing certificate once, with the system's `openssl`, into
 `~/.olm/state/signing/olm.keychain-db`, a keychain macOS does not search, its random password in a
@@ -495,7 +522,8 @@ A build into a folder of its own, `test/olmapp.sh`, is still ad hoc.
 3. **Installing and asking.** The Plugins section of Olm Settings takes a dropped plugin, shows the
    page of what it asks for, builds it and lists it with its state, its grants, its log and its
    switch, and a block in use is offered with Allow.
-4. **The first plugin of ours.** Keep awake, small and pure, rewritten in Swift as an external
+4. **The first plugin of ours.** Browser Switcher, built 2026-11-24, Milos's choice over keep awake,
+   which was first planned here: keep awake, small and pure, rewritten in Swift as an external
    plugin, run in shadow beside the Lua one and flipped. Then the others, one per step.
 5. **The skill,** written once steps 2 and 3 have settled the commands.
 6. **Other languages,** JavaScript through JavaScriptCore and a ready made program, when someone

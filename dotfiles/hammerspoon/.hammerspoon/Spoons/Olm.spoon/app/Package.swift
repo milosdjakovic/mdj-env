@@ -59,7 +59,8 @@ let package = Package(
     .target(name: "FileSearchPlugin", dependencies: ["OlmKit"], path: "Plugins/FileSearch"),
     .executableTarget(
       name: "Olm",
-      dependencies: ["OlmKit", "OlmCore", "OlmBridge", "OlmSettings", "OlmKeys", "OlmLauncher", "OlmApps", "FileSearchPlugin"],
+      dependencies: ["OlmKit", "OlmCore", "OlmBridge", "OlmSettings", "OlmKeys", "OlmLauncher", "OlmApps", "OlmPlugins",
+        "FileSearchPlugin"],
       path: "Sources/Olm"
     ),
     .executableTarget(name: "olm-fixtures", dependencies: ["OlmKit", "OlmSearch", "OlmLook", "OlmCore", "FileSearchPlugin", "OlmApps"],

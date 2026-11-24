@@ -88,6 +88,8 @@ public actor RunningPlugin: LevelPeer {
   private let appVersion: String
   private let ended: @Sendable (String, Ending) -> Void
   private let log: @Sendable (String) -> Void
+  /// Answers what the plugin asks of Olm, by plugin id, method and params, a result or why not.
+  private let serve: Serve
 
   private var process: PluginProcess?
   private var starting: Task<Void, Error>?
@@ -106,14 +108,28 @@ public actor RunningPlugin: LevelPeer {
   /// The peak memory and processor time it was seen using since it started, for the check.
   public private(set) var peakFootprint: UInt64 = 0
 
+  public typealias Serve = @Sendable (String, String, JSON) async -> Result<JSON, Refusal>
+
+  /// Why Olm did not do what a plugin asked, its code and words.
+  public struct Refusal: Error, Sendable {
+    public let code: Int
+    public let message: String
+    public init(_ code: Int, _ message: String) {
+      self.code = code
+      self.message = message
+    }
+  }
+
   init(manifest: PluginManifest, folder: URL, budgets: Budgets, appVersion: String,
-       ended: @escaping @Sendable (String, Ending) -> Void, log: @escaping @Sendable (String) -> Void) {
+       ended: @escaping @Sendable (String, Ending) -> Void, log: @escaping @Sendable (String) -> Void,
+       serve: @escaping Serve = { _, method, _ in .failure(Refusal(-32601, "no method \(method)")) }) {
     self.manifest = manifest
     self.folder = folder
     self.budgets = budgets
     self.appVersion = appVersion
     self.ended = ended
     self.log = log
+    self.serve = serve
   }
 
   public var running: Bool { process != nil }
@@ -287,8 +303,12 @@ public actor RunningPlugin: LevelPeer {
     }
     if let method = message["method"].string {
       if let id = message["id"].string ?? message["id"].int.map(String.init) {
-        // The requests a plugin may make of Olm come with step 4.4.
-        reply(id, error: (-32601, "no method \(method)"))
+        // What a plugin asks of Olm, answered off this actor so a slow answer holds nothing.
+        let serve = self.serve, plugin = manifest.id, params = message["params"]
+        Task { [weak self] in
+          let outcome = await serve(plugin, method, params)
+          await self?.answer(id, outcome)
+        }
       } else if method == "log" {
         log("\(manifest.id): \(message["params"]["text"].string ?? "")")
       }
@@ -302,6 +322,17 @@ public actor RunningPlugin: LevelPeer {
       p.done.resume(throwing: BridgeError.answered(message["error"]["code"].int ?? 0, message["error"]["message"].string ?? ""))
     } else {
       p.done.resume(returning: message["result"])
+    }
+  }
+
+  private func answer(_ id: String, _ outcome: Result<JSON, Refusal>) {
+    switch outcome {
+    case .success(let result):
+      guard let process, let body = JSON.object(["jsonrpc": .string("2.0"), "id": .string(id), "result": result]).encoded()
+      else { return }
+      process.send(body)
+    case .failure(let refusal):
+      reply(id, error: (refusal.code, refusal.message))
     }
   }
 

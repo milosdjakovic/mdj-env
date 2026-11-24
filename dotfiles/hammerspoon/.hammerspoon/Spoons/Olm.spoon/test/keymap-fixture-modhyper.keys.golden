@@ -15,7 +15,6 @@ META	up	any	-	-	windowmanager
 META	w	any	-	-	windowmanager
 META	z	any	-	-	windowmanager
 field	,	cmd	audioOpen	100	audio
-field	,	cmd	browserSwitcherOpen	100	browserSwitcher
 field	,	cmd	browserTabsOpen	100	browserTabs
 field	,	cmd	caffeinateOpen	100	caffeinate
 field	,	cmd	clipboardOpen	100	clipboard
@@ -39,7 +38,6 @@ field	,	cmd	vpnOpen	100	vpn
 field	,	cmd	wifiOpen	100	wifi
 field	,	cmd	workspacesOpen	100	workspaces
 field	/	cmd	audioOpen	100	audio
-field	/	cmd	browserSwitcherOpen	100	browserSwitcher
 field	/	cmd	browserTabsOpen	100	browserTabs
 field	/	cmd	caffeinateOpen	100	caffeinate
 field	/	cmd	clipboardOpen	100	clipboard
@@ -63,7 +61,6 @@ field	/	cmd	vpnOpen	100	vpn
 field	/	cmd	wifiOpen	100	wifi
 field	/	cmd	workspacesOpen	100	workspaces
 field	/	cmd+shift	audioOpen	100	audio
-field	/	cmd+shift	browserSwitcherOpen	100	browserSwitcher
 field	/	cmd+shift	browserTabsOpen	100	browserTabs
 field	/	cmd+shift	caffeinateOpen	100	caffeinate
 field	/	cmd+shift	clipboardOpen	100	clipboard
@@ -95,7 +92,6 @@ field	f	alt+cmd+ctrl+shift	processesOpen	100	processes
 field	g	alt+cmd+ctrl+shift	fileSearchOpen	100	fileSearch
 field	h	alt+cmd+ctrl+shift	fileSearchOpen	100	fileSearch
 field	i	alt+cmd+ctrl+shift	audioOpen	100	audio
-field	i	alt+cmd+ctrl+shift	browserSwitcherOpen	100	browserSwitcher
 field	i	alt+cmd+ctrl+shift	browserTabsOpen	100	browserTabs
 field	i	alt+cmd+ctrl+shift	caffeinateOpen	100	caffeinate
 field	i	alt+cmd+ctrl+shift	clipboardOpen	100	clipboard
@@ -119,7 +115,6 @@ field	i	alt+cmd+ctrl+shift	vpnOpen	100	vpn
 field	i	alt+cmd+ctrl+shift	wifiOpen	100	wifi
 field	i	alt+cmd+ctrl+shift	workspacesOpen	100	workspaces
 field	j	alt+cmd+ctrl+shift	audioOpen	100	audio
-field	j	alt+cmd+ctrl+shift	browserSwitcherOpen	100	browserSwitcher
 field	j	alt+cmd+ctrl+shift	browserTabsOpen	100	browserTabs
 field	j	alt+cmd+ctrl+shift	caffeinateOpen	100	caffeinate
 field	j	alt+cmd+ctrl+shift	clipboardOpen	100	clipboard
@@ -143,7 +138,6 @@ field	j	alt+cmd+ctrl+shift	vpnOpen	100	vpn
 field	j	alt+cmd+ctrl+shift	wifiOpen	100	wifi
 field	j	alt+cmd+ctrl+shift	workspacesOpen	100	workspaces
 field	k	alt+cmd+ctrl+shift	audioOpen	100	audio
-field	k	alt+cmd+ctrl+shift	browserSwitcherOpen	100	browserSwitcher
 field	k	alt+cmd+ctrl+shift	browserTabsOpen	100	browserTabs
 field	k	alt+cmd+ctrl+shift	caffeinateOpen	100	caffeinate
 field	k	alt+cmd+ctrl+shift	clipboardOpen	100	clipboard
@@ -168,7 +162,6 @@ field	k	alt+cmd+ctrl+shift	wifiOpen	100	wifi
 field	k	alt+cmd+ctrl+shift	workspacesOpen	100	workspaces
 field	l	alt+cmd+ctrl+shift	fileSearchOpen	100	fileSearch
 field	m	alt+cmd+ctrl+shift	clipboardOpen	100	clipboard
-field	o	alt+cmd+ctrl+shift	browserSwitcherOpen	100	browserSwitcher
 field	o	alt+cmd+ctrl+shift	browserTabsOpen	100	browserTabs
 field	o	alt+cmd+ctrl+shift	clipboardOpen	100	clipboard
 field	o	alt+cmd+ctrl+shift	displayProfilesOpen	100	displayProfiles
@@ -178,7 +171,6 @@ field	o	alt+cmd+ctrl+shift	speedtestOpen	100	speedtest
 field	o	alt+cmd+ctrl+shift	tmuxSessionsOpen	100	tmuxSessions
 field	o	alt+cmd+ctrl+shift	vpnOpen	100	vpn
 field	o	alt+cmd+ctrl+shift	workspacesOpen	100	workspaces
-field	padenter	cmd	browserSwitcherOpen	100	browserSwitcher
 field	padenter	cmd	clipboardOpen	100	clipboard
 field	padenter	cmd	emojiOpen	100	emoji
 field	padenter	cmd	fileSearchOpen	100	fileSearch
@@ -188,7 +180,6 @@ field	r	alt+cmd+ctrl+shift	clipboardOpen	100	clipboard
 field	r	alt+cmd+ctrl+shift	displayProfilesOpen	100	displayProfiles
 field	r	alt+cmd+ctrl+shift	processesOpen	100	processes
 field	r	alt+cmd+ctrl+shift	workspacesOpen	100	workspaces
-field	return	cmd	browserSwitcherOpen	100	browserSwitcher
 field	return	cmd	clipboardOpen	100	clipboard
 field	return	cmd	emojiOpen	100	emoji
 field	return	cmd	fileSearchOpen	100	fileSearch
@@ -198,7 +189,6 @@ field	space	alt+cmd+ctrl+shift	launcherOpen	100	launcher
 field	u	alt+cmd+ctrl+shift	clipboardOpen	100	clipboard
 field	u	alt+cmd+ctrl+shift	fileSearchOpen	100	fileSearch
 field	x	alt+cmd+ctrl+shift	audioOpen	100	audio
-field	x	alt+cmd+ctrl+shift	browserSwitcherOpen	100	browserSwitcher
 field	x	alt+cmd+ctrl+shift	browserTabsOpen	100	browserTabs
 field	x	alt+cmd+ctrl+shift	caffeinateOpen	100	caffeinate
 field	x	alt+cmd+ctrl+shift	clipboardOpen	100	clipboard

@@ -58,6 +58,8 @@ cp "$here/Info.plist" "$stage/Contents/Info.plist"
 mkdir -p "$stage/Contents/Resources"
 # The app's icon, drawn by icon/make-icon.sh and committed, Info.plist's CFBundleIconFile.
 cp "$here/Olm.icns" "$stage/Contents/Resources/Olm.icns"
+# OlmPluginKit's source, compiled into every external plugin the app builds, docs/DESIGN-APP-PLUGINS.md.
+cp "$here/PluginKit/OlmPluginKit.swift" "$stage/Contents/Resources/OlmPluginKit.swift"
 if ! DEVELOPER_DIR="$tools" "$tools/usr/bin/swiftc" -sdk "$tools/SDKs/MacOSX.sdk" -O "$here/../plugins/filesearch/sources/fileindex.swift" \
   "$here/Sources/OlmSearch/Match.swift" -o "$stage/Contents/Resources/fileindex" >"$log" 2>&1; then
   grep -E 'error' "$log" | head -20 >&2

@@ -9,6 +9,12 @@ import CoreGraphics
 import Foundation
 @preconcurrency @testable import OlmChooser
 
+/// The bar of each list a plugin the app runs shows, laid out by the app from the plugin's manifest,
+/// since Hammerspoon writes no share for it, docs/DESIGN-APP-PLUGINS.md. The same shape as a share.
+public enum ExternalBars {
+  nonisolated(unsafe) public static var docs: [String: [String: Any]] = [:]
+}
+
 // What the share holds for one tool, the bar, the actions pane's rows and the keys the list's own
 // field answers.
 struct Bars {
@@ -39,9 +45,8 @@ struct Bars {
   // bar rather than a wrong one and its field answers no key it was not told of.
   static func read(_ tool: String) -> Bars {
     let path = FileManager.default.homeDirectoryForCurrentUser.path + "/.olm/run/\(tool.lowercased())keys.json"
-    guard let data = FileManager.default.contents(atPath: path),
-      let doc = try? JSONSerialization.jsonObject(with: data) as? [String: Any]
-    else { return Bars() }
+    let read = FileManager.default.contents(atPath: path).flatMap { try? JSONSerialization.jsonObject(with: $0) as? [String: Any] }
+    guard let doc = read ?? ExternalBars.docs[tool.lowercased()] else { return Bars() }
     var out = Bars()
     if let bar = doc["bar"] as? [String: Any] { out.bar = BottomBar(JSONFields(bar)) }
     if let bar = doc["panelBar"] as? [String: Any] { out.panelBar = BottomBar(JSONFields(bar)) }

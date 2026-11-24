@@ -77,7 +77,7 @@ public enum Browsers {
   /// Scans and writes what it found for the plugin, answering it. The profiles are read when share,
   /// the settings share, read from its file when not handed, has a plugin with browserProfiles on.
   @discardableResult public static func refresh(share: SettingsShare? = nil) -> BrowserScan {
-    let found = scan(profiles: (share ?? SettingsShare.read())?.allows("browserProfiles") ?? false)
+    let found = scan(profiles: (share ?? ExternalPlugins.merged(SettingsShare.read()))?.allows("browserProfiles") ?? false)
     if let data = try? JSONEncoder().encode(found) {
       try? FileManager.default.createDirectory(at: path.deletingLastPathComponent(), withIntermediateDirectories: true)
       try? data.write(to: path, options: .atomic)

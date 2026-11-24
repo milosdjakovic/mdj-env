@@ -42,13 +42,21 @@ public actor NativeLauncher: ListSource {
   private var ownerIcons: [String: [String: Icon]] = [:]
   private var waiting: (query: String, task: Task<(RowsAnswer, Bool)?, Never>)?
   private var unknownGates: Set<String> = []
+  /// The rows of the plugins the app runs, and the list each opens, docs/DESIGN-APP-PLUGINS.md.
+  private let externals: @Sendable () -> [Row]
+  private let external: @Sendable (String) async -> (any ListSource)?
+  static let externalPrefix = "plugin:"
 
   /// Seconds a scan of the applications is kept before an open scans again.
   static let scanAge: TimeInterval = 30
 
   public init(inner: BridgedLauncher, fallback: BridgedLauncher? = nil, run: URL,
               budget: Int? = NativeLauncher.typedBudget,
-              say: @escaping @Sendable (String) -> Void = { NSLog("Olm launcher: %@", $0) }) {
+              say: @escaping @Sendable (String) -> Void = { NSLog("Olm launcher: %@", $0) },
+              externals: @escaping @Sendable () -> [Row] = { [] },
+              external: @escaping @Sendable (String) async -> (any ListSource)? = { _ in nil }) {
+    self.externals = externals
+    self.external = external
     self.inner = inner
     self.fallback = fallback
     self.manifest = inner.manifest
@@ -122,7 +130,7 @@ public actor NativeLauncher: ListSource {
   public func prepare() async -> RowsAnswer? {
     await refresh(force: true)
     guard fallback == nil || (share?.inApp ?? false) else { return nil }
-    return built.map { RowsAnswer(rows: $0.rows) }
+    return built.map { RowsAnswer(rows: $0.rows + externals()) }
   }
 
   public func rows(_ query: Query) async throws -> RowsAnswer {
@@ -135,7 +143,7 @@ public actor NativeLauncher: ListSource {
       return try await inner.rows(query)
     }
     let memory = await inner.memorySnapshot()
-    let catalog = Catalog.withBonus(built, memory: memory, query: query.text)
+    let catalog = Catalog.withBonus(built, memory: memory, query: query.text) + externals()
     if query.text.isEmpty { return RowsAnswer(rows: catalog) }
     let inner = self.inner
     let task = Task<(RowsAnswer, Bool)?, Never> {
@@ -170,7 +178,7 @@ public actor NativeLauncher: ListSource {
     guard let w = waiting, w.query == query.text else { return nil }
     waiting = nil
     guard let landed = await w.task.value, let built else { return nil }
-    let catalog = Catalog.withBonus(built, memory: await inner.memorySnapshot(), query: query.text)
+    let catalog = Catalog.withBonus(built, memory: await inner.memorySnapshot(), query: query.text) + externals()
     return merge(landed, catalog)
   }
 
@@ -205,6 +213,7 @@ public actor NativeLauncher: ListSource {
 
   public func choose(_ pick: Pick) async -> [Effect] {
     if !native, let fallback { return await fallback.choose(pick) }
+    if pick.key.hasPrefix(Self.externalPrefix) { return [.push(pick.key)] }
     if await inner.holds(pick.key) { return await inner.choose(pick) }
     guard let item = built?.items[pick.key] else { return [] }
     return await inner.chooseItem(item, query: pick.query)
@@ -213,6 +222,7 @@ public actor NativeLauncher: ListSource {
   public func run(_ action: String, on pick: Pick) async -> [Effect] { [] }
 
   public func pushed(_ token: String) async -> (any ListSource)? {
+    if token.hasPrefix(Self.externalPrefix) { return await external(String(token.dropFirst(Self.externalPrefix.count))) }
     if !native, let fallback { return await fallback.pushed(token) }
     return await inner.pushed(token)
   }

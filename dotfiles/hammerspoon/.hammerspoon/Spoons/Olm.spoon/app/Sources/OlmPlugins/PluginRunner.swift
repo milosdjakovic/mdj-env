@@ -4,6 +4,7 @@
 // person turns it on again, so a plugin that keeps crashing stops costing anything.
 
 import Foundation
+import OlmBridge
 import OlmKit
 
 public actor PluginRunner {
@@ -20,16 +21,21 @@ public actor PluginRunner {
   private var failures: [String: [Date]] = [:]
   private var off: [String: String] = [:]
   private var onEnded: (@Sendable (String, Ending) -> Void)?
+  private let serve: RunningPlugin.Serve
 
   /// Failures within the window that switch a plugin off.
   public static let strikes = 3
   public static let strikeWindow: TimeInterval = 600
 
+  /// serve answers what a plugin asks of Olm, every plugin's requests.
   public init(budgets: Budgets = Budgets(), appVersion: String = "0",
-              log: @escaping @Sendable (String) -> Void = { NSLog("Olm plugins: %@", $0) }) {
+              log: @escaping @Sendable (String) -> Void = { NSLog("Olm plugins: %@", $0) },
+              serve: @escaping RunningPlugin.Serve = { _, method, _ in
+                .failure(RunningPlugin.Refusal(-32601, "no method \(method)")) }) {
     self.budgets = budgets
     self.appVersion = appVersion
     self.log = log
+    self.serve = serve
   }
 
   /// Who hears each ending, the check today and Olm Settings at step 4.3.
@@ -43,7 +49,7 @@ public actor PluginRunner {
     let manifest = try PluginManifest.read(folder: folder)
     if let held = plugins[manifest.id] { return held }
     let plugin = RunningPlugin(manifest: manifest, folder: folder, budgets: budgets, appVersion: appVersion,
-      ended: { [weak self] id, why in Task { await self?.ended(id, why) } }, log: log)
+      ended: { [weak self] id, why in Task { await self?.ended(id, why) } }, log: log, serve: serve)
     plugins[manifest.id] = plugin
     return plugin
   }
@@ -51,9 +57,9 @@ public actor PluginRunner {
   public func plugin(_ id: String) -> RunningPlugin? { plugins[id] }
 
   /// The list a plugin answers, for the stage, nil for a plugin not loaded.
-  public func source(_ id: String) -> ExternalSource? {
+  public func source(_ id: String, context: JSON = .null, actions: [Action] = []) -> ExternalSource? {
     guard let plugin = plugins[id] else { return nil }
-    return ExternalSource(plugin: plugin, runner: self)
+    return ExternalSource(plugin: plugin, runner: self, context: context, actions: actions)
   }
 
   /// Why the plugin is switched off, nil while it may run.

@@ -16,7 +16,6 @@ META	g	any	fileSearchOpen	100	fileSearch
 META	h	any	-	-	windowmanager
 META	h	any	fileSearchOpen	100	fileSearch
 META	i	any	audioOpen	100	audio
-META	i	any	browserSwitcherOpen	100	browserSwitcher
 META	i	any	browserTabsOpen	100	browserTabs
 META	i	any	caffeinateOpen	100	caffeinate
 META	i	any	clipboardOpen	100	clipboard
@@ -40,7 +39,6 @@ META	i	any	vpnOpen	100	vpn
 META	i	any	wifiOpen	100	wifi
 META	i	any	workspacesOpen	100	workspaces
 META	j	any	audioOpen	100	audio
-META	j	any	browserSwitcherOpen	100	browserSwitcher
 META	j	any	browserTabsOpen	100	browserTabs
 META	j	any	caffeinateOpen	100	caffeinate
 META	j	any	clipboardOpen	100	clipboard
@@ -64,7 +62,6 @@ META	j	any	vpnOpen	100	vpn
 META	j	any	wifiOpen	100	wifi
 META	j	any	workspacesOpen	100	workspaces
 META	k	any	audioOpen	100	audio
-META	k	any	browserSwitcherOpen	100	browserSwitcher
 META	k	any	browserTabsOpen	100	browserTabs
 META	k	any	caffeinateOpen	100	caffeinate
 META	k	any	clipboardOpen	100	clipboard
@@ -90,7 +87,6 @@ META	k	any	workspacesOpen	100	workspaces
 META	l	any	fileSearchOpen	100	fileSearch
 META	left	any	-	-	windowmanager
 META	m	any	clipboardOpen	100	clipboard
-META	o	any	browserSwitcherOpen	100	browserSwitcher
 META	o	any	browserTabsOpen	100	browserTabs
 META	o	any	clipboardOpen	100	clipboard
 META	o	any	displayProfilesOpen	100	displayProfiles
@@ -115,7 +111,6 @@ META	u	any	fileSearchOpen	100	fileSearch
 META	up	any	-	-	windowmanager
 META	w	any	-	-	windowmanager
 META	x	any	audioOpen	100	audio
-META	x	any	browserSwitcherOpen	100	browserSwitcher
 META	x	any	browserTabsOpen	100	browserTabs
 META	x	any	caffeinateOpen	100	caffeinate
 META	x	any	clipboardOpen	100	clipboard
@@ -140,7 +135,6 @@ META	x	any	workspacesOpen	100	workspaces
 META	y	any	fileSearchOpen	100	fileSearch
 META	z	any	-	-	windowmanager
 field	,	cmd	audioOpen	100	audio
-field	,	cmd	browserSwitcherOpen	100	browserSwitcher
 field	,	cmd	browserTabsOpen	100	browserTabs
 field	,	cmd	caffeinateOpen	100	caffeinate
 field	,	cmd	clipboardOpen	100	clipboard
@@ -164,7 +158,6 @@ field	,	cmd	vpnOpen	100	vpn
 field	,	cmd	wifiOpen	100	wifi
 field	,	cmd	workspacesOpen	100	workspaces
 field	/	cmd	audioOpen	100	audio
-field	/	cmd	browserSwitcherOpen	100	browserSwitcher
 field	/	cmd	browserTabsOpen	100	browserTabs
 field	/	cmd	caffeinateOpen	100	caffeinate
 field	/	cmd	clipboardOpen	100	clipboard
@@ -188,7 +181,6 @@ field	/	cmd	vpnOpen	100	vpn
 field	/	cmd	wifiOpen	100	wifi
 field	/	cmd	workspacesOpen	100	workspaces
 field	/	cmd+shift	audioOpen	100	audio
-field	/	cmd+shift	browserSwitcherOpen	100	browserSwitcher
 field	/	cmd+shift	browserTabsOpen	100	browserTabs
 field	/	cmd+shift	caffeinateOpen	100	caffeinate
 field	/	cmd+shift	clipboardOpen	100	clipboard
@@ -211,12 +203,10 @@ field	/	cmd+shift	volumeOpen	100	volume
 field	/	cmd+shift	vpnOpen	100	vpn
 field	/	cmd+shift	wifiOpen	100	wifi
 field	/	cmd+shift	workspacesOpen	100	workspaces
-field	padenter	cmd	browserSwitcherOpen	100	browserSwitcher
 field	padenter	cmd	clipboardOpen	100	clipboard
 field	padenter	cmd	emojiOpen	100	emoji
 field	padenter	cmd	fileSearchOpen	100	fileSearch
 field	padenter	cmd	textCaseOpen	100	textCase
-field	return	cmd	browserSwitcherOpen	100	browserSwitcher
 field	return	cmd	clipboardOpen	100	clipboard
 field	return	cmd	emojiOpen	100	emoji
 field	return	cmd	fileSearchOpen	100	fileSearch

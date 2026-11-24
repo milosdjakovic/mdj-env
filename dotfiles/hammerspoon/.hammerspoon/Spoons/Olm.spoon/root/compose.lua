@@ -3525,6 +3525,7 @@ function obj.run(olm, cfg)
         end
         bridgeModule:serveLauncher({
           link = linkHandler,
+          notify = notify,
           launcher = {
             rows = function(query) return launcher:bridgeRows(query) end,
             -- The typed rows alone, for the catalog the app builds itself, step 6.1.

@@ -1,0 +1,37 @@
+{
+  "id": "browserswitcher",
+  "title": "Browser Switcher",
+  "description": "Ask which browser or profile opens each link you click.",
+  "version": "0.2.0",
+  "protocol": 1,
+  "run": { "swift": "Sources" },
+  "icon": "globe",
+  "permissions": {},
+  "abilities": [
+    { "use": "browserProfiles", "why": "List each browser's profiles so a link can open in one",
+      "breaks": "the list shows each browser once, with no profiles" },
+    { "use": "receiveLinks", "why": "Be asked where each clicked link opens",
+      "breaks": "every link opens in Safari" }
+  ],
+  "surface": {
+    "primary": { "title": "Open", "icon": "arrow.up.right.square" },
+    "secondary": { "action": "copyLink", "title": "Copy Link", "icon": "doc.on.doc" },
+    "extra": [
+      { "action": "showAll", "title": "Show All", "icon": "list.bullet" },
+      { "action": "showFavourites", "title": "Show Favourites", "icon": "star" }
+    ]
+  },
+  "row": {
+    "detail": "open the last link elsewhere",
+    "keywords": ["default browser", "url", "link", "profile", "chrome", "safari", "firefox"]
+  },
+  "settings": [
+    { "key": "defaultBrowser", "kind": "handler", "scheme": "https", "title": "Default Browser",
+      "detail": "Choose Olm so the links you click come here. macOS asks before it changes.",
+      "keywords": ["default browser", "http", "url handler"] },
+    { "key": "favourites", "kind": "picks", "source": "browsers", "fixed": ["Copy Link"],
+      "title": "Favourites",
+      "detail": "What the list shows when a link asks. With none checked it shows every browser and profile, then Copy Link. Show All in the actions pane lists the rest.",
+      "keywords": ["browser", "profile", "picker"] }
+  ]
+}
