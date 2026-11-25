@@ -5,6 +5,7 @@
   "protocol": 1,
   "test": true,
   "run": { "swift": "Sources" },
+  "needs": ["open"],
   "permissions": {
     "programs": ["caffeinate", "mullvad"],
     "services": [

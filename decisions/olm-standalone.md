@@ -82,6 +82,11 @@ bridge socket, runs on the trial key Hyper and 0 until step 3.5 gives it Hyper a
   and a back out, so the first trial would freeze the history and the real flip in 1.5 would miss
   every use made in the Lua list since.
 
+- **Letting a plugin name the application and arguments `open` starts.** 2026-11-25. Built that way on
+  2026-11-24. Olm starts the program itself, outside the plugin's sandbox, so a plugin could run
+  anything, and without arguments too, by writing a script into its data folder and opening it in
+  Terminal. Found by reading, never demonstrated.
+
 ## Log
 
 - 2026-11-05 14:37. The route was settled with Milos in one conversation. Three read only sweeps
@@ -1758,3 +1763,15 @@ the profiles and opens the link for it, by the same `open` request any plugin ha
 flip, the plan's rule, was skipped, since a link goes to one handler and the two cannot answer the
 same click. The Lua plugin is switched off in config/plugins.lua and kept until Milos's trial. The
 app has no toast, so a plugin's line goes to Hammerspoon's over the bridge for now.
+
+### 2026-11-25 09:52, a plugin no longer names what Olm starts, asked by Milos
+
+Asked whether `open` is allowed or prevented, Milos took the narrowing proposed. A plugin sends an
+http or https link and an id Olm gave it for a browser or profile, and Olm looks up the program and
+arguments itself. Requests are answered only when the manifest's `needs` names them, and a link only
+within 5 s of a row chosen or an action run, one for each, since a plugin with no network could carry
+data out in links. Files and other apps' schemes are refused until a plugin needs them, since a
+permission is easier added than taken back. Found in the same reading and not fixed yet: a folder put
+in `~/.olm/plugins` is built and loaded at the next launch with every ability allowed and nothing asked.
+The full check failed once on its main thread timing, p99 14 ms in a one second scenario, and that
+scenario passed four runs of four alone, under 4.1 ms.

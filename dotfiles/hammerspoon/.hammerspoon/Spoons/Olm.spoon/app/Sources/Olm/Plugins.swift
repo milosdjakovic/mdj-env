@@ -4,8 +4,8 @@
 // plugin asks of Olm, opens a plugin's list with what it is opened with, and gives its list the
 // bottom bar and the launcher row a Lua plugin gets from Hammerspoon's shares.
 //
-// What a plugin asks of Olm is short, docs/DESIGN-APP-PLUGINS.md The protocol: open a link or a file
-// in an application, write the clipboard, say a line. A plugin holds no permission of macOS's, so
+// What a plugin asks of Olm is short, docs/DESIGN-APP-PLUGINS.md What a plugin may ask: open a link in
+// a browser Olm found, write the clipboard, say a line. A plugin holds no permission of macOS's, so
 // each is something Olm does for it, and what Olm does with a permission it holds is an ability the
 // plugin declared and the person allows, ExternalPlugins.allowed.
 
@@ -89,8 +89,7 @@ final class PluginHost {
     if p.abilities.contains(where: { $0.use == "browserProfiles" }) {
       let scan = Browsers.scan(profiles: ExternalPlugins.allowed(id, "browserProfiles"))
       context["browsers"] = .array(scan.targets.map { t in
-        .object(["title": .string(t.title), "bundle": .string(t.bundle), "path": .string(t.path),
-          "args": .array(t.args.map { .string($0) })])
+        .object(["title": .string(t.title), "bundle": .string(t.bundle), "id": .string(t.id)])
       })
     }
     let actions = p.verbs.enumerated().map { i, v in
@@ -127,15 +126,15 @@ final class PluginHost {
 
   nonisolated static func serve(_ id: String, _ method: String, _ params: JSON, bridge: Bridge) async
     -> Result<JSON, RunningPlugin.Refusal> {
+    guard ExternalPlugins.isOn(id) else { return .failure(.init(-32001, "it is switched off")) }
     switch method {
     case "open":
-      guard let text = params["url"].string, let url = URL(string: text) else {
-        return .failure(.init(-32602, "open needs a url"))
+      switch PluginRequests.link(params) {
+      case .failure(let refusal):
+        return .failure(refusal)
+      case .success(let link):
+        return await MainActor.run { open(link, for: id) }
       }
-      let app = params["app"].string.map { URL(fileURLWithPath: $0) }
-      let args = (params["args"].array ?? []).compactMap(\.string)
-      await MainActor.run { open(url, app: app, args: args) }
-      return .success(.bool(true))
     case "copy":
       guard let text = params["text"].string else { return .failure(.init(-32602, "copy needs text")) }
       await MainActor.run {
@@ -152,29 +151,35 @@ final class PluginHost {
     }
   }
 
-  /// Opens url in the application at app, starting the application's own program with args where
-  /// there are any, a browser's profile, which hands the link to the copy already running. A web
-  /// link with no application goes to Safari, since the default browser is Olm.
-  static func open(_ url: URL, app: URL?, args: [String]) {
-    guard let app else {
-      if Links.isWeb(url) { Links.fallback(url) } else { NSWorkspace.shared.open(url) }
-      return
+  /// Opens a link in the browser or profile the plugin named by Olm's id for it, looked up in a scan
+  /// of Olm's own, so the program and its arguments are never the plugin's. A profile is in the scan
+  /// only while the plugin has Browser Profiles on, and its browser's own program is started with it,
+  /// which hands the link to the copy already running. With no browser named the link goes to Safari,
+  /// since the default browser is Olm.
+  @MainActor static func open(_ link: PluginRequests.Link, for id: String) -> Result<JSON, RunningPlugin.Refusal> {
+    guard let browser = link.browser else {
+      Links.fallback(link.url)
+      return .success(.bool(true))
     }
-    if !args.isEmpty, let program = Bundle(url: app)?.executableURL {
+    let scan = Browsers.scan(profiles: ExternalPlugins.allowed(id, "browserProfiles"))
+    guard let target = scan.targets.first(where: { $0.id == browser }) else {
+      return .failure(.init(-32001, "\(browser) is not a browser or profile it may open"))
+    }
+    let app = URL(fileURLWithPath: target.path)
+    if !target.args.isEmpty, let program = Bundle(url: app)?.executableURL {
       let p = Process()
       p.executableURL = program
-      p.arguments = args + [url.absoluteString]
+      p.arguments = target.args + [link.url.absoluteString]
       if (try? p.run()) != nil {
-        if let bundle = Bundle(url: app)?.bundleIdentifier {
-          DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-            NSRunningApplication.runningApplications(withBundleIdentifier: bundle).first?.activate()
-          }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+          NSRunningApplication.runningApplications(withBundleIdentifier: target.bundle).first?.activate()
         }
-        return
+        return .success(.bool(true))
       }
       NSLog("Olm plugins: %@ could not be started with its profile, opened plainly", app.path)
     }
-    NSWorkspace.shared.open([url], withApplicationAt: app, configuration: NSWorkspace.OpenConfiguration())
+    NSWorkspace.shared.open([link.url], withApplicationAt: app, configuration: NSWorkspace.OpenConfiguration())
+    return .success(.bool(true))
   }
 
   // MARK: The bar

@@ -26,6 +26,8 @@ public struct Budgets: Sendable, Equatable {
   public var cpuWindow: Double = 10
   /// How often memory and processor are read.
   public var watch: Double = 1
+  /// Seconds after a row is chosen or an action run in which the plugin may open one link.
+  public var act: Double = 5
 
   public init() {}
 
@@ -99,6 +101,8 @@ public actor RunningPlugin: LevelPeer {
   // Requests past their limit, cancelled and waiting for the plugin to say so within the grace.
   private var overdue: Set<String> = []
   private var lastUsed = Date()
+  // When the person last chose a row or ran an action, until the one link it allows is opened.
+  private var acted: Date?
   private var cpuSamples: [(at: Date, cpu: Double)] = []
   private var stopping: Ending?
   private var levels: [String: BridgedLevel] = [:]
@@ -168,6 +172,7 @@ public actor RunningPlugin: LevelPeer {
     guard let body = JSON.object(["jsonrpc": .string("2.0"), "id": .string(id), "method": .string(method),
       "params": params]).encoded() else { throw PluginError.unstartable("the request could not be encoded") }
     lastUsed = Date()
+    if method == "choose" || method == "run" { acted = lastUsed }
     let limit = budgets.limit(for: method)
     let gen = generation
     Task { [weak self] in
@@ -233,6 +238,7 @@ public actor RunningPlugin: LevelPeer {
     process = p
     stopping = nil
     overdue = []
+    acted = nil
     cpuSamples = []
     peakFootprint = 0
     let gen = generation
@@ -304,9 +310,15 @@ public actor RunningPlugin: LevelPeer {
     if let method = message["method"].string {
       if let id = message["id"].string ?? message["id"].int.map(String.init) {
         // What a plugin asks of Olm, answered off this actor so a slow answer holds nothing.
+        if let refusal = refuses(method, message["params"]) {
+          log("\(manifest.id) was refused \(method), \(refusal.message)")
+          reply(id, error: (refusal.code, refusal.message))
+          return
+        }
         let serve = self.serve, plugin = manifest.id, params = message["params"]
         Task { [weak self] in
           let outcome = await serve(plugin, method, params)
+          if case .failure(let refusal) = outcome { await self?.refused(method, refusal) }
           await self?.answer(id, outcome)
         }
       } else if method == "log" {
@@ -323,6 +335,23 @@ public actor RunningPlugin: LevelPeer {
     } else {
       p.done.resume(returning: message["result"])
     }
+  }
+
+  // Why a request is refused before Olm looks at it: not in the manifest, or a link nobody chose. A
+  // link can carry data out of a plugin with no network, so each act of the person's opens one at most.
+  private func refuses(_ method: String, _ params: JSON) -> Refusal? {
+    guard manifest.needs.contains(method) else { return Refusal(-32601, "its manifest does not need \(method)") }
+    guard method == "open" else { return nil }
+    if case .failure(let refusal) = PluginRequests.link(params) { return refusal }
+    guard let at = acted, Date().timeIntervalSince(at) <= budgets.act else {
+      return Refusal(-32001, "a link opens only just after a row is chosen or an action run, one for each")
+    }
+    acted = nil
+    return nil
+  }
+
+  private func refused(_ method: String, _ refusal: Refusal) {
+    log("\(manifest.id) was refused \(method), \(refusal.message)")
   }
 
   private func answer(_ id: String, _ outcome: Result<JSON, Refusal>) {

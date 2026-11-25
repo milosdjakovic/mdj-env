@@ -89,6 +89,25 @@ func rows(_ src: ExternalSource, _ text: String) async -> Result<RowsAnswer, Err
   do { return .success(try await src.rows(Query(text: text, generation: 1))) } catch { return .failure(error) }
 }
 
+/// What reached Olm and what the runner logged, for the requests' cases.
+final class Asked: @unchecked Sendable {
+  private let lock = NSLock()
+  private var served: [String] = []
+  private var lines: [String] = []
+  func serve(_ method: String, _ what: String) { lock.lock(); served.append("\(method) \(what)"); lock.unlock() }
+  func log(_ line: String) { lock.lock(); lines.append(line); lock.unlock() }
+  func clear() { lock.lock(); served = []; lines = []; lock.unlock() }
+  func all() -> (served: [String], refused: [String]) {
+    lock.lock(); defer { lock.unlock() }
+    return (served, lines.filter { $0.contains("was refused") })
+  }
+}
+
+func link(_ params: [String: JSON]) -> PluginRequests.Link? {
+  if case .success(let l) = PluginRequests.link(.object(params)) { return l }
+  return nil
+}
+
 let only = ProcessInfo.processInfo.environment["OLM_CHECK_ONLY"]
 
 func scenario(_ name: String, _ body: () async -> Void) async {
@@ -114,7 +133,13 @@ func runAll() async {
   budgets.idle = 3
   budgets.cpu = 3
   budgets.cpuWindow = 4
-  let runner = PluginRunner(budgets: budgets, appVersion: "check", log: { say("    runner: \($0)") })
+  budgets.act = 1
+  let asked = Asked()
+  let runner = PluginRunner(budgets: budgets, appVersion: "check", log: { say("    runner: \($0)"); asked.log($0) },
+    serve: { _, method, params in
+      asked.serve(method, params["url"].string ?? "")
+      return .success(.bool(true))
+    })
   await runner.onEnded { _, why in endingsLock.lock(); endings.append(why); endingsLock.unlock() }
   try! await runner.load(folder: work)
   let plugin = await runner.plugin(manifest.id)!
@@ -149,6 +174,47 @@ func runAll() async {
     check(by["documents"] == "refused", "Documents is refused")
     check(by["data"] == "written", "its own data folder is written")
     check(by["internet"]?.hasPrefix("refused") == true, "the internet is refused")
+  }
+
+  await scenario("requests, what a plugin may ask of Olm") {
+    let web = JSON.string("https://example.com/a?b=c")
+    check(link(["url": web])?.url.absoluteString == "https://example.com/a?b=c", "a web link is read")
+    check(link(["url": web, "browser": .string("com.apple.Safari")])?.browser == "com.apple.Safari", "with a browser's id")
+    for bad in ["file:///tmp/x.command", "/tmp/x", "olm://settings", "shortcuts://run", "javascript:1", "--args", "https:", ""] {
+      check(link(["url": .string(bad)]) == nil, "\(bad.isEmpty ? "nothing" : bad) is refused")
+    }
+    check(link(["url": web, "app": .string("/Applications/Safari.app")]) == nil, "an application path is refused")
+    check(link(["url": web, "args": .array([])]) == nil, "arguments are refused")
+    check(link(["url": web, "browser": .number(1)]) == nil, "a browser that is no id is refused")
+
+    let src = await fresh()
+    asked.clear()
+    _ = await rows(src, "beacon")
+    await wait(0.3)
+    check(asked.all().served.isEmpty && asked.all().refused.count == 1, "a link nobody chose is refused and logged")
+    asked.clear()
+    _ = await rows(src, "copy")
+    await wait(0.3)
+    check(asked.all().served.isEmpty && asked.all().refused.count == 1, "a request its manifest does not need is refused")
+    asked.clear()
+    guard case .success(let a) = await rows(src, "hello"), let first = a.rows.first else { check(false, "rows to choose"); return }
+    _ = await src.choose(Pick(key: first.key, query: "hello", row: 1))
+    await wait(0.3)
+    check(asked.all().served == ["open https://example.com/first"], "one choice opens one link, \(asked.all().served)")
+    check(asked.all().refused.count == 3, "the program, the file and the second link are refused")
+    asked.clear()
+    _ = await src.choose(Pick(key: first.key, query: "hello", row: 1))
+    await wait(0.1)
+    check(asked.all().served.count == 1, "the next choice opens its own")
+  }
+
+  await scenario("a choice goes stale") {
+    let src = await fresh()
+    guard case .success(let a) = await rows(src, "hello"), let first = a.rows.first else { check(false, "rows to choose"); return }
+    asked.clear()
+    _ = await src.choose(Pick(key: first.key, query: "late", row: 1))
+    await wait(2)
+    check(asked.all().served.isEmpty && asked.all().refused.count == 1, "a link long after the choice is refused")
   }
 
   await scenario("slow, a second, inside the limit") {

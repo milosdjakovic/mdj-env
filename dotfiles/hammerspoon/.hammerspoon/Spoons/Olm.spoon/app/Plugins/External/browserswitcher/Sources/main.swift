@@ -2,20 +2,20 @@
 // docs/DESIGN-APP-PLUGINS.md. Olm.app is the default browser and opens this list for each link it
 // receives, handing it the link, the browsers Olm found and the favourites set in Olm Settings. The
 // list asks where the link opens, a browser or one of its profiles, with Copy Link on Command and
-// Return and Show All in the actions pane for the rest. It runs sandboxed and holds no permission of macOS's: Olm reads the
-// profiles for it, Browser Profiles, and opens the link where it is chosen, since a plugin may not
-// start an application.
+// Return and Show All in the actions pane for the rest. It runs sandboxed and holds no permission of
+// macOS's: Olm reads the profiles for it, Browser Profiles, and opens the link in the browser it names
+// by Olm's id, since a plugin names no application and no arguments.
 //
-// The last link is kept in its data folder, so the launcher's row opens it again to send it
-// somewhere else.
+// The last link is kept in its data folder, so olm://browserswitcher opens it again to
+// send it somewhere else.
 
 import Foundation
 
 struct Target {
   var title: String
   var bundle: String
-  var path: String
-  var args: [String]
+  /// What Olm opens it by.
+  var id: String
 }
 
 let copyTitle = "Copy Link"
@@ -74,9 +74,9 @@ plugin.open = { context in
     link = remembered()
   }
   targets = (context["browsers"] as? [OlmJSON] ?? []).compactMap { t in
-    guard let title = t["title"] as? String, let bundle = t["bundle"] as? String, let path = t["path"] as? String
+    guard let title = t["title"] as? String, let bundle = t["bundle"] as? String, let id = t["id"] as? String
     else { return nil }
-    return Target(title: title, bundle: bundle, path: path, args: t["args"] as? [String] ?? [])
+    return Target(title: title, bundle: bundle, id: id)
   }
   favourites = (context["settings"] as? OlmJSON)?["favourites"] as? [String] ?? []
   showAll = false
@@ -101,7 +101,11 @@ plugin.rows = { _ in
 plugin.choose = { key, _ in
   guard let link, key != "none" else { return [] }
   guard key.hasPrefix("t:"), let t = targets.first(where: { "t:" + $0.title == key }) else { return [] }
-  plugin.openLink(link, app: t.path, arguments: t.args)
+  // Refused, its profile turned off since the list opened, the list stays so the link is not lost.
+  guard plugin.openLink(link, browser: t.id) else {
+    plugin.notify("Olm could not open the link in \(t.title)")
+    return []
+  }
   return [.hide]
 }
 

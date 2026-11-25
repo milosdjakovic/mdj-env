@@ -83,8 +83,16 @@ app is a short list of its own, each named in the manifest before it is used:
 | `notify` | shows one routine line, Olm's feedback, never a window of the plugin's |
 | `redraw` | asks for its open level's rows again, coalesced to one per frame |
 | `copy`, `paste` | writes the pasteboard, or pastes into the app that was in front |
-| `open` | opens a URL or a file through LaunchServices |
+| `open` | opens an http or https link, in the browser or profile Olm listed by that id, or in Olm's own choice |
 | `store` | reads and writes a small JSON store of its own under `~/.olm/plugins/<id>/data/` |
+
+**A plugin says what to open and Olm decides how,** decided by Milos on 2026-11-25. Whatever Olm starts
+runs outside the plugin's sandbox, so `open` takes no application, no path and no argument, and refuses
+a file, which can be a program, and every scheme but http and https. It is answered only within 5 s of
+a row chosen or an action run in the plugin's list, one link for each, since a link carries data out of
+a plugin with no network. A file waits for an ability limited to declared paths, and another app's
+scheme for a plugin that declares it and an install page that shows it. `copy` and `notify` need only
+the manifest's `needs`.
 
 A plugin never draws. It answers rows, icons by key or SF Symbol name, pictures as file paths and
 previews as the kit's content, and Olm draws all of it in the one look, rule 9. A plugin never
@@ -388,6 +396,14 @@ shadow where its rows can be compared, then flipped, which switches the Lua plug
 
 ## As built
 
+**Requests narrowed, built 2026-11-25.** `OlmPlugins/PluginRequests.swift` reads a link and
+`RunningPlugin` refuses a request the manifest's `needs` does not name, a bad link and a link nobody
+chose, before Olm sees it, each refusal logged. A name in `needs` Olm does not do refuses the
+manifest. The host hands a plugin each browser's id in place of its path and arguments, looks the id
+up in its own scan, with profiles only while Browser Profiles is on, and serves nothing to a plugin
+switched off. A refused link keeps Browser Switcher's list open and says so. `test/olmplugins.sh`
+holds each case.
+
 **Step 3 of the permissions plan, Browser Switcher run by Olm.app, built 2026-11-24.** Runner steps 2
 and 4 in part, asked by Milos, the install page and the `olm` command left for the next step.
 
@@ -397,7 +413,7 @@ and 4 in part, asked by Milos, the install page and the `olm` command left for t
 - **The app runs them.** `Sources/Olm/Plugins.swift` finds each folder under `~/.olm/plugins`, builds
   one whose sources or the kit are newer than its program, loads it into the runner, and answers what
   it asks: `open` a link or file in a named application, a browser's profile by starting its program
-  with the profile, `copy`, and `notify`, drawn on Hammerspoon's message toast through the bridge
+  with the profile, until 2026-11-25 by any path and arguments the plugin sent, `copy`, and `notify`, drawn on Hammerspoon's message toast through the bridge
   until the app has one. Its list opens with what it is opened with, the link, its settings and, for
   a plugin declaring Browser Profiles, the browsers Olm found, their profiles only while it is on.
 - **Its bar, actions pane and launcher row** are laid out by the app from `olm-plugin.json`'s

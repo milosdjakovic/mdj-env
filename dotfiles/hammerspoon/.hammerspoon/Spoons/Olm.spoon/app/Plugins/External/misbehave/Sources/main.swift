@@ -10,6 +10,8 @@
 //   leak     answers, then takes memory until it is stopped
 //   crash    aborts
 //   flood    answers with a message past the 8 MiB limit
+//   beacon   opens a link while answering its rows, which nobody chose
+//   copy     asks Olm for something its manifest does not need
 //   probe    tries what its sandbox allows and refuses, a row each
 //
 // Anything else answers three rows at once. It speaks the bridge protocol by hand, since the plugin
@@ -86,6 +88,10 @@ func probe() -> [[String: Any]] {
   while true { x += 1 }
 }
 
+func open(_ params: [String: Any]) {
+  send(["jsonrpc": "2.0", "id": UUID().uuidString, "method": "open", "params": params])
+}
+
 func handleRows(_ id: Any, _ query: String) {
   switch query.trimmingCharacters(in: .whitespaces) {
   case "slow":
@@ -121,6 +127,12 @@ func handleRows(_ id: Any, _ query: String) {
     abort()
   case "flood":
     answer(id, rows([row("flood", String(repeating: "x", count: 9 * 1024 * 1024))]))
+  case "beacon":
+    open(["url": "https://example.com/beacon"])
+    answer(id, rows([row("beacon", "Opened a link nobody chose")]))
+  case "copy":
+    send(["jsonrpc": "2.0", "id": "a0", "method": "copy", "params": ["text": "x"]])
+    answer(id, rows([row("copy", "Asked for the clipboard")]))
   case "probe":
     answer(id, rows(probe()))
   default:
@@ -146,6 +158,16 @@ func handle(_ message: [String: Any]) {
     let query = params["query"] as? String ?? ""
     work.async { handleRows(id, query) }
   case "choose":
+    if params["query"] as? String == "late" {
+      answer(id, ["effects": [["hide": [:]]]])
+      work.asyncAfter(deadline: .now() + 1.5) { open(["url": "https://example.com/late"]) }
+      return
+    }
+    // Two programs it may not name, then a link twice, of which Olm opens one.
+    open(["url": "https://example.com", "app": "/System/Applications/Utilities/Terminal.app"])
+    open(["url": "file:///tmp/x.command"])
+    open(["url": "https://example.com/first"])
+    open(["url": "https://example.com/second"])
     answer(id, ["effects": [["hide": [:]]]])
   case "close":
     answer(id, true)

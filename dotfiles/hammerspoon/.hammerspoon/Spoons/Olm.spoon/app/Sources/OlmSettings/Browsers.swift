@@ -21,6 +21,9 @@ public struct BrowserTarget: Equatable, Sendable, Codable {
   /// What the browser's own program is started with to open a link in the profile, none for the
   /// browser itself.
   public let args: [String]
+
+  /// What a plugin names it by, looked up in a scan of Olm's own and never read as a path.
+  public var id: String { ([bundle] + args).joined(separator: "|") }
 }
 
 public struct BrowserScan: Equatable, Sendable, Codable {

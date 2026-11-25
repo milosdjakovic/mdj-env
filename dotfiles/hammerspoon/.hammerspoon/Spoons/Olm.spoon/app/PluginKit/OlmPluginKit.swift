@@ -2,7 +2,7 @@
 // compiled into every plugin beside its own sources, so a plugin is its handlers and nothing else.
 // It speaks the bridge protocol, docs/PROTOCOL-BRIDGE.md, over the process's stdin and stdout, each
 // message its length, a newline and the JSON, and asks Olm for what the sandbox keeps the plugin
-// from doing itself, opening an app, writing the clipboard, saying a line.
+// from doing itself, opening a link, writing the clipboard, saying a line.
 //
 // A plugin answers one list, a level at a time:
 //
@@ -45,7 +45,7 @@ public struct OlmRow {
   public var subtitle: String
   public var icon: Icon?
   public var keywords: [String]
-  /// Kept below every match and on an empty query, Copy Link after the browsers.
+  /// Kept below every match and on an empty query, a placeholder while a list loads.
   public var pinned: Bool
 
   public enum Icon {
@@ -147,12 +147,14 @@ public final class OlmPlugin {
     return answered ? box.value : nil
   }
 
-  /// Opens a link, in the application at path when one is named, with arguments for its program,
-  /// a browser's profile, done by Olm since a plugin may not start an application.
-  public func openLink(_ url: String, app path: String? = nil, arguments: [String] = []) {
-    var params: OlmJSON = ["url": url, "args": arguments]
-    if let path { params["app"] = path }
-    ask("open", params)
+  /// Opens an http or https link, in the browser or profile Olm listed under that id, or in Olm's own
+  /// choice with none. Olm answers it only just after a row is chosen or an action run, one link for
+  /// each. false when Olm refused it or did not answer.
+  @discardableResult
+  public func openLink(_ url: String, browser id: String? = nil) -> Bool {
+    var params: OlmJSON = ["url": url]
+    if let id { params["browser"] = id }
+    return ask("open", params) as? Bool ?? false
   }
 
   /// Writes the text to the clipboard.

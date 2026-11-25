@@ -2,10 +2,11 @@
   "id": "browserswitcher",
   "title": "Browser Switcher",
   "description": "Ask which browser or profile opens each link you click.",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "protocol": 1,
   "run": { "swift": "Sources" },
   "icon": "globe",
+  "needs": ["open", "copy", "notify"],
   "permissions": {},
   "abilities": [
     { "use": "browserProfiles", "why": "List each browser's profiles so a link can open in one",

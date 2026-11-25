@@ -96,3 +96,9 @@ Milos confirmed the Olm.app plugin works, so `plugins/browserswitcher` is gone, 
 `browserSwitcher = false` line in `config/plugins.lua`. No Lua plugin provides links now. The
 contract keeps `provides.links` and Receive Links, and Olm.app takes each link first. The one
 time favourites migration in `app/Sources/Olm/Plugins.swift` still reads the old key.
+
+### 2026-11-25 09:52, the link opens by an id of Olm's
+
+The plugin no longer sends a browser's path and its profile's arguments, it sends the id Olm gave it,
+`decisions/olm-standalone.md`. Refused, its profile turned off since the list opened, the list stays
+open and says so, so a link is not lost.

@@ -15,6 +15,8 @@ public struct PluginManifest: Sendable, Equatable {
   /// Runs while nothing uses it, a watcher, at background quality and never stopped for idling.
   public var background: Bool
   public var permissions: Permissions
+  /// What it asks of Olm, PluginRequests.known, anything else refused.
+  public var needs: Set<String> = []
 
   public struct Permissions: Sendable, Equatable {
     /// Programs it runs, a bare name looked up on the plugin path or an absolute path.
@@ -94,6 +96,13 @@ public struct PluginManifest: Sendable, Equatable {
     guard let title = o["title"] as? String, !title.isEmpty else { throw Failure.field("needs a title") }
     var m = PluginManifest(id: id, title: title, version: o["version"] as? String ?? "0",
       proto: o["protocol"] as? Int ?? 1, background: o["background"] as? Bool ?? false)
+    if let needs = o["needs"] {
+      guard let list = needs as? [String] else { throw Failure.field("needs is a list of names") }
+      if let odd = list.first(where: { !PluginRequests.known.contains($0) }) {
+        throw Failure.field("needs \(odd), which Olm does not do for a plugin")
+      }
+      m.needs = Set(list)
+    }
     guard let p = o["permissions"] as? [String: Any] else { return m }
     if let programs = p["programs"] {
       guard let list = programs as? [String] else { throw Failure.field("permissions.programs is a list of names") }
