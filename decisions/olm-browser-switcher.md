@@ -1,17 +1,14 @@
 # Olm browser switcher
 
-Status. Built on 2026-11-24 as a Lua plugin answering links Olm.app receives as the default browser,
-asking by default from favourites the person orders, with rules as text until a table setting exists.
+Status. Built on 2026-11-24, run by Olm.app since 2026-11-24, asking where each link opens.
 
 ## Now
 
-Olm.app declares http and https and hands each link over the bridge's `link` request to the first
-plugin providing `links`, Browser Switcher. A rule opens it at once, otherwise the list asks, Option
-held at the click always asks. A link nobody answers within 2 s, or 3 s of the bridge being down,
-opens in Safari. Favourites and rules are multi line texts on the plugin's own page in Olm Settings,
-the settings API's `lines` field. Profiles come from each Chromium browser's `Local State` and
-Firefox's `profiles.ini`, and macOS refused Chrome's `Local State` to every process tried on
-2026-11-24, so Chrome lists as one browser and the list says its profiles are hidden.
+Olm.app declares http and https and opens the sandboxed plugin's list for every link,
+`app/Plugins/External/browserswitcher`. A link no plugin takes opens in Safari. The list is the
+favourites checked in Olm Settings, or every browser and profile, in the order dragged there or by use,
+Most Used or Last Used. Rows are profiles by name, a favourite is saved by Olm's id, and Olm reads the
+profiles and opens the link. Reading them needs Full Disk Access.
 
 ## Rejected
 
@@ -111,3 +108,14 @@ open and says so, so a link is not lost.
 A profile's row says the profile's name alone, a browser with profiles has no row of its own, and
 favourites are saved by id, since two browsers may have a profile of one name. Firefox's own default
 profiles count as nobody's, which no Firefox on this Mac could show.
+
+### 2026-11-25 17:02, ordered by hand or by use, asked by Milos
+
+A list to drag and an order by use, Most Used or Last Used, the same use Olm counts for files. The
+dragged order is kept apart from what is checked, so checking a row moves none and Show All follows it.
+The use is the plugin's, in its data, through the kit, since a history kept by Olm for every plugin
+would tell Olm's own store what each list holds. Opening counts and Copy Link does not.
+
+### 2026-11-25 17:09, Custom, asked by Milos
+
+The order dragged is called Custom, and was By Hand for an hour.

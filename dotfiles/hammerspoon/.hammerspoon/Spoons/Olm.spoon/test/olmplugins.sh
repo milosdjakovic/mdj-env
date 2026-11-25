@@ -28,6 +28,15 @@ if ! (cd "$here/../app" && SDKROOT="$tools/SDKs/MacOSX.sdk" DEVELOPER_DIR="$tool
   echo "olmplugins, the build FAILED"
   exit 1
 fi
+# What the kit counts as use, which every plugin compiles in.
+kit="$(mktemp -d)"
+trap 'rm -rf "$out" "$kit"' EXIT
+if ! "$tools/usr/bin/swiftc" -sdk "$tools/SDKs/MacOSX.sdk" -o "$kit/check" "$here/pluginkit/main.swift" \
+  "$here/../app/PluginKit/OlmPluginKit.swift" >"$out" 2>&1 || ! "$kit/check"; then
+  grep -E 'error' "$out" | head -20
+  echo "olmplugins, the kit FAILED"
+  exit 1
+fi
 # Foundation's own cache complaints, from a sandboxed plugin denied ~/Library/Caches, are left out.
 "$scratch/debug/olm-plugin-check" "$@" 2>&1 | grep -v -e 'NetworkStorageDB' -e 'there is no SQL cache' -e 'read-connection to the DB'
 exit "${PIPESTATUS[0]}"

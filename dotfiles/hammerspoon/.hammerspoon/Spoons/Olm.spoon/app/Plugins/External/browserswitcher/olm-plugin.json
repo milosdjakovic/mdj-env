@@ -2,7 +2,7 @@
   "id": "browserswitcher",
   "title": "Browser Switcher",
   "description": "Ask which browser or profile opens each link you click.",
-  "version": "0.3.0",
+  "version": "0.4.1",
   "protocol": 1,
   "run": { "swift": "Sources" },
   "icon": "globe",
@@ -26,9 +26,17 @@
     { "key": "defaultBrowser", "kind": "handler", "scheme": "https", "title": "Default Browser",
       "detail": "Choose Olm so the links you click come here. macOS asks before it changes.",
       "keywords": ["default browser", "http", "url handler"] },
-    { "key": "favourites", "kind": "picks", "source": "browsers",
+    { "key": "order", "kind": "choice", "title": "Order", "default": "custom",
+      "detail": "How the list is ordered. Used ones come first and the rest follow as you dragged them.",
+      "choices": [
+        { "value": "custom", "title": "Custom" },
+        { "value": "most", "title": "Most Used" },
+        { "value": "last", "title": "Last Used" }
+      ],
+      "keywords": ["sort", "usage", "recent", "frequent"] },
+    { "key": "favourites", "kind": "picks", "source": "browsers", "orderedBy": "order",
       "title": "Favourites",
-      "detail": "What the list shows when a link asks. With none checked it shows every browser and profile. Show All in the actions pane lists the rest.",
+      "detail": "What the list shows when a link asks. With none checked it shows every browser and profile. Show All in the actions pane lists the rest. Drag them into order while Order is Custom.",
       "keywords": ["browser", "profile", "picker"] }
   ]
 }

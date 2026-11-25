@@ -398,6 +398,7 @@ struct AppsView: View {
       CardSection(title: title) {
         Text("Shortcut").font(.caption).foregroundStyle(.secondary)
           .frame(width: AppColumns.recorder, alignment: .leading)
+          .bareText()
       } content: {
         // Every row made at once, a few hundred at most, so none appears as it scrolls into view.
         CardList(list) { entry in
@@ -874,6 +875,7 @@ struct CustomizePage: View {
               .fixedSize(horizontal: false, vertical: true)
               .cardRow()
           }
+          .environment(\.units, c.place.percent ? ["pt", "%"] : ["pt"])
           .glassCard()
         }
         CardSection("On the displays connected now") {
@@ -957,20 +959,22 @@ struct CustomizePage: View {
   /// stays on one line.
   private func field(_ path: WritableKeyPath<AppCustomize, Double>, _ name: String) -> some View {
     TextField(name, value: bind(path), format: .number, prompt: Text(name))
-      .labelsHidden().frame(width: 72).multilineTextAlignment(.trailing).help(name)
+      .textFieldStyle(.roundedBorder).monospacedDigit()
+      .labelsHidden().frame(width: Space.digits).multilineTextAlignment(.trailing).help(name)
   }
 
   /// The same for a value left empty when it is not set, a least or a most.
   private func optional(_ path: WritableKeyPath<AppCustomize, Double?>, _ name: String) -> some View {
     TextField(name, value: bind(path), format: .number, prompt: Text(name))
-      .labelsHidden().frame(width: 72).multilineTextAlignment(.trailing).help(name)
+      .textFieldStyle(.roundedBorder).monospacedDigit()
+      .labelsHidden().frame(width: Space.digits).multilineTextAlignment(.trailing).help(name)
   }
 
   /// One field and its unit.
   private func single<A: View>(_ a: A) -> some View {
     HStack(spacing: Space.related) {
       a
-      Text("pt").foregroundStyle(.secondary).frame(width: 20, alignment: .leading)
+      UnitLabel("pt")
     }
   }
 
@@ -980,7 +984,7 @@ struct CustomizePage: View {
       a
       Text("×").foregroundStyle(.secondary)
       b
-      Text(unit).foregroundStyle(.secondary).frame(width: 20, alignment: .leading)
+      UnitLabel(unit)
     }
   }
 

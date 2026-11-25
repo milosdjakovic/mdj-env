@@ -127,6 +127,11 @@ this section is true.
   (No profile). Favourites are saved by Olm's id, the old titles taken over at launch, and the page
   draws each with its browser's icon.
 
+- **Order,** 2026-11-25, asked by Milos. Custom is the order the Favourites rows are dragged into in
+  Olm Settings, Most Used and Last Used put what links were opened in first, the rest as dragged. Olm
+  hands the plugin the browsers in the dragged order, Show All among them. A use is counted when a link
+  opens, by `OlmUsage` of OlmPluginKit, Olm's own rule for files, halved every fourteen days.
+
 ## Next
 
 1. **Chrome's profiles,** confirmed once Olm.app has Full Disk Access.

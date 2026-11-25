@@ -149,7 +149,7 @@ defect, not a choice.
    place, the plugins under a permission, and several may be open at once. Added 2026-11-24.
 9. **An ability is `AbilityRow`, wherever it is shown,** on the plugin's page and under its
    permission, undo then the mini switch, with a status line that is always there, so flipping it
-   grows no row. While Olm lacks the permission the switch keeps its value, greyed. Added 2026-11-24.
+   grows no row, the last use beside it. While Olm lacks the permission the switch keeps its value, greyed. Added 2026-11-24.
 10. **A plugin waiting to be allowed has a Review button where its switch would be,** leading to its
    page, `InstallPage`, with Back as every page. Added 2026-11-25.
 11. **Every list is one glass card, `CardList`,** rows in `cardRow`'s padding with `CardDivider` between,
@@ -166,6 +166,19 @@ defect, not a choice.
    are typed in milliseconds and a share in percent. Any number in the range is taken, the step only
    says the decimals, and one outside it is refused with the range in the header. Undo goes back to
    the built in value. Asked by Milos on 2026-11-25, replacing the sliders.
+16. **A log is `PluginLogPage`,** behind a button in its plugin's page, the newest line first, what the
+   plugin wrote in code and Olm's words plain. Added 2026-11-25.
+17. **A list ordered by hand is dragged,** the rows of a `picks` setting naming `orderedBy`, a handle at
+   the right of each, the passed rows making room. The handle keeps its place and hides while another
+   order is in force. Undo puts the list back as found. Added 2026-11-25.
+18. **What ends a row ends at the card's inset,** the distance its words start from the other edge, on
+   every page. A unit is `UnitLabel`, ending there too, its column as wide as the card's widest unit.
+   Asked by Milos on 2026-11-25, units having stood in a wider column.
+19. **Plugins are listed by name,** whoever runs them, in Plugins and under a permission. Asked by Milos
+   on 2026-11-25.
+20. **Outside a card, bare words are held in and shapes are not.** A card's title, a column's name and a
+   paragraph take `bareText`, the card's inset, so they line up with the words inside it. A button, a
+   search or a capsule reaches the card's edge, its own padding doing that. Asked by Milos on 2026-11-25.
 
 ## What it holds, for Milos to trim
 

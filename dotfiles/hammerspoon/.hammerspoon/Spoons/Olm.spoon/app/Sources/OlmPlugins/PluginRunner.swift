@@ -16,10 +16,13 @@ public actor PluginRunner {
 
   private let budgets: Budgets
   private let appVersion: String
-  private let log: @Sendable (String) -> Void
+  /// A plugin's id, a line and who wrote it.
+  public typealias Log = @Sendable (String, String, PluginLog.From) -> Void
+  private let log: Log
   private var plugins: [String: RunningPlugin] = [:]
   private var failures: [String: [Date]] = [:]
   private var off: [String: String] = [:]
+  private var onOff: (@Sendable (String, String) -> Void)?
   private var onEnded: (@Sendable (String, Ending) -> Void)?
   private let serve: RunningPlugin.Serve
 
@@ -29,7 +32,7 @@ public actor PluginRunner {
 
   /// serve answers what a plugin asks of Olm, every plugin's requests.
   public init(budgets: Budgets = Budgets(), appVersion: String = "0",
-              log: @escaping @Sendable (String) -> Void = { NSLog("Olm plugins: %@", $0) },
+              log: @escaping Log = { id, text, _ in NSLog("Olm plugins: %@ %@", id, text) },
               serve: @escaping RunningPlugin.Serve = { _, method, _ in
                 .failure(RunningPlugin.Refusal(-32601, "no method \(method)")) }) {
     self.budgets = budgets
@@ -38,7 +41,10 @@ public actor PluginRunner {
     self.serve = serve
   }
 
-  /// Who hears each ending, the check today and Olm Settings at step 4.3.
+  /// Who hears a plugin switched off and why, before anything can start it again.
+  public func onOff(_ fn: @escaping @Sendable (String, String) -> Void) { onOff = fn }
+
+  /// Who hears each ending, the check.
   public func onEnded(_ fn: @escaping @Sendable (String, Ending) -> Void) {
     onEnded = fn
   }
@@ -95,8 +101,10 @@ public actor PluginRunner {
       list.append(now)
       failures[id] = list
       if list.count >= Self.strikes, off[id] == nil {
-        off[id] = "it failed \(list.count) times in ten minutes, last \(why)"
-        log("\(id) is switched off, \(off[id]!)")
+        let reason = "it failed \(list.count) times in ten minutes, last \(why)"
+        off[id] = reason
+        log(id, "switched off, \(reason)", .olm)
+        onOff?(id, reason)
       }
     }
     onEnded?(id, why)

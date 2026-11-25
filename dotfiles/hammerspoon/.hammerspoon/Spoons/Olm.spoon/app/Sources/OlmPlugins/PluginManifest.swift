@@ -92,7 +92,8 @@ public struct PluginManifest: Sendable, Equatable {
   }
 
   /// Words olm://, a setting's id and the app's store already use.
-  static let reserved: Set<String> = ["abilities", "ability", "ext", "held", "olm", "plugins", "settings", "tool"]
+  static let reserved: Set<String> = ["abilities", "ability", "ext", "held", "log", "olm", "plugins", "settings", "tool",
+    "uninstall"]
 
   static func parse(_ o: [String: Any]) throws -> PluginManifest {
     guard let id = o["id"] as? String, id.range(of: "^[a-z][a-z0-9]*$", options: .regularExpression) != nil else {

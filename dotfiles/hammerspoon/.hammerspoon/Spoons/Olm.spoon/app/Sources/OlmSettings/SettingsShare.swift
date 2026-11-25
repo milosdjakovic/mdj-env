@@ -293,7 +293,7 @@ public struct SettingChoice: Equatable, Sendable, Identifiable {
 }
 
 public struct Setting: Equatable, Sendable, Identifiable {
-  public enum Kind: String, Sendable { case choice, number, font, `switch`, checkbox, text, handler, picks, ability, review, uninstall, apps, keys, sizes, other }
+  public enum Kind: String, Sendable { case choice, number, font, `switch`, checkbox, text, handler, picks, ability, review, log, uninstall, apps, keys, sizes, other }
 
   public let id: String
   public let title: String
@@ -329,6 +329,10 @@ public struct Setting: Equatable, Sendable, Identifiable {
   /// A picks setting's list Olm.app finds its choices in, browsers, and the names after them.
   public var source: String?
   public var fixed: [String] = []
+  /// A picks setting a person orders by dragging, the order dragged, and whether it counts now.
+  public var ordered = false
+  public var order: [String] = []
+  public var movable = false
   /// An ability's own fields, docs/DESIGN-APP-PLUGINS.md: its name, the plugin that declared it, the
   /// permission it rides on and its name, whether that is Olm's own gate rather than macOS's, what
   /// Olm does for it, what stops working with it off, and why it was refused when it is not on
@@ -336,7 +340,7 @@ public struct Setting: Equatable, Sendable, Identifiable {
   public var ability: Ability?
 
   public var needsReload: Bool { applies == "reload" }
-  public var differs: Bool { defaultValue != .none && value != defaultValue }
+  public var differs: Bool { (defaultValue != .none && value != defaultValue) || !order.isEmpty }
 }
 
 /// One ability a plugin declared, what Olm does for it with a permission only Olm holds.
@@ -485,7 +489,38 @@ public struct SettingsShare: Equatable, Sendable {
   }
 }
 
+public enum Picks {
+  /// The names in the order dragged, those it does not hold after them as they were.
+  public static func arrange(_ names: [String], by order: [String]) -> [String] {
+    let here = Set(names), held = Set(order)
+    return order.filter { here.contains($0) } + names.filter { !held.contains($0) }
+  }
+
+  /// Where a row dragged this far lands.
+  public static func lands(_ from: Int, moved: Double, height: Double, count: Int) -> Int {
+    Swift.max(0, Swift.min(count - 1, from + Int((moved / height).rounded())))
+  }
+
+  public static func move(_ names: [String], from: Int, to: Int) -> [String] {
+    var out = names
+    out.insert(out.remove(at: from), at: to)
+    return out
+  }
+}
+
 public enum SettingFormat {
+  /// How long ago, in one unit.
+  public static func ago(_ at: Date, _ now: Date) -> String {
+    let s = Int(now.timeIntervalSince(at))
+    func said(_ n: Int, _ unit: String) -> String { "\(n) \(unit)\(n == 1 ? "" : "s") ago" }
+    switch s {
+    case ..<60: return "just now"
+    case ..<3600: return said(s / 60, "minute")
+    case ..<86400: return said(s / 3600, "hour")
+    default: return said(s / 86400, "day")
+    }
+  }
+
   /// How a number is typed: what its value is multiplied by, the unit after the field and the decimals
   /// it takes. Seconds are typed as milliseconds and a share below one as a percent.
   public static func entry(step: Double?, unit: String?) -> (factor: Double, unit: String, decimals: Int) {

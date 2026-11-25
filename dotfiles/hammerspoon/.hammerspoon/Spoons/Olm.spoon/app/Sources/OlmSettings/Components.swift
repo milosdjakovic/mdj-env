@@ -158,7 +158,9 @@ struct CardDivider: View {
   var body: some View { Divider().padding(.leading, Space.pad + 4) }
 }
 
-/// A card's title over it, with what belongs to the whole card at its right.
+/// A card's title over it, with what belongs to the whole card at its right. The title is bare words,
+/// so it stands at the card's inset, over the rows' words. A control there has a shape of its own and
+/// ends at the card's edge, and words there take `bareText`.
 struct CardSection<Trailing: View, Content: View>: View {
   let title: String
   @ViewBuilder let trailing: Trailing
@@ -167,18 +169,60 @@ struct CardSection<Trailing: View, Content: View>: View {
   var body: some View {
     VStack(alignment: .leading, spacing: Space.pad) {
       HStack(spacing: Space.pad) {
-        Text(title).font(.headline).frame(maxWidth: .infinity, alignment: .leading)
+        Text(title).font(.headline).bareText().frame(maxWidth: .infinity, alignment: .leading)
         trailing
       }
-      .padding(.horizontal, Space.pad + 4)
       content
     }
   }
 }
 
+extension View {
+  /// Words outside a card, held in by the card's inset so they line up with the words inside it. What
+  /// has a shape of its own, a button, a search or a card, takes none and reaches the page's edge.
+  func bareText() -> some View { padding(.horizontal, Space.pad + 4) }
+}
+
 extension CardSection where Trailing == EmptyView {
   init(_ title: String, @ViewBuilder content: () -> Content) {
     self.init(title: title, trailing: { EmptyView() }, content: content)
+  }
+}
+
+private struct UnitsKey: EnvironmentKey {
+  static let defaultValue: [String] = []
+}
+
+extension EnvironmentValues {
+  /// Every unit on the card, so each takes the widest one's room.
+  var units: [String] {
+    get { self[UnitsKey.self] }
+    set { self[UnitsKey.self] = newValue }
+  }
+}
+
+extension View {
+  /// The units of a card's numbers.
+  func units(_ settings: [Setting]) -> some View {
+    environment(\.units, Set(settings.filter { $0.kind == .number }
+      .map { SettingFormat.entry(step: $0.step, unit: $0.unit).unit }).sorted())
+  }
+}
+
+/// The unit after a number, ending where every control ends, the card's inset, in a column as wide as
+/// the card's widest unit so its fields stand in one line.
+struct UnitLabel: View {
+  let text: String
+  @Environment(\.units) private var units
+
+  init(_ text: String) { self.text = text }
+
+  var body: some View {
+    ZStack(alignment: .trailing) {
+      ForEach(units, id: \.self) { Text($0).hidden() }
+      Text(text).foregroundStyle(.secondary)
+    }
+    .fixedSize()
   }
 }
 
@@ -331,7 +375,10 @@ struct AbilityRow: View {
         Text(line).font(.caption).foregroundStyle(.secondary)
           .fixedSize(horizontal: false, vertical: true)
         // Always there, so a switch flipped grows no row.
-        Text(status).font(.caption).foregroundStyle(.secondary)
+        // Read again as time passes, its last use said beside it.
+        TimelineView(.periodic(from: .now, by: 5)) { context in
+          Text(status + used(context.date)).font(.caption).foregroundStyle(.secondary)
+        }
       }
       Spacer(minLength: Space.pad)
       HStack(spacing: Space.pad) {
@@ -359,6 +406,14 @@ struct AbilityRow: View {
     guard let ability else { return why }
     if plugin != nil { return "\(why) · \(setting.title)" }
     return ability.olmGate ? "\(why) · Olm's own gate" : "\(why) · \(ability.permissionTitle)"
+  }
+
+  /// When a plugin Olm.app runs last used it, nothing for one Hammerspoon runs, whose uses Olm does
+  /// not see.
+  private func used(_ now: Date) -> String {
+    guard let ability, ability.refused == nil, setting.id.hasPrefix(ExternalPlugins.prefix) else { return "" }
+    guard let at = ExternalPlugins.history.used(ability.owner, ability.use) else { return " · not used yet" }
+    return " · used " + SettingFormat.ago(at, now)
   }
 
   private var status: String {

@@ -16,6 +16,7 @@
 
 import AppKit
 import Combine
+import OlmPlugins
 import SwiftUI
 import UniformTypeIdentifiers
 
@@ -42,7 +43,13 @@ final class SettingsModel: ObservableObject {
   var offerTurn = 0
   let installer: PluginInstaller?
   /// The plugin whose own page is open inside Plugins, nil for the Plugins list itself.
-  @Published var pluginPage: String?
+  @Published var pluginPage: String? {
+    didSet { if oldValue != pluginPage { logPage = false } }
+  }
+  /// That plugin's log is open over its page, PluginLogPage.swift, and what it held last.
+  @Published var logPage = false
+  @Published var logEntries: [PluginLog.Entry] = []
+  var logMoved: Date?
   @Published var query = ""
   /// The search result highlighted in the dropdown, by its place.
   @Published var hit = 0
@@ -74,9 +81,14 @@ final class SettingsModel: ObservableObject {
     if openPermissions.contains(id) { openPermissions.remove(id) } else { openPermissions.insert(id) }
   }
 
-  /// Every plugin's ability that rides on a permission, docs/DESIGN-APP-PLUGINS.md.
+  /// Every plugin's ability that rides on a permission, the plugins by name, docs/DESIGN-APP-PLUGINS.md.
   func abilities(riding permission: String) -> [Setting] {
-    (share?.abilities ?? []).filter { $0.ability?.permission == permission }
+    let uses = (share?.abilities ?? []).filter { $0.ability?.permission == permission }
+      .map { (name: pluginTitle($0.ability?.owner ?? ""), use: $0) }
+    return uses.enumerated().sorted { a, b in
+      let order = a.element.name.localizedStandardCompare(b.element.name)
+      return order == .orderedSame ? a.offset < b.offset : order == .orderedAscending
+    }.map(\.element.use)
   }
 
   /// A plugin's name, its switch's title in Plugins, the identity where it has none.
@@ -105,6 +117,9 @@ final class SettingsModel: ObservableObject {
   @Published var browsers: BrowserScan?
   /// A picks setting's names as last clicked, shown until the save answers.
   @Published var picksDrafts: [String: [String]] = [:]
+  /// A picks row held by the pointer, its place and how far it was dragged.
+  struct PicksDrag: Equatable { var setting: String, id: String, from: Int, by: CGFloat }
+  @Published var picksDrag: PicksDrag?
 
   /// Each handler setting's scheme to the path of the app macOS opens it with now.
   @Published var handlers: [String: String] = [:]
@@ -143,6 +158,7 @@ final class SettingsModel: ObservableObject {
 
   /// Opens the hit's section and hands its page the row to go to, closing the dropdown.
   func jump(to hit: SearchHit) {
+    logPage = false
     if hit.id.hasPrefix("app:") { appsPage.filter = "" }
     selection = hit.section
     leaveOffer()
@@ -161,16 +177,18 @@ final class SettingsModel: ObservableObject {
   var current: SettingsSection? { sections.first(where: { $0.id == selection }) ?? sections.first }
 
   /// Sends one change, or a reset, and draws the share Hammerspoon answers with.
-  func change(_ setting: Setting, to value: SettingValue, reset: Bool = false) {
+  func change(_ setting: Setting, to value: SettingValue, reset: Bool = false, as part: String? = nil) {
     guard let service else {
       refusal = "\(setting.title) was not changed, Olm.app has no bridge to Hammerspoon."
       return
     }
-    busy.insert(setting.id)
+    // A part of a setting kept beside it, a list's order, is sent under its own id.
+    let id = part.map { setting.id + $0 } ?? setting.id
+    busy.insert(id)
     Task { @MainActor in
-      let answer = await service.change(setting.id, value, reset)
-      busy.remove(setting.id)
-      picksDrafts[setting.id] = nil
+      let answer = await service.change(id, value, reset)
+      busy.remove(id)
+      picksDrafts[id] = nil
       if let share = answer.share { self.share = share }
       // An ability turned on or off changes what Olm reads for the plugins, the browsers' profiles.
       if setting.kind == .ability { browsers = Browsers.refresh(share: self.share) }
@@ -430,9 +448,8 @@ enum Space {
   static let corner: CGFloat = 20
   /// The height of a sidebar row and of the search, one line of text and its pad.
   static let rowHeight: CGFloat = 32
-  /// A number's field, and its unit after it.
+  /// A number's field.
   static let digits: CGFloat = 64
-  static let unit: CGFloat = 32
   /// A text's field.
   static let field: CGFloat = 200
   /// A reset beside a control, kept in place while hidden.
@@ -546,6 +563,9 @@ struct SettingsDetail: View {
       } else if model.current?.id == "plugins", let offer = model.offer {
         InstallPage(offer: offer, model: model)
           .id(offer.id)
+      } else if model.current?.id == "plugins", model.logPage, let plugin = model.pluginPage {
+        PluginLogPage(plugin: plugin, title: model.pluginTitle(plugin), model: model)
+          .id("log/" + plugin)
       } else if let section = model.current, let plugin = model.pluginPage,
         section.settings.contains(where: { $0.page == plugin }) {
         SectionPage(section: section, model: model, plugin: plugin)
@@ -664,13 +684,18 @@ struct SectionPage: View {
 
   private var rows: [Setting] {
     guard let plugin else { return section.settings.filter { $0.page == nil } }
-    return (owner.map { [$0] } ?? []) + section.settings.filter { $0.page == plugin && $0.kind != .ability && $0.kind != .uninstall }
+    return (owner.map { [$0] } ?? []) + section.settings.filter { $0.page == plugin && $0.kind != .ability && $0.kind != .uninstall && $0.kind != .log }
   }
 
   /// The plugin's abilities, its Permissions group under its settings, none on a section's page.
   private var abilities: [Setting] {
     guard let plugin else { return [] }
     return section.settings.filter { $0.page == plugin && $0.kind == .ability }
+  }
+
+  /// Its log, on the page of a plugin Olm.app runs.
+  private var log: Setting? {
+    plugin == nil ? nil : section.settings.first { $0.page == plugin && $0.kind == .log }
   }
 
   /// Uninstall, on the page of a plugin that did not come with Olm.
@@ -701,6 +726,7 @@ struct SectionPage: View {
               page: plugin == nil ? setting.plugin.flatMap { pages.contains($0) ? $0 : nil } : nil)
               .searchMark(model, SearchTarget.setting(setting.id))
           }
+          .units(rows)
           if !abilities.isEmpty {
             // What the plugin asks Olm to do with Olm's permissions, each turned off here or under
             // the permission on the Permissions page, the same setting, docs/DESIGN-APP-PLUGINS.md.
@@ -710,6 +736,12 @@ struct SectionPage: View {
                   .searchMark(model, SearchTarget.setting(ability.id))
               }
             }
+          }
+          if let log {
+            LogRow(setting: log, model: model)
+              .searchMark(model, SearchTarget.setting(log.id))
+              .cardRow()
+              .glassCard()
           }
           if let uninstall, let plugin {
             UninstallRow(setting: uninstall, model: model, plugin: plugin, title: owner?.title ?? plugin)
@@ -730,7 +762,7 @@ struct SectionPage: View {
     .softTopEdge()
     .pluginDrop(installs, model)
     .backBar(plugin == nil ? nil : section.title, model: model) { model.pluginPage = nil }
-    .searchJump(model, proxy, Set((rows + abilities + (uninstall.map { [$0] } ?? [])).map { SearchTarget.setting($0.id) }))
+    .searchJump(model, proxy, Set((rows + abilities + [log, uninstall].compactMap { $0 }).map { SearchTarget.setting($0.id) }))
     }
     // Whether Olm holds each permission, which an ability's switch waits for.
     .onAppear { if !abilities.isEmpty { model.recheck() } }
@@ -878,8 +910,8 @@ struct SettingRow: View {
         model.askUninstall(String(setting.id.dropFirst(SettingsModel.heldPrefix.count)), setting.title)
       }
       .disabled(model.offerBusy)
-    case .apps, .keys, .sizes, .ability:
-      // Drawn by their own page, AppsView, or an ability's own row, AbilityRow, never as a row here.
+    case .apps, .keys, .sizes, .ability, .log:
+      // Drawn by their own page, AppsView, or a row of their own, AbilityRow and LogRow, never as a row here.
       EmptyView()
     case .other:
       Text(String(describing: setting.value))
@@ -921,10 +953,7 @@ struct NumberSetting: View {
         .onChange(of: focused) { if !focused { send() } }
         .onDisappear(perform: send)
         .help(range.map { "A number \($0)" } ?? "")
-      // The column of the widest unit, rows, so every field ends on one line.
-      Text(SettingFormat.entry(step: setting.step, unit: setting.unit).unit)
-        .foregroundStyle(.secondary)
-        .frame(width: Space.unit, alignment: .leading)
+      UnitLabel(SettingFormat.entry(step: setting.step, unit: setting.unit).unit)
     }
   }
 
@@ -1018,20 +1047,30 @@ struct PicksSetting: View {
 
   /// What is found now and the fixed names, and nothing else, so a name saved and gone is not
   /// shown and leaves the saved list on the next click.
-  private var options: [Option] { found + setting.fixed.map { Option(id: $0, title: $0, app: nil) } }
+  private var options: [Option] {
+    let all = found + setting.fixed.map { Option(id: $0, title: $0, app: nil) }
+    guard setting.ordered else { return all }
+    let byID = Dictionary(all.map { ($0.id, $0) }, uniquingKeysWith: { a, _ in a })
+    return Picks.arrange(all.map(\.id), by: model.picksDrafts[setting.id + ".order"] ?? setting.order).compactMap { byID[$0] }
+  }
+
+  private var drag: SettingsModel.PicksDrag? { model.picksDrag.flatMap { $0.setting == setting.id ? $0 : nil } }
+
+  private func lands(_ count: Int) -> Int? {
+    drag.map { Picks.lands($0.from, moved: $0.by, height: Space.rowHeight, count: count) }
+  }
 
   var body: some View {
+    let options = self.options, to = lands(options.count)
     VStack(alignment: .leading, spacing: Space.related) {
-      ForEach(options) { option in
-        Toggle(isOn: Binding(get: { picked.contains(option.id) }, set: { flip(option.id, $0) })) {
-          HStack(spacing: Space.related) {
-            if let app = option.app {
-              Image(nsImage: NSWorkspace.shared.icon(forFile: app)).resizable().frame(width: Space.mark, height: Space.mark)
-            }
-            Text(option.title)
-          }
+      VStack(alignment: .leading, spacing: 0) {
+        ForEach(Array(options.enumerated()), id: \.element.id) { at, option in
+          row(option, at, options.map(\.id))
+            .frame(maxWidth: .infinity, minHeight: Space.rowHeight, maxHeight: Space.rowHeight, alignment: .leading)
+            .offset(y: aside(at, to))
+            .animation(drag?.id == option.id ? nil : .snappy(duration: 0.18), value: to)
+            .zIndex(drag?.id == option.id ? 1 : 0)
         }
-        .toggleStyle(.checkbox)
       }
       if setting.source == "browsers", let hidden = model.browsers?.hidden, !hidden.isEmpty {
         VStack(alignment: .leading, spacing: Space.related) {
@@ -1051,6 +1090,68 @@ struct PicksSetting: View {
     .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in
       if setting.source == "browsers" { model.browsers = Browsers.refresh(share: model.share) }
     }
+  }
+
+  /// How far a row stands from its place while one is dragged, the one held where the pointer has it
+  /// and those it passed one row over.
+  private func aside(_ at: Int, _ to: Int?) -> CGFloat {
+    guard let drag, let to else { return 0 }
+    if at == drag.from { return drag.by }
+    if at > drag.from, at <= to { return -Space.rowHeight }
+    if at < drag.from, at >= to { return Space.rowHeight }
+    return 0
+  }
+
+  @ViewBuilder private func row(_ option: Option, _ at: Int, _ ids: [String]) -> some View {
+    let on = picked.contains(option.id), held = drag?.id == option.id
+    HStack(spacing: Space.related) {
+      Toggle(option.title, isOn: Binding(get: { on }, set: { flip(option.id, $0) }))
+        .toggleStyle(.checkbox)
+        .labelsHidden()
+      HStack(spacing: Space.related) {
+        if let app = option.app {
+          Image(nsImage: NSWorkspace.shared.icon(forFile: app)).resizable().frame(width: Space.mark, height: Space.mark)
+        }
+        Text(option.title)
+        if setting.ordered {
+          Spacer(minLength: Space.pad)
+          // Kept in place while another order is in force, so choosing one moves nothing.
+          Image(systemName: "line.3.horizontal").foregroundStyle(.secondary)
+            .opacity(setting.movable ? 1 : 0)
+            .help("Drag to reorder")
+        }
+      }
+      .frame(maxHeight: .infinity)
+      .contentShape(Rectangle())
+      .onTapGesture { flip(option.id, !on) }
+      .gesture(dragging(option.id, at, ids), including: setting.movable ? .all : .subviews)
+    }
+    .background {
+      if held { RoundedRectangle(cornerRadius: Space.related, style: .continuous).fill(.regularMaterial).padding(.horizontal, -Space.related) }
+    }
+  }
+
+  private func dragging(_ id: String, _ at: Int, _ ids: [String]) -> some Gesture {
+    DragGesture(minimumDistance: 4, coordinateSpace: .global)
+      .onChanged { g in
+        let from = drag?.id == id ? drag?.from ?? at : at
+        model.picksDrag = .init(setting: setting.id, id: id, from: from, by: g.translation.height)
+      }
+      .onEnded { g in
+        let to = Picks.lands(at, moved: g.translation.height, height: Space.rowHeight, count: ids.count)
+        // Every row is already where it lands, so nothing moves as the order is taken.
+        var still = Transaction()
+        still.disablesAnimations = true
+        withTransaction(still) {
+          model.picksDrag = nil
+          guard to != at else { return }
+          let next = Picks.move(ids, from: at, to: to)
+          // Those not found now, a profile turned off, keep a place after the rest.
+          let order = next + setting.order.filter { !next.contains($0) }
+          model.picksDrafts[setting.id + ".order"] = order
+          model.change(setting, to: .names(order), as: ".order")
+        }
+      }
   }
 
   private func flip(_ id: String, _ on: Bool) {

@@ -24,6 +24,8 @@ let plugin = OlmPlugin()
 var link: String?
 var targets: [Target] = []
 var favourites: [String] = []
+/// By use, or nil for the order Olm hands them in, the one dragged in Olm Settings.
+var order: OlmUsage.Order?
 var showAll = false
 let lastFile = plugin.data.appendingPathComponent("last.json")
 
@@ -52,11 +54,11 @@ func placeholder(_ url: String?) -> String {
   return String(chars[0..<head]) + "…" + String(chars[(chars.count - tail)...])
 }
 
-/// The favourites shown, by Olm's id for each, or every browser and profile. One that names nothing
-/// found now is passed over.
+/// The favourites shown, by Olm's id for each, or every browser and profile, in order.
 func shown() -> [Target] {
-  if showAll || favourites.isEmpty { return targets }
-  return favourites.compactMap { id in targets.first { $0.id == id } }
+  let list = showAll || favourites.isEmpty ? targets : targets.filter { favourites.contains($0.id) }
+  guard let order else { return list }
+  return plugin.usage.sorted(list, by: order) { $0.id }
 }
 
 func copyLink() {
@@ -77,7 +79,9 @@ plugin.open = { context in
     else { return nil }
     return Target(title: title, browser: t["browser"] as? String ?? title, bundle: bundle, id: id)
   }
-  favourites = (context["settings"] as? OlmJSON)?["favourites"] as? [String] ?? []
+  let settings = context["settings"] as? OlmJSON ?? [:]
+  favourites = settings["favourites"] as? [String] ?? []
+  order = ["most": .most, "last": .last][settings["order"] as? String ?? ""]
   showAll = false
   return OlmLevel(placeholder: placeholder(link), actions: ["copyLink", "showAll", "showFavourites"])
 }
@@ -106,6 +110,7 @@ plugin.choose = { key, _ in
     plugin.notify("Olm could not open the link in \(t.title)")
     return []
   }
+  plugin.usage.note(t.id)
   return [.hide]
 }
 

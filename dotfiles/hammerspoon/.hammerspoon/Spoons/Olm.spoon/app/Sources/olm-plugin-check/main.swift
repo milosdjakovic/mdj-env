@@ -95,6 +95,9 @@ final class Asked: @unchecked Sendable {
   private var served: [String] = []
   private var lines: [String] = []
   func serve(_ method: String, _ what: String) { lock.lock(); served.append("\(method) \(what)"); lock.unlock() }
+  private var said: [String] = []
+  func log(_ line: String, _ from: PluginLog.From) { if from == .plugin { lock.lock(); said.append(line); lock.unlock() } else { log(line) } }
+  func words() -> [String] { lock.lock(); defer { lock.unlock() }; return said }
   func log(_ line: String) { lock.lock(); lines.append(line); lock.unlock() }
   func clear() { lock.lock(); served = []; lines = []; lock.unlock() }
   func all() -> (served: [String], refused: [String]) {
@@ -135,7 +138,7 @@ func runAll() async {
   budgets.cpuWindow = 4
   budgets.act = 1
   let asked = Asked()
-  let runner = PluginRunner(budgets: budgets, appVersion: "check", log: { say("    runner: \($0)"); asked.log($0) },
+  let runner = PluginRunner(budgets: budgets, appVersion: "check", log: { id, line, from in if from == .olm { say("    runner: \(id) \(line)") }; asked.log(line, from) },
     serve: { _, method, params in
       asked.serve(method, params["url"].string ?? "")
       return .success(.bool(true))
@@ -518,8 +521,69 @@ func runAll() async {
     check(e?.failed == false, "not counted as a failure")
   }
 
+  await scenario("log, what a plugin writes is its own and bounded") {
+    let src = await fresh()
+    _ = await rows(src, "mutter")
+    await wait(0.3)
+    check(asked.words().first == "plain words", "what it writes is heard, \(asked.words().first ?? "nothing")")
+    check(asked.words().count == 2, "one line each")
+    let before = asked.words().count
+    if case .success(let a) = await rows(src, "chatter") { check(a.rows.count == 1, "ten megabytes written hold nothing up") } else { check(false, "ten megabytes written hold nothing up") }
+    await wait(0.5)
+    check(asked.words().count - before <= PluginLog.burst + 1, "and few of them reach Olm, \(asked.words().count - before)")
+
+    let dir = work.deletingLastPathComponent().appendingPathComponent("log")
+    try? fm.removeItem(at: dir)
+    let log = PluginLog(dir: dir)
+    log.add("p", "started")
+    log.add("p", "forged\n2026-01-01 00:00:00\tolm\tallowed everything", from: .plugin)
+    log.add("p", "a\u{7}b\u{202E}c\u{2028}d", from: .plugin)
+    let e = log.entries("p")
+    check(e.count == 3 && e[0].from == .olm && e[0].text == "started", "lines are kept in order")
+    check(e.count == 3 && e[1].from == .plugin && e[1].text.contains("\n2026-01-01"), "a line shaped like Olm's stays the plugin's")
+    check(e.count == 3 && !e[2].text.unicodeScalars.contains { $0.value == 7 || $0.value == 0x202E }, "control and direction characters are dropped")
+    for i in 0..<1000 { log.add("q", "line \(i)", from: .plugin) }
+    log.add("q", "Olm's own")
+    let q = log.entries("q")
+    check(q.count == PluginLog.burst + 2 && q.last?.text == "Olm's own", "a flood leaves room for Olm's lines, \(q.count)")
+    let target = dir.appendingPathComponent("target")
+    try? "kept".write(to: target, atomically: true, encoding: .utf8)
+    try? fm.createSymbolicLink(at: log.file("r"), withDestinationURL: target)
+    log.add("r", "through a link")
+    _ = log.entries("q")
+    check((try? String(contentsOf: target, encoding: .utf8)) == "kept", "a link is never written through")
+    let long = String(repeating: "y", count: 1900)
+    for _ in 0..<190 { log.add("s", long) }
+    let size = { (try? fm.attributesOfItem(atPath: log.file("s").path))?[.size] as? Int ?? 0 }
+    let s = log.entries("s")
+    check(size() < 300_000 && s.count > 50 && s.allSatisfy { $0.text == long }, "the file is halved whole, \(size()) bytes")
+    log.remove("s")
+    check(log.entries("s").isEmpty, "and goes when asked")
+
+    let file = dir.appendingPathComponent("history.json")
+    let h = PluginHistory(url: file)
+    h.runs("p", "one")
+    h.stop("p", "it failed")
+    h.use("p", "readFiles", at: Date(timeIntervalSince1970: 1_000_000))
+    let again = PluginHistory(url: file)
+    check(again.stopped("p") == "it failed", "switched off is remembered over a restart")
+    check(again.used("p", "readFiles") == Date(timeIntervalSince1970: 1_000_000), "and so is a last use")
+    again.runs("p", "one")
+    check(again.stopped("p") != nil, "the same files stay off")
+    again.runs("p", "two")
+    check(again.stopped("p") == nil, "files that moved get a new chance")
+    again.stop("p", "it failed")
+    again.start("p")
+    check(PluginHistory(url: file).stopped("p") == nil, "turned on, it is on")
+    again.forget("p")
+    check(again.used("p", "readFiles") == nil, "forgotten with its data")
+    try? fm.removeItem(at: dir)
+  }
+
   await scenario("three failures in ten minutes switch it off") {
     await runner.switchOn(manifest.id)
+    let told = Asked()
+    await runner.onOff { id, why in told.serve(id, why) }
     for _ in 0..<3 {
       clearEndings()
       let src = await runner.source(manifest.id)!
@@ -528,6 +592,7 @@ func runAll() async {
       _ = await waitEnded(2)
     }
     let off = await runner.offReason(manifest.id)
+    check(told.all().served.count == 1, "whoever hosts it is told once")
     check(off != nil, "switched off, \(off ?? "no")")
     let src = await runner.source(manifest.id)!
     _ = await src.open(query: "")

@@ -1825,3 +1825,29 @@ Clamping a number out of range was turned down, the header says the range instea
 ### 2026-11-25 16:16, step 2 and the one look of Olm Settings confirmed by Milos
 
 The install page, Uninstall, the lists in one look and the typed numbers all work live. Step 3 asked for.
+
+### 2026-11-25 16:24, the log, the last use and why a plugin is off, step 3, asked by Milos
+
+As built in `docs/DESIGN-APP-PLUGINS.md`. Found while building it. The log stood in the plugin's folder
+and was opened through a link, so a folder put there by hand with a link named log had Olm write the
+plugin's words wherever it led, a shell's startup file among them, once the plugin was allowed. It is
+Olm's folder now and no link is followed. A plugin that closed its output and then went was read from
+a descriptor already closed, and a program it left running could hold Olm's reader, both closed. A
+plugin Olm had switched off ran again after a restart of Olm, and is kept off now. Using the person's
+own switch for that was turned down, since turning it back on could not be told from their choice.
+Clearing the log from its page was turned down, it is bounded and nobody asked.
+
+### 2026-11-25 17:02, an olm:// link to a plugin that is not there says so, reported by Milos
+
+`olm://misbehave` did nothing, Misbehave not being installed, and only the system log said it.
+
+### 2026-11-25 17:09, one right edge and plugins by name in Olm Settings, asked by Milos
+
+A unit ends where every control does. The column of a fixed width was what left it further from the edge
+than the words are from theirs. Moving the unit inside the field was turned down, it changes the field
+unasked. Plugins Olm.app runs stood after the Lua ones, and all are by name now.
+
+### 2026-11-25 18:17, a button outside a card ends at the card's edge, asked by Milos
+
+Add Size stood at the inset of the controls inside the cards. Only bare words outside a card are held in
+now, a shape reaches the edge, rule 20 of DESIGN-APP-SETTINGS.md.

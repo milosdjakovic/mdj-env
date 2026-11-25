@@ -89,7 +89,8 @@ public actor RunningPlugin: LevelPeer {
   private let budgets: Budgets
   private let appVersion: String
   private let ended: @Sendable (String, Ending) -> Void
-  private let log: @Sendable (String) -> Void
+  /// Olm's lines about it and what it wrote.
+  private let log: PluginRunner.Log
   /// Answers what the plugin asks of Olm, by plugin id, method and params, a result or why not.
   private let serve: Serve
 
@@ -125,7 +126,7 @@ public actor RunningPlugin: LevelPeer {
   }
 
   init(manifest: PluginManifest, folder: URL, budgets: Budgets, appVersion: String,
-       ended: @escaping @Sendable (String, Ending) -> Void, log: @escaping @Sendable (String) -> Void,
+       ended: @escaping @Sendable (String, Ending) -> Void, log: @escaping PluginRunner.Log,
        serve: @escaping Serve = { _, method, _ in .failure(Refusal(-32601, "no method \(method)")) }) {
     self.manifest = manifest
     self.folder = folder
@@ -143,7 +144,6 @@ public actor RunningPlugin: LevelPeer {
   nonisolated var data: URL { folder.appendingPathComponent("data") }
   nonisolated var temp: URL { folder.appendingPathComponent("tmp") }
   nonisolated var executable: URL { folder.appendingPathComponent("bin").appendingPathComponent(manifest.id) }
-  public nonisolated var logFile: URL { folder.appendingPathComponent("log") }
 
   // MARK: Requests
 
@@ -226,7 +226,7 @@ public actor RunningPlugin: LevelPeer {
     if retired { throw PluginError.off("its files changed, open it again") }
     let sandbox = Sandbox(folder: folder, data: data, temp: temp, executable: executable, permissions: manifest.permissions)
     let profile = sandbox.profile()
-    for name in profile.missing { log("\(manifest.id) asks for \(name), which this Mac does not have") }
+    for name in profile.missing { note("asks for \(name), which this Mac does not have") }
     programs = profile.programs
     var env = [
       "HOME": NSHomeDirectory(),
@@ -239,7 +239,7 @@ public actor RunningPlugin: LevelPeer {
     env["USER"] = ProcessInfo.processInfo.environment["USER"]
     let p: PluginProcess
     do {
-      p = try PluginProcess.spawn(executable: executable, rules: profile.rules, environment: env, log: logFile,
+      p = try PluginProcess.spawn(executable: executable, rules: profile.rules, environment: env,
         qos: manifest.background ? QOS_CLASS_BACKGROUND : QOS_CLASS_UTILITY, label: manifest.id)
     } catch {
       throw PluginError.unstartable("\(error)")
@@ -256,7 +256,7 @@ public actor RunningPlugin: LevelPeer {
       for await event in p.events { await self?.take(event, generation: gen) }
     }
     Task { [weak self] in await self?.watch(generation: gen) }
-    log("\(manifest.id) started, pid \(p.pid)")
+    note("started, pid \(p.pid)")
     let hello: JSON
     do {
       hello = try await send("hello", .object([
@@ -288,7 +288,6 @@ public actor RunningPlugin: LevelPeer {
   public func kill(_ why: Ending) {
     guard let process else { return }
     stopping = why
-    log("\(manifest.id) \(why)")
     process.kill()
   }
 
@@ -297,6 +296,8 @@ public actor RunningPlugin: LevelPeer {
     switch event {
     case .message(let data):
       await receive(data)
+    case .said(let line):
+      log(manifest.id, line, .plugin)
     case .broken(let why):
       kill(.broken(why))
     case .exited(let status):
@@ -307,7 +308,7 @@ public actor RunningPlugin: LevelPeer {
       pending = [:]
       overdue = []
       levels = [:]
-      if stopping == nil { log("\(manifest.id) \(why)") }
+      note("\(why)")
       ended(manifest.id, why)
     }
   }
@@ -321,18 +322,18 @@ public actor RunningPlugin: LevelPeer {
       if let id = message["id"].string ?? message["id"].int.map(String.init) {
         // What a plugin asks of Olm, answered off this actor so a slow answer holds nothing.
         if let refusal = refuses(method, message["params"]) {
-          log("\(manifest.id) was refused \(method), \(refusal.message)")
+          note("was refused \(method), \(refusal.message)")
           reply(id, error: (refusal.code, refusal.message))
           return
         }
         let serve = self.serve, plugin = manifest.id, params = message["params"]
         Task { [weak self] in
           let outcome = await serve(plugin, method, params)
-          if case .failure(let refusal) = outcome { await self?.refused(method, refusal) }
+          await self?.answered(method, outcome)
           await self?.answer(id, outcome)
         }
       } else if method == "log" {
-        log("\(manifest.id): \(message["params"]["text"].string ?? "")")
+        log(manifest.id, message["params"]["text"].string ?? "", .plugin)
       }
       return
     }
@@ -360,9 +361,14 @@ public actor RunningPlugin: LevelPeer {
     return nil
   }
 
-  private func refused(_ method: String, _ refusal: Refusal) {
-    log("\(manifest.id) was refused \(method), \(refusal.message)")
+  private func answered(_ method: String, _ outcome: Result<JSON, Refusal>) {
+    switch outcome {
+    case .success: note("\(method), done by Olm")
+    case .failure(let refusal): note("was refused \(method), \(refusal.message)")
+    }
   }
+
+  private func note(_ text: String) { log(manifest.id, text, .olm) }
 
   private func answer(_ id: String, _ outcome: Result<JSON, Refusal>) {
     switch outcome {

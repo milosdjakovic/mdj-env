@@ -97,6 +97,58 @@ public enum OlmEffect {
   }
 }
 
+/// What the person uses most or used last, one number and one time for each key, halved every fourteen
+/// days and raised by one on a use, as Olm's own history of files is, docs/DESIGN-APP-FRECENCY.md. Kept
+/// in the plugin's data folder.
+public final class OlmUsage {
+  public enum Order { case most, last }
+
+  private struct Entry: Codable {
+    var score: Double
+    var at: Double
+  }
+
+  private let file: URL
+  private let now: () -> Date
+  private var entries: [String: Entry]
+  static let halfLife: Double = 14 * 86400
+  static let most = 500
+
+  public init(_ file: URL, now: @escaping () -> Date = Date.init) {
+    self.file = file
+    self.now = now
+    entries = (try? Data(contentsOf: file)).flatMap { try? JSONDecoder().decode([String: Entry].self, from: $0) } ?? [:]
+  }
+
+  /// That this was just used.
+  public func note(_ key: String) {
+    let at = now().timeIntervalSince1970
+    entries[key] = Entry(score: score(key) + 1, at: at)
+    if entries.count > Self.most {
+      let weakest = entries.keys.map { ($0, score($0)) }.sorted { $0.1 < $1.1 }
+      for (key, _) in weakest.prefix(entries.count - Self.most) { entries[key] = nil }
+    }
+    if let data = try? JSONEncoder().encode(entries) { try? data.write(to: file, options: .atomic) }
+  }
+
+  /// What it is worth now, 0 for one never used.
+  public func score(_ key: String) -> Double {
+    guard let e = entries[key] else { return 0 }
+    return e.score * pow(0.5, max(0, now().timeIntervalSince1970 - e.at) / Self.halfLife)
+  }
+
+  /// The items with the most or the last used first, those never used after them as they were.
+  public func sorted<T>(_ items: [T], by order: Order, key: (T) -> String) -> [T] {
+    items.enumerated().map { (at: $0.offset, item: $0.element, worth: worth(key($0.element), order)) }
+      .sorted { $0.worth != $1.worth ? $0.worth > $1.worth : $0.at < $1.at }
+      .map(\.item)
+  }
+
+  private func worth(_ key: String, _ order: Order) -> Double {
+    order == .most ? score(key) : entries[key]?.at ?? 0
+  }
+}
+
 public final class OlmPlugin {
   /// The list opens, handed what Olm opened it with, a link for a plugin receiving links.
   public var open: (OlmJSON) -> OlmLevel = { _ in OlmLevel(placeholder: "") }
@@ -113,6 +165,9 @@ public final class OlmPlugin {
 
   /// Where the plugin may keep files, its own data folder.
   public private(set) var data = URL(fileURLWithPath: ProcessInfo.processInfo.environment["OLM_PLUGIN_DATA"] ?? NSTemporaryDirectory())
+
+  /// What of its rows the person uses.
+  public private(set) lazy var usage = OlmUsage(data.appendingPathComponent("usage.json"))
 
   private let out = FileHandle.standardOutput
   private let outLock = NSLock()

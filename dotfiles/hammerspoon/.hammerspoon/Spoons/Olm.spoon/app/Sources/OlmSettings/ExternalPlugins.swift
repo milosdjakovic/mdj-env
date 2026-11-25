@@ -9,6 +9,7 @@
 // until Hammerspoon is gone.
 
 import Foundation
+import OlmPlugins
 
 /// Olm's list of abilities, each with the permission it rides on, lib/abilities.lua's LIST.
 public enum Abilities {
@@ -65,6 +66,11 @@ public struct PluginDeclarations: Sendable, Equatable {
     public var source: String?
     public var fixed: [String]
     public var keywords: [String]
+    public var choices: [SettingChoice] = []
+    /// The choice in force while none is set.
+    public var standard: String?
+    /// The choice a picks list is dragged into order under, while it is at its standard.
+    public var orderedBy: String?
   }
 
   public struct Verb: Sendable, Equatable {
@@ -113,9 +119,15 @@ public struct PluginDeclarations: Sendable, Equatable {
     }
     for s in o["settings"] as? [[String: Any]] ?? [] {
       guard let key = s["key"] as? String, let kind = s["kind"] as? String, let title = s["title"] as? String else { continue }
-      d.settings.append(SettingDecl(key: key, kind: kind, title: title, detail: s["detail"] as? String,
+      var made = SettingDecl(key: key, kind: kind, title: title, detail: s["detail"] as? String,
         scheme: s["scheme"] as? String, source: s["source"] as? String, fixed: s["fixed"] as? [String] ?? [],
-        keywords: s["keywords"] as? [String] ?? []))
+        keywords: s["keywords"] as? [String] ?? [])
+      made.choices = (s["choices"] as? [[String: Any]] ?? []).compactMap { c in
+        (c["value"] as? String).map { SettingChoice(value: $0, title: c["title"] as? String ?? $0) }
+      }
+      made.standard = s["default"] as? String
+      made.orderedBy = s["orderedBy"] as? String
+      d.settings.append(made)
     }
     func verb(_ v: Any?, action: String? = nil) -> Verb? {
       guard let v = v as? [String: Any], let title = v["title"] as? String,
@@ -216,6 +228,9 @@ public enum ExternalPlugins {
     }
   }
   public static let store = PluginStore()
+  /// Why Olm switched a plugin off and when each ability was last used, and what each plugin did.
+  public static let history = PluginHistory()
+  public static let log = PluginLog()
   /// The prefix every row of an app run plugin carries, which the window's change sends here
   /// rather than to Hammerspoon.
   public static let prefix = "ext."
@@ -224,8 +239,8 @@ public enum ExternalPlugins {
 
   static func list(_ key: String) -> [String] { store.value(key) as? [String] ?? [] }
 
-  /// Whether the plugin is switched on in Olm Settings.
-  public static func isOn(_ id: String) -> Bool { !list("plugins.off").contains(id) }
+  /// Whether the plugin is switched on in Olm Settings and Olm has not switched it off itself.
+  public static func isOn(_ id: String) -> Bool { !list("plugins.off").contains(id) && history.stopped(id) == nil }
 
   /// Whether Olm does use for the plugin now, declared, on Olm's list and not turned off.
   public static func allowed(_ id: String, _ use: String) -> Bool {
@@ -237,6 +252,9 @@ public enum ExternalPlugins {
   /// The plugin's own setting, as stored, nil for none.
   public static func value(_ id: String, _ key: String) -> Any? { store.value("\(id).\(key)") }
 
+  /// The order a picks list of it was dragged into.
+  public static func order(_ id: String, _ key: String) -> [String] { value(id, key + ".order") as? [String] ?? [] }
+
   /// The first plugin on, declaring use and allowed it, the one a link goes to.
   public static func first(allowed use: String) -> String? {
     declared.first { isOn($0.id) && allowed($0.id, use) }?.id
@@ -247,22 +265,32 @@ public enum ExternalPlugins {
     var out: [Setting] = []
     let off = list("plugins.off"), abilitiesOff = list("abilities.off")
     for p in declared {
-      var sw = Setting(id: prefix + p.id, title: p.title, detail: p.description, kind: .switch,
+      let stopped = history.stopped(p.id)
+      var sw = Setting(id: prefix + p.id, title: p.title,
+        detail: stopped.map { "Olm switched it off, \($0). Turn it on to try again." } ?? p.description, kind: .switch,
         keywords: [p.id, "plugin", "enable", "disable"], applies: "live", choices: [], min: nil, max: nil,
-        step: nil, unit: nil, locked: nil, defaultValue: .flag(true), value: .flag(!off.contains(p.id)))
+        step: nil, unit: nil, locked: nil, defaultValue: .flag(true), value: .flag(stopped == nil && !off.contains(p.id)))
       sw.plugin = p.id
       out.append(sw)
       for s in p.settings {
         let kind = Setting.Kind(rawValue: s.kind) ?? .other
         let stored = value(p.id, s.key)
-        let current: SettingValue = kind == .picks ? .names(stored as? [String] ?? []) : SettingValue(stored)
+        let standard: SettingValue = kind == .picks ? .names([]) : s.standard.map { .text($0) } ?? .none
+        let current: SettingValue = kind == .picks ? .names(stored as? [String] ?? [])
+          : stored == nil ? standard : SettingValue(stored)
         var row = Setting(id: "\(prefix)\(p.id).\(s.key)", title: s.title, detail: s.detail, kind: kind,
-          keywords: s.keywords, applies: "live", choices: [], min: nil, max: nil, step: nil, unit: nil,
-          locked: nil, defaultValue: kind == .picks ? .names([]) : .none, value: current)
+          keywords: s.keywords, applies: "live", choices: s.choices, min: nil, max: nil, step: nil, unit: nil,
+          locked: nil, defaultValue: standard, value: current)
         row.page = p.id
         row.scheme = s.scheme
         row.source = s.source
         row.fixed = s.fixed
+        if kind == .picks, let by = s.orderedBy {
+          row.ordered = true
+          row.order = order(p.id, s.key)
+          let set = value(p.id, by) as? String
+          row.movable = set == nil || set == p.settings.first { $0.key == by }?.standard
+        }
         out.append(row)
       }
       for a in p.abilities {
@@ -281,6 +309,14 @@ public enum ExternalPlugins {
           does: about?.entry.does, breaks: a.breaks, refused: refused)
         out.append(row)
       }
+    }
+    for p in declared {
+      var row = Setting(id: "\(prefix)log.\(p.id)", title: "Log",
+        detail: "What it did, what Olm refused it and what it wrote.", kind: .log,
+        keywords: [p.id, "errors", "refused"], applies: "live", choices: [], min: nil, max: nil,
+        step: nil, unit: nil, locked: nil, defaultValue: .none, value: .none)
+      row.page = p.id
+      out.append(row)
     }
     for p in declared where !p.ours {
       var row = Setting(id: "\(prefix)uninstall.\(p.id)", title: "Uninstall \(p.title)",
@@ -306,16 +342,22 @@ public enum ExternalPlugins {
     guard !mine.isEmpty else { return share }
     guard let share else {
       return SettingsShare(version: 1, sections: [SettingsSection(id: "plugins", title: "Plugins",
-        symbol: "puzzlepiece.extension", settings: mine)])
+        symbol: "puzzlepiece.extension", settings: named(mine))])
     }
     var sections = share.sections
     if let i = sections.firstIndex(where: { $0.id == "plugins" }) {
       let s = sections[i]
-      sections[i] = SettingsSection(id: s.id, title: s.title, symbol: s.symbol, settings: s.settings + mine)
+      sections[i] = SettingsSection(id: s.id, title: s.title, symbol: s.symbol, settings: named(s.settings + mine))
     } else {
-      sections.append(SettingsSection(id: "plugins", title: "Plugins", symbol: "puzzlepiece.extension", settings: mine))
+      sections.append(SettingsSection(id: "plugins", title: "Plugins", symbol: "puzzlepiece.extension", settings: named(mine)))
     }
     return SettingsShare(version: share.version, sections: sections)
+  }
+
+  /// The plugins by name, whoever runs them, with what their own pages draw after them as it was.
+  static func named(_ settings: [Setting]) -> [Setting] {
+    settings.filter { $0.page == nil }.sorted { $0.title.localizedStandardCompare($1.title) == .orderedAscending }
+      + settings.filter { $0.page != nil }
   }
 
   /// One row of these plugins changed in the window, value nil a reset. Answers why it was refused.
@@ -333,19 +375,29 @@ public enum ExternalPlugins {
       return nil
     }
     if let p = plugin(rest) {
+      if reset || value.flag ?? true { history.start(p.id) }
       toggle("plugins.off", p.id, off: !(reset ? true : (value.flag ?? true)))
       return nil
     }
     let parts = rest.split(separator: ".", maxSplits: 1).map(String.init)
+    if parts.count == 2, parts[1].hasSuffix(".order"), case .names(let names) = value,
+      plugin(parts[0])?.settings.contains(where: { $0.orderedBy != nil && $0.key + ".order" == parts[1] }) == true {
+      store.set(rest, names)
+      return nil
+    }
     guard parts.count == 2, let p = plugin(parts[0]), let decl = p.settings.first(where: { $0.key == parts[1] }) else {
       return "is not a setting of a plugin Olm runs"
     }
     if reset || value == .none {
       store.set(rest, nil)
+      if decl.orderedBy != nil { store.set(rest + ".order", nil) }
       return nil
     }
     switch (decl.kind, value) {
     case ("picks", .names(let names)): store.set(rest, names.isEmpty ? nil : names)
+    case ("choice", .text(let s)):
+      guard decl.choices.contains(where: { $0.value == s }) else { return "has no choice called \(s)" }
+      store.set(rest, s == decl.standard ? nil : s)
     case (_, .text(let s)): store.set(rest, s)
     case (_, .flag(let b)): store.set(rest, b)
     case (_, .number(let n)): store.set(rest, n)
@@ -355,11 +407,16 @@ public enum ExternalPlugins {
   }
 
   /// A plugin just allowed for the first time is on, whatever one by its id was left at.
-  public static func turnOn(_ id: String) { toggle("plugins.off", id, off: false) }
+  public static func turnOn(_ id: String) {
+    history.start(id)
+    toggle("plugins.off", id, off: false)
+  }
 
   /// Every setting of a plugin uninstalled with its data.
   public static func forget(_ id: String) {
     toggle("plugins.off", id, off: false)
+    history.forget(id)
+    log.remove(id)
     for key in store.values().keys where key.hasPrefix(id + ".") { store.set(key, nil) }
     let left = list("abilities.off").filter { !$0.hasPrefix(id + "/") }
     store.set("abilities.off", left.isEmpty ? nil : left)

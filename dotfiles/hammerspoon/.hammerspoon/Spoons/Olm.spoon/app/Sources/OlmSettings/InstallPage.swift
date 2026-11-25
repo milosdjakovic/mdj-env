@@ -213,6 +213,7 @@ struct InstallPage: View {
             if offer.data { Text("It gets the data an earlier plugin called \(offer.plugin) left.").foregroundStyle(.secondary) }
           }
           .fixedSize(horizontal: false, vertical: true)
+          .bareText()
           if case .failed(let errors) = offer.state {
             Text(errors)
               .font(.callout.monospaced()).textSelection(.enabled)

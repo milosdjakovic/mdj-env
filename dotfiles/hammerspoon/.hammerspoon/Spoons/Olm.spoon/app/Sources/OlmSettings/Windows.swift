@@ -163,6 +163,7 @@ struct WindowsView: View {
       CardList(numbers) { n in
         SettingRow(setting: n, model: model).searchMark(model, SearchTarget.setting(n.id))
       }
+      .units(numbers)
     }
   }
 

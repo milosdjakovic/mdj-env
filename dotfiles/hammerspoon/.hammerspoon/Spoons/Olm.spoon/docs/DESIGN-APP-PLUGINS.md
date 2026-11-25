@@ -60,7 +60,7 @@ app and the plugin, holding nothing the app's actor cannot, and the app is alrea
 that knows which list is open and which request is stale.
 
 **One process per plugin, never one shared.** A plugin is a program the runner starts with
-`posix_spawn`, its working folder its own, its stdin and stdout the protocol and its stderr its log.
+`posix_spawn`, its working folder its own, its stdin and stdout the protocol and its stderr read by Olm for its log.
 One process per plugin means a plugin that spins, leaks or crashes takes down itself and nothing
 else, and the runner can kill exactly it. A shared host running every plugin in one process was
 rejected for that reason, below.
@@ -434,6 +434,27 @@ builds or runs until its button is pressed.
 - **Texts a person reads** are refused in the manifest when they hold characters that do not show, and
   a file path must start with `~/` or `/` and hold no `..`.
 
+**The log, the last use and why a plugin is off, built 2026-11-25.** Step 3 of the install plan.
+
+- **The log,** `OlmPlugins/PluginLog.swift`, `~/.olm/log/plugins/<id>.log`, Olm's folder and not the
+  plugin's, opened without following a link. Olm writes every line: builds and their errors, starts and
+  endings, what it did for the plugin, each ability used and everything refused, a link's address never.
+  The plugin's own words, its stderr and `log`, are marked as its own and cannot look like Olm's. At
+  most 200 lines from each side in ten seconds, and the older half goes past 256 KB. Show Log, on the
+  plugin's page, opens it with Back, the newest first, followed as it grows, with Copy.
+- **Why it is off,** `PluginHistory`, `~/.olm/state/plugin-history.json`. Three failures in ten minutes
+  switch it off over a restart of Olm, a line says so on screen, and its row's line becomes the reason.
+  The person's own switch is kept apart and not changed. Turning it on, an Allow, or files that moved
+  since give it a new chance.
+- **The last use** of each ability stands beside its switch, on the plugin's page and under its
+  permission, for a plugin Olm.app runs. Olm sees no use by a Lua plugin, so those say nothing. Choosing
+  a row that opens a profile counts as Browser Profiles.
+- **An olm:// link to a plugin not installed, waiting or off** says so in a line, since it did nothing.
+- **A plugin's use,** `OlmUsage` in OlmPluginKit, asked by Milos for Browser Switcher, most used or last
+  used, kept in the plugin's data. A `choice` setting states `choices` and `default`, and a `picks` list
+  ordered by hand names the choice in `orderedBy`.
+- **The log stays** when a plugin is uninstalled and goes with its data.
+
 **Nothing runs before Allow, built 2026-11-25.** Asked by Milos, before the install page.
 
 - **The gate,** `OlmPlugins/PluginGate.swift`. A folder in `~/.olm/plugins` is built, loaded and read
@@ -488,7 +509,7 @@ and 4 in part, asked by Milos, the install page and the `olm` command left for t
   own, `src/setup-olmapp.sh` copying it into `~/.olm/plugins`. The Lua one was switched off, then
   deleted the same day once Milos confirmed this one, and the favourites saved for it were taken over once. Checked by driving the
   built program over its pipes, and `test/olmplugins.sh` still holds every case.
-- **Not yet.** Offering a block with Allow, the `olm` command, and the plugin's own log in the window.
+- **Not yet.** Offering a block with Allow and the `olm` command.
 
 **Step 2, Olm.app signed with this Mac's certificate, built 2026-11-24.** `src/setup-olmapp.sh` makes
 a self signed code signing certificate once, with the system's `openssl`, into
@@ -517,8 +538,7 @@ A build into a folder of its own, `test/olmapp.sh`, is still ad hoc.
   Automation today, is shown after Olm's with nothing held.
 - **A plugin's page** has a Permissions group under its settings with the same switches, and the
   gear in Plugins is in the accent while one is off.
-- **Not built yet.** When each was last used, and a search for a plugin's name opening the
-  permission holding it.
+- **Not built yet.** A search for a plugin's name opening the permission holding it.
 
 **Step 1, the runner, the sandbox and a test plugin, built 2026-11-20.** `app/Sources/OlmPlugins`.
 

@@ -16,7 +16,7 @@
 // olm://apps-plan?bundles=A,B&hides=0 writes what a press on each app would do, changing nothing.
 // olm://settings shows the Olm Settings window, docs/DESIGN-APP-SETTINGS.md, drawn from the share
 // Hammerspoon writes at every load.
-// An olm:// URL never runs anything, and one this app does not know is logged and dropped.
+// An olm:// URL never runs anything, and one this app does not know is logged, and says so.
 // An http or https link, Olm being the default browser, is handed on by Links.swift.
 
 import AppKit
@@ -626,11 +626,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         // A plugin the app runs, its list opened as its launcher row opens it.
         let plugins = plugins, stage = stage, query = item("query") ?? "", screen = item("screen")
         Task { @MainActor in
-          guard let source = await plugins.source(host) else { return }
+          guard let source = await plugins.source(host) else {
+            plugins.explain(host)
+            return
+          }
           stage.open(source, query: query, screen: screen)
         }
       } else {
         NSLog("Olm: an olm URL this app does not know, %@", url.absoluteString)
+        if let host = url.host { plugins.explain(host) }
       }
     }
   }

@@ -49,10 +49,12 @@ final class PluginHost {
   /// Readings and installs run one after another.
   private var last: Task<Void, Never>?
   private var watcher: PluginWatcher?
+  private let bridge: Bridge
 
   init(bridge: Bridge) {
+    self.bridge = bridge
     let version = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "0"
-    runner = PluginRunner(appVersion: version, serve: { id, method, params in
+    runner = PluginRunner(appVersion: version, log: { ExternalPlugins.log.add($0, $1, from: $2) }, serve: { id, method, params in
       await PluginHost.serve(id, method, params, bridge: bridge)
     })
     // Read here as well as in start, so a link that launched Olm finds the plugin it goes to.
@@ -67,7 +69,16 @@ final class PluginHost {
     watcher = PluginWatcher(Self.root) { [weak self] in
       Task { @MainActor in await self?.rescan() }
     }
+    let bridge = self.bridge
     Task { @MainActor in
+      await runner.onOff { id, why in
+        ExternalPlugins.history.stop(id, why)
+        Task { @MainActor in
+          NotificationCenter.default.post(name: ExternalPlugins.changed, object: nil)
+          let title = ExternalPlugins.plugin(id)?.title ?? id
+          _ = try? await bridge.request("notify", .object(["text": .string("\(title) was switched off, \(why)")]))
+        }
+      }
       await Task.detached(priority: .utility) { Self.migrateTitles() }.value
       await rescan()
     }
@@ -150,23 +161,22 @@ final class PluginHost {
       let why: String? = await Task.detached(priority: .utility) {
         do {
           if try PluginGate.prepare(folder: f.url, manifest: f.manifest, kit: kit, records: records) {
-            NSLog("Olm plugins: built %@", f.manifest.id)
+            ExternalPlugins.log.add(f.manifest.id, "built, version \(f.manifest.version)")
           }
           // The very files read above, so what is loaded is what was let through.
           guard try PluginGate.fingerprint(f.url) == f.print else { return "its files changed while it was built" }
           return nil
         } catch {
-          let line = "\(Date()) the build failed, \(error)\n"
-          try? line.write(to: f.url.appendingPathComponent("log"), atomically: true, encoding: .utf8)
           return "\(error)"
         }
       }.value
       if let why {
-        NSLog("Olm plugins: %@ did not build, %@", f.manifest.id, why)
+        ExternalPlugins.log.add(f.manifest.id, "did not build, \(why)")
         failed[f.manifest.id] = (f.print, why)
       } else if (try? await runner.load(folder: f.url)) != nil {
         failed[f.manifest.id] = nil
         loaded[f.manifest.id] = f.print
+        ExternalPlugins.history.runs(f.manifest.id, f.print)
       }
     }
     publish(scan)
@@ -264,6 +274,7 @@ final class PluginHost {
       }
     }
     if records.allowed(id) == nil { ExternalPlugins.turnOn(id) }
+    ExternalPlugins.history.start(id)
     records.allow(id, PluginGate.asks(staged.manifest))
     failed[id] = nil
     await follow()
@@ -280,7 +291,10 @@ final class PluginHost {
     failed[id] = nil
     let root = Self.root, aside = Self.aside
     let done = await Task.detached { Result { try PluginInstall.remove(id, from: root, data: data, aside: aside) } }.value
-    if case .success = done, data { ExternalPlugins.forget(id) }
+    if case .success = done {
+      ExternalPlugins.history.start(id)
+      if data { ExternalPlugins.forget(id) }
+    }
     await follow()
     if case .failure(let error) = done { return "\(id) was not uninstalled, \(error.localizedDescription)" }
     return nil
@@ -291,20 +305,39 @@ final class PluginHost {
     try? FileManager.default.removeItem(at: staged.folder.deletingLastPathComponent())
   }
 
+  /// Says why an olm:// link to a plugin shows nothing, so it never only does nothing.
+  func explain(_ name: String) {
+    guard name.range(of: "^[a-z][a-z0-9]{0,31}$", options: .regularExpression) != nil else { return }
+    let text: String
+    if let p = ExternalPlugins.plugin(name) { text = "\(p.title) is switched off in Olm Settings" }
+    else if let h = ExternalPlugins.held.first(where: { $0.id == name }) { text = "\(h.title). \(h.why)" }
+    else { text = "Olm has no plugin called \(name)" }
+    let bridge = self.bridge
+    Task { _ = try? await bridge.request("notify", .object(["text": .string(text)])) }
+  }
+
   // MARK: Opening a list
 
   /// The list of a plugin, opened with its settings, the browsers when it may have them, and what
   /// else the caller hands, a link. nil for a plugin switched off or not loaded.
   func source(_ id: String, with extra: [String: JSON] = [:]) async -> ExternalSource? {
     guard ExternalPlugins.isOn(id), let p = ExternalPlugins.plugin(id) else { return nil }
+    // Switched on again since the runner switched it off.
+    if await runner.offReason(id) != nil { await runner.switchOn(id) }
     var context = extra
     var settings: [String: JSON] = [:]
     for s in p.settings { settings[s.key] = JSON(ExternalPlugins.value(id, s.key)) }
     context["settings"] = .object(settings)
     // The browsers Olm finds, with their profiles only while the plugin has Browser Profiles on.
     if p.abilities.contains(where: { $0.use == "browserProfiles" }) {
-      let scan = Browsers.scan(profiles: ExternalPlugins.allowed(id, "browserProfiles"))
-      context["browsers"] = .array(scan.targets.map { t in
+      let may = ExternalPlugins.allowed(id, "browserProfiles")
+      Self.used(id, "browserProfiles", may)
+      let scan = Browsers.scan(profiles: may)
+      // In the order dragged in Olm Settings.
+      let dragged = p.settings.first { $0.source == "browsers" && $0.orderedBy != nil }.map { ExternalPlugins.order(id, $0.key) } ?? []
+      let byID = Dictionary(scan.targets.map { ($0.id, $0) }, uniquingKeysWith: { a, _ in a })
+      let targets = Picks.arrange(scan.targets.map(\.id), by: dragged).compactMap { byID[$0] }
+      context["browsers"] = .array(targets.map { t in
         .object(["title": .string(t.title), "browser": .string(t.browser), "bundle": .string(t.bundle),
           "id": .string(t.id)])
       })
@@ -315,12 +348,20 @@ final class PluginHost {
     return await runner.source(id, context: .object(context), actions: actions)
   }
 
+  /// Writes an ability used, or refused because it is off, in the plugin's log.
+  private nonisolated static func used(_ id: String, _ use: String, _ may: Bool) {
+    let title = Abilities.describe(use)?.entry.title ?? use
+    if may { ExternalPlugins.history.use(id, use) }
+    ExternalPlugins.log.add(id, may ? "used \(title)" : "was refused \(title), it is off in Olm Settings")
+  }
+
   /// Whether a plugin on and allowed Receive Links takes this link, its list opened on the stage.
   func takeLink(_ url: URL, sender: NSRunningApplication?, stage: Stage) -> Bool {
     guard let id = ExternalPlugins.first(allowed: "receiveLinks") else { return false }
     var link: [String: JSON] = ["url": .string(url.absoluteString)]
     if let bundle = sender?.bundleIdentifier { link["sourceBundle"] = .string(bundle) }
     if let name = sender?.localizedName { link["sourceName"] = .string(name) }
+    Self.used(id, "receiveLinks", true)
     Task { @MainActor in
       guard let source = await self.source(id, with: ["link": .object(link)]) else {
         Links.fallback(url)
@@ -382,6 +423,7 @@ final class PluginHost {
     guard let target = scan.targets.first(where: { $0.id == browser }) else {
       return .failure(.init(-32001, "\(browser) is not a browser or profile it may open"))
     }
+    if !target.args.isEmpty { used(id, "browserProfiles", true) }
     let app = URL(fileURLWithPath: target.path)
     if !target.args.isEmpty, let program = Bundle(url: app)?.executableURL {
       let p = Process()

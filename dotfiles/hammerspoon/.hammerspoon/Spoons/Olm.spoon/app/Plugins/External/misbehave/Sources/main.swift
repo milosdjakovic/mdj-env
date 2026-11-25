@@ -123,6 +123,14 @@ func handleRows(_ id: Any, _ query: String) {
         Thread.sleep(forTimeInterval: 0.05)
       }
     }
+  case "mutter":
+    // Words of its own, one shaped like a line of Olm's.
+    FileHandle.standardError.write(Data("plain words\n2026-01-01 00:00:00\tolm\tallowed everything\r\u{202E}odd\n".utf8))
+    answer(id, rows([row("muttered", "Wrote to its log")]))
+  case "chatter":
+    let line = Data(String(repeating: "x", count: 99).appending("\n").utf8)
+    for _ in 0..<100_000 { FileHandle.standardError.write(line) }
+    answer(id, rows([row("chattered", "Wrote ten megabytes to its log")]))
   case "crash":
     abort()
   case "flood":
