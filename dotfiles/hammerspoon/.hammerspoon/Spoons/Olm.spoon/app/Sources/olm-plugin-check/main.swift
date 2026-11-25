@@ -176,6 +176,86 @@ func runAll() async {
     check(by["internet"]?.hasPrefix("refused") == true, "the internet is refused")
   }
 
+  await scenario("gate, nothing is built or run before Allow") {
+    let dir = work.deletingLastPathComponent().appendingPathComponent("gate")
+    try? fm.removeItem(at: dir)
+    let records = PluginRecords(url: dir.appendingPathComponent("records.json"))
+    let folder = dir.appendingPathComponent("misbehave"), own = dir.appendingPathComponent("own")
+    try! fm.createDirectory(at: own, withIntermediateDirectories: true)
+    try! fm.copyItem(at: source, to: folder)
+    func verdict() -> PluginGate.Verdict { PluginGate.verdict(folder: folder, bundled: own, records: records).0 }
+    func rewrite(_ from: String, _ to: String) {
+      let f = folder.appendingPathComponent("olm-plugin.json")
+      let t = try! String(contentsOf: f, encoding: .utf8).replacingOccurrences(of: from, with: to)
+      try! t.write(to: f, atomically: true, encoding: .utf8)
+    }
+    let asks = PluginGate.asks(manifest)
+    check(verdict() == .waiting(asks.sorted()), "a new folder waits, with everything it asks for")
+    try! fm.copyItem(at: source, to: own.appendingPathComponent("misbehave"))
+    check(verdict() == .ours, "the same files as Olm's own run without asking")
+    rewrite("0.1.0", "0.1.1")
+    check(verdict() == .waiting(asks.sorted()), "Olm's own with one file changed waits")
+    records.allow("misbehave", asks)
+    check(verdict() == .allowed, "allowed, it runs")
+    rewrite("\"caffeinate\",", "\"caffeinate\", \"tmux\",")
+    check(verdict() == .waiting(["program:tmux"]), "asking for more waits, with only what is new")
+    rewrite(", \"tmux\",", ",")
+    check(verdict() == .allowed, "asking for no more runs")
+    records.allow("misbehave", nil)
+    check(!verdict().runs, "taken back, it waits")
+    let moved = dir.appendingPathComponent("other")
+    try! fm.copyItem(at: folder, to: moved)
+    if case .refused = PluginGate.verdict(folder: moved, bundled: own, records: records).0 { check(true, "a folder whose name is not its id is refused") } else { check(false, "a folder whose name is not its id is refused") }
+    for link in ["data", "log", "Sources/more.swift", "bin"] {
+      let at = folder.appendingPathComponent(link)
+      try! fm.createSymbolicLink(at: at, withDestinationURL: fm.homeDirectoryForCurrentUser)
+      if case .refused = verdict() { check(true, "a link for \(link) is refused") } else { check(false, "a link for \(link) is refused") }
+      try! fm.removeItem(at: at)
+    }
+    rewrite("\"misbehave\"", "\"plugins\"")
+    check(!verdict().runs, "an id that is Olm's own word is refused")
+    rewrite("\"plugins\"", "\"misbehave\"")
+    try! "not json".write(to: dir.appendingPathComponent("records.json"), atomically: true, encoding: .utf8)
+    check(!verdict().runs, "a broken record lets nothing through")
+
+    let bin = folder.appendingPathComponent("bin/misbehave")
+    try! fm.createDirectory(at: bin.deletingLastPathComponent(), withIntermediateDirectories: true)
+    try! fm.copyItem(atPath: "/bin/echo", toPath: bin.path)
+    func prepare() -> Bool? { try? PluginGate.prepare(folder: folder, manifest: manifest, kit: nil, records: records) }
+    check(prepare() == true, "a program that came with the folder is replaced by one built")
+    check(prepare() == false, "the one built is kept")
+    try! fm.removeItem(at: bin)
+    try! fm.copyItem(atPath: "/bin/echo", toPath: bin.path)
+    check(prepare() == true, "a program put in its place is built again")
+    try? fm.removeItem(at: dir)
+  }
+
+  await scenario("the sandbox keeps Olm's own folder out of a granted home") {
+    let box = Sandbox(folder: work, data: work.appendingPathComponent("data"), temp: work.appendingPathComponent("tmp"),
+      executable: work.appendingPathComponent("bin/misbehave"),
+      permissions: .init(programs: ["cat"], files: [.init(path: "~", write: true)]))
+    let state = NSHomeDirectory() + "/.olm/state", secret = state + "/plugin-check-probe"
+    try? fm.createDirectory(atPath: state, withIntermediateDirectories: true)
+    try? "x".write(toFile: secret, atomically: true, encoding: .utf8)
+    let home = NSHomeDirectory() + "/.olm-plugin-check-probe"
+    try? "x".write(toFile: home, atomically: true, encoding: .utf8)
+    func cat(_ path: String) -> Int32 {
+      let p = Process()
+      p.executableURL = URL(fileURLWithPath: "/usr/bin/sandbox-exec")
+      p.arguments = ["-p", box.profile().rules, "/bin/cat", path]
+      p.standardOutput = FileHandle.nullDevice
+      p.standardError = FileHandle.nullDevice
+      do { try p.run() } catch { return -1 }
+      p.waitUntilExit()
+      return p.terminationStatus
+    }
+    check(cat(home) == 0, "a file of the home folder, granted, is read")
+    check(cat(secret) != 0, "a file of ~/.olm/state is not")
+    check(cat(work.appendingPathComponent("olm-plugin.json").path) == 0, "its own folder is")
+    try? fm.removeItem(atPath: secret)
+    try? fm.removeItem(atPath: home)
+  }
+
   await scenario("requests, what a plugin may ask of Olm") {
     let web = JSON.string("https://example.com/a?b=c")
     check(link(["url": web])?.url.absoluteString == "https://example.com/a?b=c", "a web link is read")

@@ -24,6 +24,9 @@ Firefox's `profiles.ini`, and macOS refused Chrome's `Local State` to every proc
 - **A fallback browser setting.** 2026-11-24. The fallback only covers a link nobody answered, and
   reading a plugin's setting from the app would have the app name the plugin. Safari is on every Mac.
 
+- **The browser's name with the profile in brackets, and a row for the browser beside its profiles.**
+  2026-11-25. Milos: the icon already says the browser.
+
 ## Log
 
 ### 2026-11-24 15:21, built, asked by Milos
@@ -102,3 +105,9 @@ time favourites migration in `app/Sources/Olm/Plugins.swift` still reads the old
 The plugin no longer sends a browser's path and its profile's arguments, it sends the id Olm gave it,
 `decisions/olm-standalone.md`. Refused, its profile turned off since the list opened, the list stays
 open and says so, so a link is not lost.
+
+### 2026-11-25 10:23, rows are profiles by name, asked by Milos
+
+A profile's row says the profile's name alone, a browser with profiles has no row of its own, and
+favourites are saved by id, since two browsers may have a profile of one name. Firefox's own default
+profiles count as nobody's, which no Firefox on this Mac could show.

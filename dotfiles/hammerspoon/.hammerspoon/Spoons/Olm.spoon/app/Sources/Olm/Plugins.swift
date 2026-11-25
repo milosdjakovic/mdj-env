@@ -23,14 +23,32 @@ final class PluginHost {
   static let kit = Bundle.main.resourceURL?.appendingPathComponent("OlmPluginKit.swift")
 
   let runner: PluginRunner
-  private let folders: [URL]
+  /// Olm's own plugins as the signed app carries them, what a folder is compared with.
+  static let bundled = Bundle.main.resourceURL?.appendingPathComponent("Plugins")
+  private let records = PluginRecords()
+  /// The folders let through by PluginGate, the only ones built, loaded and read from here on.
+  private let folders: [(url: URL, manifest: PluginManifest)]
 
   init(bridge: Bridge) {
     let fm = FileManager.default
-    folders = ((try? fm.contentsOfDirectory(at: Self.root, includingPropertiesForKeys: nil)) ?? [])
+    var through: [(url: URL, manifest: PluginManifest)] = []
+    var held: [ExternalPlugins.Held] = []
+    let found = ((try? fm.contentsOfDirectory(at: Self.root, includingPropertiesForKeys: nil)) ?? [])
       .filter { fm.fileExists(atPath: $0.appendingPathComponent("olm-plugin.json").path) }
       .sorted { $0.lastPathComponent < $1.lastPathComponent }
-    ExternalPlugins.declared = folders.compactMap(PluginDeclarations.read)
+    for folder in found {
+      let (verdict, manifest) = PluginGate.verdict(folder: folder, bundled: Self.bundled, records: records)
+      if verdict.runs, let manifest {
+        through.append((folder, manifest))
+        continue
+      }
+      NSLog("Olm plugins: %@ is held, %@", folder.lastPathComponent, verdict.why ?? "")
+      held.append(.init(id: folder.lastPathComponent, title: manifest?.title ?? folder.lastPathComponent,
+        why: verdict.why ?? ""))
+    }
+    folders = through
+    ExternalPlugins.held = held
+    ExternalPlugins.declared = through.compactMap { PluginDeclarations.read(folder: $0.url) }
     let version = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "0"
     runner = PluginRunner(appVersion: version, serve: { id, method, params in
       await PluginHost.serve(id, method, params, bridge: bridge)
@@ -39,40 +57,26 @@ final class PluginHost {
     Self.migrate()
   }
 
-  /// Builds every plugin whose program is older than its sources or the kit, then loads it, off the
-  /// main thread. A plugin that does not build is said in its log and left unloaded.
+  /// Builds every plugin let through whose program is not the one Olm built from its sources, then
+  /// loads it, off the main thread. A plugin that does not build is said in its log and left unloaded.
   func start() {
-    let folders = self.folders, runner = self.runner, kit = Self.kit
+    let folders = self.folders, runner = self.runner, kit = Self.kit, records = self.records
     Task.detached(priority: .utility) {
-      for folder in folders {
-        guard let manifest = try? PluginManifest.read(folder: folder) else {
-          NSLog("Olm plugins: %@ has an olm-plugin.json that cannot be read", folder.path)
-          continue
-        }
-        if Self.stale(folder, id: manifest.id, kit: kit) {
-          do {
-            try PluginBuild.build(folder: folder, manifest: manifest, kit: kit)
+      Self.migrateTitles()
+      for (folder, manifest) in folders {
+        do {
+          if try PluginGate.prepare(folder: folder, manifest: manifest, kit: kit, records: records) {
             NSLog("Olm plugins: built %@", manifest.id)
-          } catch {
-            let line = "\(Date()) the build failed, \(error)\n"
-            try? line.write(to: folder.appendingPathComponent("log"), atomically: true, encoding: .utf8)
-            NSLog("Olm plugins: %@ did not build, %@", manifest.id, "\(error)")
-            continue
           }
+        } catch {
+          let line = "\(Date()) the build failed, \(error)\n"
+          try? line.write(to: folder.appendingPathComponent("log"), atomically: true, encoding: .utf8)
+          NSLog("Olm plugins: %@ did not build, %@", manifest.id, "\(error)")
+          continue
         }
         _ = try? await runner.load(folder: folder)
       }
     }
-  }
-
-  nonisolated static func stale(_ folder: URL, id: String, kit: URL?) -> Bool {
-    let fm = FileManager.default
-    func stamp(_ url: URL) -> Date? { (try? fm.attributesOfItem(atPath: url.path))?[.modificationDate] as? Date }
-    guard let built = stamp(folder.appendingPathComponent("bin").appendingPathComponent(id)) else { return true }
-    let sources = folder.appendingPathComponent("Sources")
-    let files = (fm.enumerator(atPath: sources.path)?.compactMap { $0 as? String } ?? [])
-      .filter { $0.hasSuffix(".swift") }.map { sources.appendingPathComponent($0) } + (kit.map { [$0] } ?? [])
-    return files.contains { (stamp($0) ?? .distantPast) > built }
   }
 
   // MARK: Opening a list
@@ -89,7 +93,8 @@ final class PluginHost {
     if p.abilities.contains(where: { $0.use == "browserProfiles" }) {
       let scan = Browsers.scan(profiles: ExternalPlugins.allowed(id, "browserProfiles"))
       context["browsers"] = .array(scan.targets.map { t in
-        .object(["title": .string(t.title), "bundle": .string(t.bundle), "id": .string(t.id)])
+        .object(["title": .string(t.title), "browser": .string(t.browser), "bundle": .string(t.bundle),
+          "id": .string(t.id)])
       })
     }
     let actions = p.verbs.enumerated().map { i, v in
@@ -240,5 +245,18 @@ final class PluginHost {
       let saved = (doc["values"] as? [String: Any])?["browserSwitcher.favourites"] as? [String], !saved.isEmpty
     else { return }
     ExternalPlugins.store.set(key, saved)
+  }
+
+  /// Favourites saved by the titles used until 2026-11-25, Google Chrome (Work), taken over by the id
+  /// of what they named, each kept as it is while it names nothing found now.
+  nonisolated static func migrateTitles() {
+    let key = "browserswitcher.favourites"
+    guard let saved = ExternalPlugins.store.value(key) as? [String] else { return }
+    let targets = Browsers.scan(profiles: ExternalPlugins.allowed("browserswitcher", "browserProfiles")).targets
+    let ids = Set(targets.map(\.id))
+    let moved = saved.map { name in
+      ids.contains(name) ? name : targets.first { $0.oldTitle == name }?.id ?? name
+    }
+    if moved != saved { ExternalPlugins.store.set(key, moved) }
   }
 }

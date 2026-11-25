@@ -396,6 +396,24 @@ shadow where its rows can be compared, then flipped, which switches the Lua plug
 
 ## As built
 
+**Nothing runs before Allow, built 2026-11-25.** Asked by Milos, before the install page.
+
+- **The gate,** `OlmPlugins/PluginGate.swift`. A folder in `~/.olm/plugins` is built, loaded and read
+  only when it is Olm's own, the same manifest and sources as the copy in the signed app's
+  `Resources/Plugins`, or when the person allowed everything it asks for, its `needs`, its permissions
+  and running in the background. Asking for more waits with only what is new. Abilities are not part
+  of it, they are allowed with the plugin. A change to the sources alone is not asked about again.
+- **The records** are `~/.olm/state/plugin-records.json`, never a setting, so no import reaches them.
+  A broken file lets nothing through but Olm's own.
+- **Its program is always one Olm built,** from the sources and the kit it has now, known by hash. One
+  that came with the folder, or was put in its place, is built again.
+- **Refused whole:** a link anywhere but in data and tmp, a folder whose name is not its id, an id Olm
+  uses as a word, more than 5000 files or 32 MB of sources.
+- **`~/.olm` is kept from every plugin** whatever place it is granted, its own folder given back after,
+  since a grant of the home folder reached the records and the signing key.
+- A held plugin is a locked row in Plugins saying why. Nothing can allow one until the install page.
+  Olm reads the folder at launch only, until then.
+
 **Requests narrowed, built 2026-11-25.** `OlmPlugins/PluginRequests.swift` reads a link and
 `RunningPlugin` refuses a request the manifest's `needs` does not name, a bad link and a link nobody
 chose, before Olm sees it, each refusal logged. A name in `needs` Olm does not do refuses the

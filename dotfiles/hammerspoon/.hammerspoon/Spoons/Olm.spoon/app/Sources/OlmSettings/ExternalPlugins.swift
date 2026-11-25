@@ -183,6 +183,18 @@ public final class PluginStore: @unchecked Sendable {
 /// launch by the composition root.
 public enum ExternalPlugins {
   nonisolated(unsafe) public static var declared: [PluginDeclarations] = []
+  /// A folder Olm neither builds nor runs, why, shown as a locked row in Plugins.
+  public struct Held: Sendable, Equatable {
+    public let id: String
+    public let title: String
+    public let why: String
+    public init(id: String, title: String, why: String) {
+      self.id = id
+      self.title = title
+      self.why = why
+    }
+  }
+  nonisolated(unsafe) public static var held: [Held] = []
   public static let store = PluginStore()
   /// The prefix every row of an app run plugin carries, which the window's change sends here
   /// rather than to Hammerspoon.
@@ -249,6 +261,11 @@ public enum ExternalPlugins {
           does: about?.entry.does, breaks: a.breaks, refused: refused)
         out.append(row)
       }
+    }
+    for h in held {
+      out.append(Setting(id: prefix + "held." + h.id, title: h.title, detail: nil, kind: .switch,
+        keywords: [h.id, "plugin"], applies: "live", choices: [], min: nil, max: nil, step: nil, unit: nil,
+        locked: h.why, defaultValue: .flag(false), value: .flag(false)))
     }
     return out
   }

@@ -248,5 +248,20 @@ eq(finderPress.place == nil, true, "and with no place asks for none")
 let keyJSON = AppOverride(key: AppKey(leader: "hyper", key: "f", code: 3, mods: ["shift"]))
 eq(keyJSON.key?.chord, "hyper+shift+f", "a key spells its chord as the keymap does")
 
+// A browser's rows, docs/DESIGN-BROWSER-SWITCHER.md.
+func titles(_ profiles: [BrowserProfile]) -> [String] {
+  Browsers.targets(browser: "Chrome", bundle: "c", path: "/c", profiles: profiles).map(\.title)
+}
+func profile(_ name: String, owned: Bool = true) -> BrowserProfile { BrowserProfile(name: name, args: ["--p=" + name], owned: owned) }
+eq(titles([]), ["Chrome"], "a browser with no profile is the browser")
+eq(titles([profile("Person 1", owned: false)]), ["Chrome"], "and so is one nobody signed in to or named")
+eq(titles([profile("Work")]), ["Work"], "one profile is its name")
+eq(titles([profile("Work"), profile("Home")]), ["Work", "Home"], "profiles are their names, with no row for the browser")
+eq(titles([profile("Work"), profile("Person 2", owned: false)]), ["Work", "Chrome (No profile)"], "one nobody signed in to says so")
+eq(titles([profile("Person 1", owned: false), profile("Person 2", owned: false)]), ["Person 1", "Person 2"], "several keep their names apart")
+let work = Browsers.targets(browser: "Chrome", bundle: "c", path: "/c", profiles: [profile("Work")])[0]
+eq(work.id, "c|--p=Work", "saved by the browser and the profile")
+eq(work.oldTitle, "Chrome (Work)", "and found by the title it had")
+
 print("olm-apps-check: \(checks) checks, \(failures) failures")
 exit(failures == 0 ? 0 : 1)

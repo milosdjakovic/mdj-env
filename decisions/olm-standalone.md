@@ -1775,3 +1775,14 @@ permission is easier added than taken back. Found in the same reading and not fi
 in `~/.olm/plugins` is built and loaded at the next launch with every ability allowed and nothing asked.
 The full check failed once on its main thread timing, p99 14 ms in a one second scenario, and that
 scenario passed four runs of four alone, under 4.1 ms.
+
+### 2026-11-25 10:23, nothing runs before Allow, step 1 of the install plan, asked by Milos
+
+Milos confirmed the narrowed `open` live, a profile opened in a running Chrome among it. The gate of
+`docs/DESIGN-APP-PLUGINS.md` As built. Found while building it and closed in it: a folder could bring
+its own program in bin and Olm ran it, a link named data widened what the plugin may write, and a
+plugin granted the home folder could write its own allowance and read the signing key under `~/.olm`.
+Recording the allowance in plugins.json was turned down, since a plugin's setting key or an import
+could have written it. Asking again whenever the sources change was turned down, the 2026-11-20 rule
+is that the same list is never asked twice. The gate keeps a folder nobody allowed from running. It
+does not stop a program already running as this account, which can write the records itself.

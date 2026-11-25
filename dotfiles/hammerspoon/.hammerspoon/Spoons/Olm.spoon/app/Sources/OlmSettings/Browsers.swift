@@ -14,8 +14,13 @@ import AppKit
 import Foundation
 
 public struct BrowserTarget: Equatable, Sendable, Codable {
-  /// The browser's name, and its profile's in brackets, Chrome (Personal), what favourites name.
+  /// What a row says, the profile's name, or the browser's where it has none, the icon saying which
+  /// browser, asked by Milos on 2026-11-25.
   public let title: String
+  /// The browser's name, a word its profile's row is found by.
+  public let browser: String
+  /// The profile's name, nil for the browser itself.
+  public let profile: String?
   public let bundle: String
   public let path: String
   /// What the browser's own program is started with to open a link in the profile, none for the
@@ -23,7 +28,23 @@ public struct BrowserTarget: Equatable, Sendable, Codable {
   public let args: [String]
 
   /// What a plugin names it by, looked up in a scan of Olm's own and never read as a path.
+  /// Favourites are saved by it too.
   public var id: String { ([bundle] + args).joined(separator: "|") }
+
+  /// What it was titled until 2026-11-25, which favourites were saved by.
+  public var oldTitle: String { profile.map { "\(browser) (\($0))" } ?? browser }
+}
+
+/// A profile a browser keeps, owned when signed in to or named by the person.
+public struct BrowserProfile: Equatable, Sendable {
+  public let name: String
+  public let args: [String]
+  public let owned: Bool
+  public init(name: String, args: [String], owned: Bool) {
+    self.name = name
+    self.args = args
+    self.owned = owned
+  }
 }
 
 public struct BrowserScan: Equatable, Sendable, Codable {
@@ -51,7 +72,7 @@ public enum Browsers {
     FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent("Library/Application Support")
   }
 
-  /// Every browser, and each profile of one that has more than one when profiles is true.
+  /// Every browser, as its profiles where it has any and profiles is true.
   public static func scan(profiles readProfiles: Bool = true) -> BrowserScan {
     var out = BrowserScan()
     guard let probe = URL(string: "https://example.com") else { return out }
@@ -62,19 +83,29 @@ public enum Browsers {
       return (FileManager.default.displayName(atPath: url.path).replacingOccurrences(of: ".app", with: ""), bundle, url)
     }.sorted { $0.0.localizedCaseInsensitiveCompare($1.0) == .orderedAscending }
     for (name, bundle, url) in apps {
-      out.targets.append(BrowserTarget(title: name, bundle: bundle, path: url.path, args: []))
-      guard readProfiles else { continue }
-      var profiles: [(String, [String])]? = []
-      if let folder = chromium[bundle] { profiles = chromiumProfiles(folder) }
-      if let folder = firefox[bundle] { profiles = firefoxProfiles(folder) }
-      guard let profiles else { out.hidden.append(name); continue }
-      if profiles.count > 1 {
-        for (profile, args) in profiles {
-          out.targets.append(BrowserTarget(title: "\(name) (\(profile))", bundle: bundle, path: url.path, args: args))
-        }
+      var profiles: [BrowserProfile]? = []
+      if readProfiles {
+        if let folder = chromium[bundle] { profiles = chromiumProfiles(folder) }
+        if let folder = firefox[bundle] { profiles = firefoxProfiles(folder) }
       }
+      if profiles == nil { out.hidden.append(name) }
+      out.targets += targets(browser: name, bundle: bundle, path: url.path, profiles: profiles ?? [])
     }
     return out
+  }
+
+  /// A browser's rows. With no profile, or one nobody signed in to or named, it is the browser by its
+  /// name. With any other, each profile by its name and no row for the browser itself, the one profile
+  /// nobody signed in to or named reading Chrome (No profile).
+  public static func targets(browser: String, bundle: String, path: String, profiles: [BrowserProfile]) -> [BrowserTarget] {
+    let bare = profiles.filter { !$0.owned }
+    if profiles.isEmpty || (profiles.count == 1 && bare.count == 1) {
+      return [BrowserTarget(title: browser, browser: browser, profile: nil, bundle: bundle, path: path, args: [])]
+    }
+    return profiles.map { p in
+      BrowserTarget(title: !p.owned && bare.count == 1 ? "\(browser) (No profile)" : p.name, browser: browser,
+        profile: p.name, bundle: bundle, path: path, args: p.args)
+    }
   }
 
   /// Scans and writes what it found for the plugin, answering it. The profiles are read when share,
@@ -94,7 +125,7 @@ public enum Browsers {
     return try? Data(contentsOf: url)
   }
 
-  private static func chromiumProfiles(_ folder: String) -> [(String, [String])]? {
+  private static func chromiumProfiles(_ folder: String) -> [BrowserProfile]? {
     guard let data = read(support.appendingPathComponent(folder).appendingPathComponent("Local State")) else { return nil }
     guard let root = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
       let profile = root["profile"] as? [String: Any],
@@ -102,17 +133,20 @@ public enum Browsers {
     let order = (profile["profiles_order"] as? [String]) ?? cache.keys.sorted()
     return order.compactMap { dir in
       guard let info = cache[dir] as? [String: Any], let name = info["name"] as? String else { return nil }
-      return (name, ["--profile-directory=\(dir)"])
+      let signedIn = ["user_name", "gaia_id"].contains { !(info[$0] as? String ?? "").isEmpty }
+      let named = !(info["is_using_default_name"] as? Bool ?? false)
+      return BrowserProfile(name: name, args: ["--profile-directory=\(dir)"], owned: signedIn || named)
     }
   }
 
-  private static func firefoxProfiles(_ folder: String) -> [(String, [String])]? {
+  private static func firefoxProfiles(_ folder: String) -> [BrowserProfile]? {
     guard let data = read(support.appendingPathComponent(folder).appendingPathComponent("profiles.ini")) else { return nil }
     let text = String(decoding: data, as: UTF8.self)
     return text.split(whereSeparator: \.isNewline).compactMap { line in
       guard line.hasPrefix("Name=") else { return nil }
       let name = String(line.dropFirst(5))
-      return (name, ["-P", name])
+      // Firefox makes default and default-release itself.
+      return BrowserProfile(name: name, args: ["-P", name], owned: !name.hasPrefix("default"))
     }
   }
 }

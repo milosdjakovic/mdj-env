@@ -121,6 +121,12 @@ this section is true.
 - **Rules are gone,** 2026-11-24, asked by Milos. Every link opens the list, so Option has nothing
   left to override.
 
+- **Rows are profiles by name,** 2026-11-25, asked by Milos, the icon saying which browser and the
+  browser's name finding them too. A browser with profiles has no row of its own, one with none, or
+  with one nobody signed in to or named, is its name, and one such profile beside others reads Chrome
+  (No profile). Favourites are saved by Olm's id, the old titles taken over at launch, and the page
+  draws each with its browser's icon.
+
 ## Next
 
 1. **Chrome's profiles,** confirmed once Olm.app has Full Disk Access.

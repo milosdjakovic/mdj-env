@@ -16,7 +16,8 @@
 # Our own external plugins, each a folder under the app's Plugins/External, are copied into
 # ~/.olm/plugins, their sources and manifest only, and Olm.app builds each whose sources moved as it
 # starts, docs/DESIGN-APP-PLUGINS.md. A plugin whose manifest says "test" is the runner's check and is
-# never installed. The copy keeps the files' times, so an unchanged plugin is not built again.
+# never installed. The app carries its own copy of each, and a folder the same as it runs without
+# being allowed by a person. The copy keeps the files' times, so an unchanged plugin is not built again.
 #
 # Switching the piece off stops a run from building it and removes nothing, rule 4 of AGENTS.md.
 

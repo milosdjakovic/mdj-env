@@ -89,10 +89,14 @@ public struct PluginManifest: Sendable, Equatable {
     return try parse(o)
   }
 
+  /// Words olm://, a setting's id and the app's store already use.
+  static let reserved: Set<String> = ["abilities", "ability", "ext", "held", "olm", "plugins", "settings", "tool"]
+
   static func parse(_ o: [String: Any]) throws -> PluginManifest {
     guard let id = o["id"] as? String, id.range(of: "^[a-z][a-z0-9]*$", options: .regularExpression) != nil else {
       throw Failure.field("needs an id of lowercase letters and digits")
     }
+    guard !reserved.contains(id) else { throw Failure.field("has the id \(id), which is Olm's own word") }
     guard let title = o["title"] as? String, !title.isEmpty else { throw Failure.field("needs a title") }
     var m = PluginManifest(id: id, title: title, version: o["version"] as? String ?? "0",
       proto: o["protocol"] as? Int ?? 1, background: o["background"] as? Bool ?? false)

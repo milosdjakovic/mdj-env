@@ -55,8 +55,6 @@ public struct Sandbox: Sendable {
     (deny mach-lookup (with no-log) (global-name "com.apple.lsd.modifydb") (global-name "com.apple.coreservices.quarantine-resolver"))
 
     """
-    r += "(allow file-read* \(Self.subpath(folder)))\n"
-    r += "(allow file-read* file-write* \(Self.subpath(data)) \(Self.subpath(temp)))\n"
     r += "(allow process-exec \(Self.literal(Self.real(executable.path))))\n"
     for program in permissions.programs {
       guard let found = Self.resolve(program) else {
@@ -75,6 +73,11 @@ public struct Sandbox: Sendable {
       let place = Self.place(grant.path)
       r += grant.write ? "(allow file-read* file-write* \(Self.subpath(place)))\n" : "(allow file-read* \(Self.subpath(place)))\n"
     }
+    // Olm's own folder is never part of a granted place, what the person allowed and the signing key
+    // among it, and a plugin's own places are given back after, since the last rule that matches wins.
+    r += "(deny file-read* file-write* \(Self.subpath(Self.place("~/.olm"))))\n"
+    r += "(allow file-read* \(Self.subpath(folder)))\n"
+    r += "(allow file-read* file-write* \(Self.subpath(data)) \(Self.subpath(temp)))\n"
     switch permissions.network {
     case .none:
       break

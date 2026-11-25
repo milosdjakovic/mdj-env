@@ -964,22 +964,34 @@ struct PicksSetting: View {
     return []
   }
 
-  private var found: [String] {
+  /// One thing to check, saved by its id, with the icon of the application it belongs to.
+  private struct Option: Identifiable {
+    let id: String
+    let title: String
+    let app: String?
+  }
+
+  private var found: [Option] {
     switch setting.source {
-    case "browsers": return model.browsers?.targets.map(\.title) ?? []
+    case "browsers": return model.browsers?.targets.map { Option(id: $0.id, title: $0.title, app: $0.path) } ?? []
     default: return []
     }
   }
 
   /// What is found now and the fixed names, and nothing else, so a name saved and gone is not
   /// shown and leaves the saved list on the next click.
-  private var options: [String] { found + setting.fixed }
+  private var options: [Option] { found + setting.fixed.map { Option(id: $0, title: $0, app: nil) } }
 
   var body: some View {
     VStack(alignment: .leading, spacing: Space.related) {
-      ForEach(options, id: \.self) { name in
-        Toggle(isOn: Binding(get: { picked.contains(name) }, set: { flip(name, $0) })) {
-          Text(name)
+      ForEach(options) { option in
+        Toggle(isOn: Binding(get: { picked.contains(option.id) }, set: { flip(option.id, $0) })) {
+          HStack(spacing: Space.related) {
+            if let app = option.app {
+              Image(nsImage: NSWorkspace.shared.icon(forFile: app)).resizable().frame(width: Space.mark, height: Space.mark)
+            }
+            Text(option.title)
+          }
         }
         .toggleStyle(.checkbox)
       }
@@ -1003,10 +1015,10 @@ struct PicksSetting: View {
     }
   }
 
-  private func flip(_ name: String, _ on: Bool) {
+  private func flip(_ id: String, _ on: Bool) {
     var set = Set(picked)
-    if on { set.insert(name) } else { set.remove(name) }
-    let next = options.filter { set.contains($0) }
+    if on { set.insert(id) } else { set.remove(id) }
+    let next = options.map(\.id).filter { set.contains($0) }
     if next != picked {
       model.picksDrafts[setting.id] = next
       model.change(setting, to: .names(next))

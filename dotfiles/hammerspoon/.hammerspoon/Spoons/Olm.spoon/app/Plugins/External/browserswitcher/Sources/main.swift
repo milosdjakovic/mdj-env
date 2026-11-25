@@ -13,6 +13,7 @@ import Foundation
 
 struct Target {
   var title: String
+  var browser: String
   var bundle: String
   /// What Olm opens it by.
   var id: String
@@ -51,13 +52,11 @@ func placeholder(_ url: String?) -> String {
   return String(chars[0..<head]) + "…" + String(chars[(chars.count - tail)...])
 }
 
-/// The favourites shown, by name, or every browser. Copy Link is no row, it is Command and Return,
-/// so a favourite of that name kept from before is passed over.
+/// The favourites shown, by Olm's id for each, or every browser and profile. One that names nothing
+/// found now is passed over.
 func shown() -> [Target] {
   if showAll || favourites.isEmpty { return targets }
-  var byTitle: [String: Target] = [:]
-  for t in targets { byTitle[t.title.lowercased()] = t }
-  return favourites.compactMap { byTitle[$0.lowercased()] }
+  return favourites.compactMap { id in targets.first { $0.id == id } }
 }
 
 func copyLink() {
@@ -76,7 +75,7 @@ plugin.open = { context in
   targets = (context["browsers"] as? [OlmJSON] ?? []).compactMap { t in
     guard let title = t["title"] as? String, let bundle = t["bundle"] as? String, let id = t["id"] as? String
     else { return nil }
-    return Target(title: title, bundle: bundle, id: id)
+    return Target(title: title, browser: t["browser"] as? String ?? title, bundle: bundle, id: id)
   }
   favourites = (context["settings"] as? OlmJSON)?["favourites"] as? [String] ?? []
   showAll = false
@@ -89,7 +88,8 @@ plugin.rows = { _ in
       subtitle: "Links you click while Olm is the default browser land here",
       icon: .symbol("exclamationmark.triangle"), pinned: true)]
   }
-  let rows = shown().map { t in OlmRow(key: "t:" + t.title, title: t.title, icon: .app(t.bundle)) }
+  let rows = shown().map { t in OlmRow(key: "t:" + t.id, title: t.title, icon: .app(t.bundle),
+    keywords: t.browser == t.title ? [] : [t.browser]) }
   if rows.isEmpty {
     return [OlmRow(key: "none", title: "No favourite is on this Mac",
       subtitle: "Show All in the actions pane lists every browser", icon: .symbol("exclamationmark.triangle"),
@@ -100,7 +100,7 @@ plugin.rows = { _ in
 
 plugin.choose = { key, _ in
   guard let link, key != "none" else { return [] }
-  guard key.hasPrefix("t:"), let t = targets.first(where: { "t:" + $0.title == key }) else { return [] }
+  guard key.hasPrefix("t:"), let t = targets.first(where: { "t:" + $0.id == key }) else { return [] }
   // Refused, its profile turned off since the list opened, the list stays so the link is not lost.
   guard plugin.openLink(link, browser: t.id) else {
     plugin.notify("Olm could not open the link in \(t.title)")
