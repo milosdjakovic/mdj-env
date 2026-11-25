@@ -346,19 +346,14 @@ struct AppsView: View {
         header
         if let mode = modeSetting {
           SettingRow(setting: mode, model: model)
-            .padding(.horizontal, Space.pad + 4).padding(.vertical, Space.pad)
             .searchMark(model, SearchTarget.setting(mode.id))
-            .glassCard(cornerRadius: 20)
+            .cardRow()
+            .glassCard()
         }
         HStack(spacing: Space.pad) {
-          TextField("Filter applications", text: $page.filter)
-            .textFieldStyle(.roundedBorder)
-          Button {
-            add()
-          } label: {
-            Label("Add Application…", systemImage: "plus")
-          }
-          .help("Add an application kept outside the Applications folders")
+          GlassSearch(prompt: "Search applications", text: $page.filter)
+          GlassButton(title: "Add Application…", symbol: "plus",
+            help: "Add an application kept outside the Applications folders") { add() }
         }
         card("Applications", all)
         if !page.scanned || page.installed.isEmpty {
@@ -369,6 +364,7 @@ struct AppsView: View {
       .frame(maxWidth: .infinity, alignment: .leading)
     }
     .ignoresSafeArea(.container, edges: .top)
+    .softTopEdge()
     .searchJump(model, proxy, Set(all.map { SearchTarget.app($0.bundle) }
       + (modeSetting.map { [SearchTarget.setting($0.id)] } ?? [])))
     }
@@ -397,22 +393,14 @@ struct AppsView: View {
     return nil
   }
 
-  // A long list sits on a plain fill rather than glass, which redraws its blur under every row on
-  // every scrolled frame.
   @ViewBuilder private func card(_ title: String, _ list: [AppEntry]) -> some View {
     if !list.isEmpty {
-      VStack(alignment: .leading, spacing: Space.related) {
-        HStack(spacing: Space.pad) {
-          Text(title).font(.headline).frame(maxWidth: .infinity, alignment: .leading)
-          Color.clear.frame(width: AppColumns.marks + Space.pad + Space.mark, height: 1)
-          Text("Shortcut").font(.caption).foregroundStyle(.secondary)
-            .frame(width: AppColumns.recorder, alignment: .leading)
-        }
-        .padding(.horizontal, Space.pad + 4)
+      CardSection(title: title) {
+        Text("Shortcut").font(.caption).foregroundStyle(.secondary)
+          .frame(width: AppColumns.recorder, alignment: .leading)
+      } content: {
         // Every row made at once, a few hundred at most, so none appears as it scrolls into view.
-        VStack(spacing: 0) {
-          ForEach(Array(list.enumerated()), id: \.element.id) { index, entry in
-            if index > 0 { Divider().padding(.leading, Space.pad + 4) }
+        CardList(list) { entry in
             AppRow(entry: entry, icon: page.icons[entry.bundle],
               chord: keeps ? entry.own?.key?.chord : entry.action.flatMap(chord),
               recording: keeps ? page.recording == entry.bundle : entry.action != nil && page.recording == entry.action,
@@ -422,11 +410,8 @@ struct AppsView: View {
               busy: !model.busy.isEmpty,
               customize: { customize(entry) }, reset: { resetCustom(entry) }, remove: { remove(entry) },
               record: { record(entry) }, resetKey: { resetKey(entry) })
-              .padding(.horizontal, Space.pad + 4).padding(.vertical, Space.pad - 4)
               .searchMark(model, SearchTarget.app(entry.bundle))
-          }
         }
-        .background(RoundedRectangle(cornerRadius: 20, style: .continuous).fill(.quaternary.opacity(0.5)))
       }
     }
   }
@@ -671,7 +656,7 @@ struct AppRow: View {
       }
       .frame(maxWidth: .infinity, alignment: .leading)
       UndoButton(shown: keyOwn, help: resetKeyHelp, action: resetKey)
-      PageButton(set: entry.customized, help: entry.customized
+      PageButton(help: entry.customized
         ? AppCustomize.words(entry.own)
         : "How \(entry.name)'s key acts and where its window goes", action: customize)
       key
@@ -755,6 +740,13 @@ enum HammerspoonCatalog {
   }
 }
 
+/// What a place comes to on one display.
+struct PreviewLine: Identifiable {
+  let id: Int
+  let name: String
+  let result: String
+}
+
 /// What a Customize sheet holds until Done: the application, its mode and its place.
 struct AppCustomize: Equatable {
   let bundle: String
@@ -804,6 +796,7 @@ struct CustomizePage: View {
 
   var body: some View {
     if let c = page.customizing {
+      ScrollView {
       VStack(alignment: .leading, spacing: Space.group) {
         PageHeader(title: c.name, subtitle: c.bundle,
           note: problem(c.place).map { ($0, "exclamationmark.triangle") } ?? refusal.map { ($0, "exclamationmark.triangle") }) {
@@ -813,57 +806,85 @@ struct CustomizePage: View {
             SectionSymbol(symbol: "app")
           }
         }
-        Form {
-          Section("When the shortcut is pressed") {
+        CardSection("When the shortcut is pressed") {
+          LabelRow("Mode") {
             Picker("Mode", selection: bind(\.mode)) {
               Text("Default, \(global == "hides" ? "show and hide" : "cycle windows")").tag("default")
               Text("Cycle windows").tag("cycle")
               Text("Show and hide").tag("hides")
             }
+            .fixedSize()
           }
-          Section {
-            Picker("Display", selection: bind(\.place.display)) {
-              ForEach(AppCustomize.displays, id: \.id) { Text($0.title).tag($0.id) }
+          .glassCard()
+        }
+        CardSection("When the shortcut shows it") {
+          VStack(spacing: 0) {
+            LabelRow("Display") {
+              Picker("Display", selection: bind(\.place.display)) {
+                ForEach(AppCustomize.displays, id: \.id) { Text($0.title).tag($0.id) }
+              }
+              .fixedSize()
             }
-            Picker("Position", selection: bind(\.place.center)) {
-              Text("Keep where it stands").tag(false)
-              Text("Center").tag(true)
+            CardDivider()
+            LabelRow("Position") {
+              Picker("Position", selection: bind(\.place.center)) {
+                Text("Keep where it stands").tag(false)
+                Text("Center").tag(true)
+              }
+              .fixedSize()
             }
-            Picker("Size", selection: bind(\.place.sized)) {
-              Text("Keep its size").tag(false)
-              Text("Set").tag(true)
+            CardDivider()
+            LabelRow("Size") {
+              Picker("Size", selection: bind(\.place.sized)) {
+                Text("Keep its size").tag(false)
+                Text("Set").tag(true)
+              }
+              .fixedSize()
             }
             if c.place.sized {
-              Picker("Measured in", selection: bind(\.place.percent)) {
-                Text("Points").tag(false)
-                Text("Percent of the display").tag(true)
+              CardDivider()
+              LabelRow("Measured in") {
+                Picker("Measured in", selection: bind(\.place.percent)) {
+                  Text("Points").tag(false)
+                  Text("Percent of the display").tag(true)
+                }
+                .fixedSize()
               }
-              LabeledContent("Size") {
+              CardDivider()
+              LabelRow("Width and height") {
                 pair(field(\.place.width, "Width"), field(\.place.height, "Height"), c.place.percent ? "%" : "pt")
               }
-              LabeledContent("At least") {
+              CardDivider()
+              LabelRow("At least") {
                 pair(optional(\.place.minWidth, "Width"), optional(\.place.minHeight, "Height"), "pt")
               }
-              LabeledContent("At most") {
+              CardDivider()
+              LabelRow("At most") {
                 pair(optional(\.place.maxWidth, "Width"), optional(\.place.maxHeight, "Height"), "pt")
               }
             }
             if c.place.sized || c.place.center {
-              LabeledContent("Padding at the sides") { single(field(\.place.padX, "Sides")) }
-              LabeledContent("Padding above and below") { single(field(\.place.padY, "Above and below")) }
+              CardDivider()
+              LabelRow("Padding at the sides") { single(field(\.place.padX, "Sides")) }
+              CardDivider()
+              LabelRow("Padding above and below") { single(field(\.place.padY, "Above and below")) }
             }
+            CardDivider()
             Text(explain(c)).font(.caption).foregroundStyle(.secondary)
-          } header: {
-            Text("When the shortcut shows it")
+              .fixedSize(horizontal: false, vertical: true)
+              .cardRow()
           }
-          Section("On the displays connected now") {
-            ForEach(Array(preview(c.place).enumerated()), id: \.offset) { _, line in
-              LabeledContent(line.name) { Text(line.result).foregroundStyle(.secondary) }
+          .glassCard()
+        }
+        CardSection("On the displays connected now") {
+          CardList(preview(c.place).enumerated().map { PreviewLine(id: $0.offset, name: $0.element.name, result: $0.element.result) }) { line in
+            HStack(spacing: Space.pad) {
+              Text(line.name)
+              Spacer(minLength: Space.pad)
+              Text(line.result).foregroundStyle(.secondary)
             }
           }
         }
-        .formStyle(.grouped)
-        .scrollContentBackground(.hidden)
         HStack {
           Button("Back to the Default") {
             page.customizing?.mode = "default"
@@ -874,7 +895,9 @@ struct CustomizePage: View {
       }
       .padding(Space.edge)
       .padding(.top, model.buttonsBottom)
-      .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+      .frame(maxWidth: .infinity, alignment: .topLeading)
+      }
+      .softTopEdge()
       .ignoresSafeArea(.container, edges: .top)
       .backBar("Applications", model: model) { done() }
       .onDisappear { if page.customizing != nil { done() } }

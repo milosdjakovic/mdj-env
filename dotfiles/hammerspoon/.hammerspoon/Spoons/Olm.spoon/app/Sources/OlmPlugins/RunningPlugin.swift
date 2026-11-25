@@ -199,7 +199,16 @@ public actor RunningPlugin: LevelPeer {
 
   // MARK: Life
 
+  private var retired = false
+
+  /// Killed for good, its folder changed or taken away, so the manifest it holds is never run again.
+  func retire() {
+    retired = true
+    kill(.asked)
+  }
+
   private func ensureStarted() async throws {
+    if retired { throw PluginError.off("its files changed, open it again") }
     if process != nil, starting == nil { return }
     if let starting { return try await starting.value }
     let task = Task { try await self.start() }
@@ -214,6 +223,7 @@ public actor RunningPlugin: LevelPeer {
     guard fm.isExecutableFile(atPath: executable.path) else {
       throw PluginError.unstartable("it is not built, no \(executable.path)")
     }
+    if retired { throw PluginError.off("its files changed, open it again") }
     let sandbox = Sandbox(folder: folder, data: data, temp: temp, executable: executable, permissions: manifest.permissions)
     let profile = sandbox.profile()
     for name in profile.missing { log("\(manifest.id) asks for \(name), which this Mac does not have") }

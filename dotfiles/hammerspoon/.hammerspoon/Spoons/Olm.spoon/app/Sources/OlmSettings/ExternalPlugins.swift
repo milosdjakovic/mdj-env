@@ -83,6 +83,9 @@ public struct PluginDeclarations: Sendable, Equatable {
   public var primary: Verb = Verb(action: "insertSelected", title: "Open", icon: nil)
   public var secondary: Verb?
   public var extra: [Verb] = []
+  /// Whether it came with Olm, which is switched off rather than uninstalled. Set by the host, never read
+  /// from the manifest.
+  public var ours = false
   /// The launcher row's detail and its words, nil for no row.
   public var rowDetail: String?
   public var rowKeywords: [String] = []
@@ -179,22 +182,39 @@ public final class PluginStore: @unchecked Sendable {
   }
 }
 
-/// The plugins the app runs, their rows in Olm Settings and what each is allowed now. Set once at
-/// launch by the composition root.
+/// The plugins the app runs, their rows in Olm Settings and what each is allowed now. Set by the
+/// composition root's host.
 public enum ExternalPlugins {
-  nonisolated(unsafe) public static var declared: [PluginDeclarations] = []
-  /// A folder Olm neither builds nor runs, why, shown as a locked row in Plugins.
+  /// Read from any thread, the launcher and a plugin's requests, and set by the host as folders come
+  /// and go.
+  public static var declared: [PluginDeclarations] {
+    get { lock.lock(); defer { lock.unlock() }; return declaredNow }
+    set { lock.lock(); defer { lock.unlock() }; declaredNow = newValue }
+  }
+  public static var held: [Held] {
+    get { lock.lock(); defer { lock.unlock() }; return heldNow }
+    set { lock.lock(); defer { lock.unlock() }; heldNow = newValue }
+  }
+  private static let lock = NSLock()
+  nonisolated(unsafe) private static var declaredNow: [PluginDeclarations] = []
+  nonisolated(unsafe) private static var heldNow: [Held] = []
+  /// Posted on the main thread when either moved.
+  public static let changed = Notification.Name("OlmPluginsChanged")
+  /// A folder Olm neither builds nor runs, why, shown in Plugins as a row leading to the
+  /// install page, or with Uninstall alone when that cannot help.
   public struct Held: Sendable, Equatable {
     public let id: String
     public let title: String
     public let why: String
-    public init(id: String, title: String, why: String) {
+    /// Whether the install page can let it through, rather than only its author.
+    public let review: Bool
+    public init(id: String, title: String, why: String, review: Bool) {
       self.id = id
       self.title = title
       self.why = why
+      self.review = review
     }
   }
-  nonisolated(unsafe) public static var held: [Held] = []
   public static let store = PluginStore()
   /// The prefix every row of an app run plugin carries, which the window's change sends here
   /// rather than to Hammerspoon.
@@ -262,10 +282,19 @@ public enum ExternalPlugins {
         out.append(row)
       }
     }
+    for p in declared where !p.ours {
+      var row = Setting(id: "\(prefix)uninstall.\(p.id)", title: "Uninstall \(p.title)",
+        detail: "It goes to the Trash.",
+        kind: .uninstall, keywords: [p.id, "remove", "delete"], applies: "live", choices: [], min: nil, max: nil,
+        step: nil, unit: nil, locked: nil, defaultValue: .none, value: .none)
+      row.page = p.id
+      out.append(row)
+    }
     for h in held {
-      out.append(Setting(id: prefix + "held." + h.id, title: h.title, detail: nil, kind: .switch,
-        keywords: [h.id, "plugin"], applies: "live", choices: [], min: nil, max: nil, step: nil, unit: nil,
-        locked: h.why, defaultValue: .flag(false), value: .flag(false)))
+      out.append(Setting(id: prefix + "held." + h.id, title: h.title, detail: h.why,
+        kind: h.review ? .review : .uninstall, keywords: [h.id, "plugin", "install", "allow"], applies: "live", choices: [],
+        min: nil, max: nil, step: nil, unit: nil, locked: nil, defaultValue: .flag(false),
+        value: .flag(false)))
     }
     return out
   }
@@ -323,6 +352,17 @@ public enum ExternalPlugins {
     default: return "was not a value \(decl.title) takes"
     }
     return nil
+  }
+
+  /// A plugin just allowed for the first time is on, whatever one by its id was left at.
+  public static func turnOn(_ id: String) { toggle("plugins.off", id, off: false) }
+
+  /// Every setting of a plugin uninstalled with its data.
+  public static func forget(_ id: String) {
+    toggle("plugins.off", id, off: false)
+    for key in store.values().keys where key.hasPrefix(id + ".") { store.set(key, nil) }
+    let left = list("abilities.off").filter { !$0.hasPrefix(id + "/") }
+    store.set("abilities.off", left.isEmpty ? nil : left)
   }
 
   private static func toggle(_ key: String, _ name: String, off: Bool) {

@@ -54,6 +54,13 @@ public actor PluginRunner {
     return plugin
   }
 
+  /// Lets a plugin go, killed and never started again, a list still open on it answered with why.
+  public func unload(_ id: String) async {
+    guard let plugin = plugins.removeValue(forKey: id) else { return }
+    switchOn(id)
+    await plugin.retire()
+  }
+
   public func plugin(_ id: String) -> RunningPlugin? { plugins[id] }
 
   /// The list a plugin answers, for the stage, nil for a plugin not loaded.

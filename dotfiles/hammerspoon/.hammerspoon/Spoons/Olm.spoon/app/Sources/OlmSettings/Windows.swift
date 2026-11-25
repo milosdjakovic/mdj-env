@@ -85,6 +85,7 @@ struct WindowsView: View {
       .frame(maxWidth: .infinity, alignment: .leading)
     }
     .ignoresSafeArea(.container, edges: .top)
+    .softTopEdge()
     .searchJump(model, proxy, Set(setting.windowActions.map { SearchTarget.window($0.action) }
       + (setting.value.sizes ?? []).map { SearchTarget.size($0.id) }
       + section.settings.map { SearchTarget.setting($0.id) }))
@@ -96,21 +97,9 @@ struct WindowsView: View {
   }
 
   private var header: some View {
-    HStack(spacing: Space.pad + 4) {
-      Image(systemName: section.symbol)
-        // look-exempt, the section's picture in its glass circle, sized as System Settings does.
-        .font(.system(size: 26, weight: .medium))
-        .foregroundStyle(.tint)
-        .frame(width: SectionPage.header, height: SectionPage.header)
-        .glassCircle()
-      VStack(alignment: .leading, spacing: Space.row) {
-        Text(section.title).font(.largeTitle.weight(.semibold))
-        Text("Every layout and size with its shortcut, META and a key").font(.callout).foregroundStyle(.secondary)
-      }
-      Spacer(minLength: Space.group)
-      if let note { Note(text: note.text, symbol: note.symbol) }
+    PageHeader(title: section.title, subtitle: "Every layout and size with its shortcut, META and a key", note: note) {
+      SectionSymbol(symbol: section.symbol)
     }
-    .frame(height: SectionPage.header)
   }
 
   private var note: (text: String, symbol: String)? {
@@ -125,10 +114,8 @@ struct WindowsView: View {
 
   @ViewBuilder private func card(_ title: String, _ list: [WindowAction]) -> some View {
     if !list.isEmpty {
-      VStack(alignment: .leading, spacing: Space.related) {
-        cardHeader(title)
-        rows(list.count) { i in
-          let a = list[i]
+      CardSection(title) {
+        CardList(list) { a in
           HStack(spacing: Space.pad) {
             Text(a.title).frame(maxWidth: .infinity, alignment: .leading)
             recorder(a.action)
@@ -141,19 +128,13 @@ struct WindowsView: View {
 
   private var sizesCard: some View {
     let sizes = setting.value.sizes ?? []
-    return VStack(alignment: .leading, spacing: Space.related) {
-      HStack {
-        cardHeader("Sizes")
-        Button {
-          editor.isNew = true
-          editor.draft = WindowSize(id: "", name: "", width: 1200, height: 800)
-        } label: {
-          Label("Add Size…", systemImage: "plus")
-        }
-        .help("Add a size of your own, its name, size, place and display")
+    return CardSection(title: "Sizes") {
+      GlassButton(title: "Add Size…", symbol: "plus", help: "Add a size of your own, its name, size, place and display") {
+        editor.isNew = true
+        editor.draft = WindowSize(id: "", name: "", width: 1200, height: 800)
       }
-      rows(sizes.count) { i in
-        let z = sizes[i]
+    } content: {
+      CardList(sizes) { z in
         HStack(spacing: Space.pad) {
           VStack(alignment: .leading, spacing: Space.related / 2) {
             Text(z.name)
@@ -178,30 +159,11 @@ struct WindowsView: View {
 
   private var stepsCard: some View {
     let numbers = section.settings.filter { $0.kind != .sizes }
-    return VStack(alignment: .leading, spacing: Space.related) {
-      cardHeader("Steps and Sizes")
-      rows(numbers.count) { i in
-        SettingRow(setting: numbers[i], model: model).searchMark(model, SearchTarget.setting(numbers[i].id))
+    return CardSection("Steps and Sizes") {
+      CardList(numbers) { n in
+        SettingRow(setting: n, model: model).searchMark(model, SearchTarget.setting(n.id))
       }
     }
-  }
-
-  private func cardHeader(_ title: String) -> some View {
-    HStack {
-      Text(title).font(.headline).frame(maxWidth: .infinity, alignment: .leading)
-    }
-    .padding(.horizontal, Space.pad + 4)
-  }
-
-  /// Rows on one plain card, a divider between each, as the Applications page draws its lists.
-  private func rows<Row: View>(_ count: Int, @ViewBuilder _ row: @escaping (Int) -> Row) -> some View {
-    VStack(spacing: 0) {
-      ForEach(0..<count, id: \.self) { i in
-        if i > 0 { Divider().padding(.leading, Space.pad + 4) }
-        row(i).padding(.horizontal, Space.pad + 4).padding(.vertical, Space.pad - 4)
-      }
-    }
-    .background(RoundedRectangle(cornerRadius: 20, style: .continuous).fill(.quaternary.opacity(0.5)))
   }
 
   // MARK: Shortcuts, as the Applications page records them, META implied

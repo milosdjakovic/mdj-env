@@ -293,7 +293,7 @@ public struct SettingChoice: Equatable, Sendable, Identifiable {
 }
 
 public struct Setting: Equatable, Sendable, Identifiable {
-  public enum Kind: String, Sendable { case choice, number, font, `switch`, checkbox, text, handler, picks, ability, apps, keys, sizes, other }
+  public enum Kind: String, Sendable { case choice, number, font, `switch`, checkbox, text, handler, picks, ability, review, uninstall, apps, keys, sizes, other }
 
   public let id: String
   public let title: String
@@ -486,23 +486,40 @@ public struct SettingsShare: Equatable, Sendable {
 }
 
 public enum SettingFormat {
-  /// A number as the window shows it, with as many decimals as its step has and its unit short.
-  public static func number(_ value: Double, step: Double?, unit: String?) -> String {
-    var decimals = 0
-    if let step, step > 0, step < 1 {
-      var s = step
-      while decimals < 4 && abs(s.rounded() - s) > 1e-9 { s *= 10; decimals += 1 }
-    }
-    let text = String(format: "%.\(decimals)f", value)
+  /// How a number is typed: what its value is multiplied by, the unit after the field and the decimals
+  /// it takes. Seconds are typed as milliseconds and a share below one as a percent.
+  public static func entry(step: Double?, unit: String?) -> (factor: Double, unit: String, decimals: Int) {
+    var factor = 1.0, word = unit ?? ""
     switch unit {
-    case "seconds": return text + " s"
-    case "points": return text + " pt"
-    case "pixels": return text + " px"
-    case "times": return text + "×"
-    case "rows": return text + " rows"
-    case let u?: return text + " " + u
-    case nil: return text
+    case "seconds": (factor, word) = (1000, "ms")
+    case "times" where (step ?? 1) < 1: (factor, word) = (100, "%")
+    case "times": word = "×"
+    case "points": word = "pt"
+    case "pixels": word = "px"
+    default: break
     }
+    var decimals = 0
+    if let step, step > 0 {
+      var s = step * factor
+      while decimals < 4 && abs(s.rounded() - s) > 1e-6 { s *= 10; decimals += 1 }
+    }
+    return (factor, word, decimals)
+  }
+
+  /// A number as its field shows it, with no unit and no decimals it does not need.
+  public static func number(_ value: Double, step: Double?, unit: String?) -> String {
+    let e = entry(step: step, unit: unit)
+    let text = String(format: "%.\(e.decimals)f", value * e.factor)
+    return text.contains(".") ? String(text.reversed().drop { $0 == "0" }.drop { $0 == "." }.reversed()) : text
+  }
+
+  /// What was typed as the setting's own value, nil for what is no number.
+  public static func value(_ typed: String, step: Double?, unit: String?) -> Double? {
+    let e = entry(step: step, unit: unit)
+    let text = typed.trimmingCharacters(in: .whitespaces).replacingOccurrences(of: ",", with: ".")
+    guard let n = Double(text), n.isFinite else { return nil }
+    let places = pow(10, Double(e.decimals))
+    return (n * places).rounded() / places / e.factor
   }
 
   /// A font name as a person reads it, the system's own fonts by what they are.

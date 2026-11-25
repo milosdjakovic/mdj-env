@@ -1786,3 +1786,42 @@ Recording the allowance in plugins.json was turned down, since a plugin's settin
 could have written it. Asking again whenever the sources change was turned down, the 2026-11-20 rule
 is that the same list is never asked twice. The gate keeps a folder nobody allowed from running. It
 does not stop a program already running as this account, which can write the records itself.
+
+### 2026-11-25 11:37, the install page, step 2 of the install plan, asked by Milos
+
+Milos confirmed step 1 live and agreed that the page lists the abilities with no switches, and that
+Remove, a later step, keeps the data folder unless a box is ticked. The page of
+`docs/DESIGN-APP-PLUGINS.md` As built. Corrected: step 1 left abilities out of what is allowed, so an
+update could have added one unasked, and they are recorded now. Found and closed, missed by step 1's
+symlink fix: a plugin could replace its own data folder, or a place it was granted, with a link between
+two starts and be given what the link leads to, since Olm resolves links as it starts one. A pipe among
+the sources would have held Olm's launch. A list left open could have started a plugin again on the
+manifest it had before. Unpacking with unzip's own path rules alone was turned down, an archive may
+hold a link and then a file through it, so ditto runs in a sandbox of its own. Opening the window by
+itself when a folder appears was turned down, a row with Review is there when the person looks.
+
+### 2026-11-25 11:54, Uninstall and a place to drop, asked by Milos after the install page's trial
+
+Milos confirmed the page, the update, the failed build and the folder followed, and asked for a clear
+place to drop and a way to uninstall, a gear on every plugin. Uninstall was brought forward from step
+3. It moves to the Trash rather than deleting, so no confirmation is asked. Browser Switcher has none,
+since setup puts it back, and a Lua plugin has none, being part of the spoon.
+
+### 2026-11-25 12:43, Uninstall asks, and one look for every list in Olm Settings, asked by Milos
+
+Corrected: the entry before this asked no confirmation, since the Trash can give the plugin back. Milos
+wants the dialog, with the data box in it. The gear is muted everywhere, no accent for a page holding a
+set value. A row keeps no room for a line that may come. Every list is one glass card, the Applications
+list among them, which had a plain fill since 2026-11-23 because glass was thought to redraw its blur
+under every row as it scrolled. The rows have since lost their AppKit controls and draw their icons
+once, and whether it scrolls smoothly on glass is for his trial. Size editing is still a sheet.
+
+### 2026-11-25 13:00, numbers are typed and no page has a slider, asked by Milos
+
+Asked of Motion and Behaviour, done for every number, since a slider on one page and a field on another
+is the one off the parts rule ends. Seconds are typed in milliseconds. What is stored has not changed.
+Clamping a number out of range was turned down, the header says the range instead.
+
+### 2026-11-25 16:16, step 2 and the one look of Olm Settings confirmed by Milos
+
+The install page, Uninstall, the lists in one look and the typed numbers all work live. Step 3 asked for.

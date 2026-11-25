@@ -135,10 +135,11 @@ defect, not a choice.
    buttons through `backBar`, names the page it returns to, and leaving it, by Back or any other
    way, keeps what it holds. What cannot be kept stays on the page with the reason in its header. A
    plugin's settings and an application's mode and place both work this way.
-4. **What is set is drawn in the accent.** A value moved off the config files, and a gear whose page
-   holds one, wear the tint, and the rest is muted, so a scroll down a list catches what is set.
+4. **What is set is drawn in the accent.** A value moved off the config files wears the tint, and the
+   rest is muted, so a scroll down a list catches what is set. The gear is always muted, Milos on
+   2026-11-25, and wore the tint when its page held a set value until then.
 5. **Words say only what is true now.** A row says it applies on reload only once its value has moved
-   off the one running, and its line is kept while hidden, so nothing moves.
+   off the one running, and it stands beside the title, rule 12.
 6. **The controls are the system's, at the size System Settings uses.** A switch is the mini one. A
    setting's kind decides its control, `SettingRow` draws every kind, and a page never draws a kind
    itself.
@@ -149,6 +150,22 @@ defect, not a choice.
 9. **An ability is `AbilityRow`, wherever it is shown,** on the plugin's page and under its
    permission, undo then the mini switch, with a status line that is always there, so flipping it
    grows no row. While Olm lacks the permission the switch keeps its value, greyed. Added 2026-11-24.
+10. **A plugin waiting to be allowed has a Review button where its switch would be,** leading to its
+   page, `InstallPage`, with Back as every page. Added 2026-11-25.
+11. **Every list is one glass card, `CardList`,** rows in `cardRow`'s padding with `CardDivider` between,
+   its title over it in `CardSection`, on every page, the long Applications list too. A page of fields is
+   `LabelRow`s in a card, never a grouped `Form`. Asked by Milos on 2026-11-25, replacing the plain fill
+   the Applications and Window Management lists had.
+12. **A row is as tall as what it shows.** No line is kept for what may come. Applies on reload stands
+   beside the title. Asked by Milos on 2026-11-25.
+13. **A page's search is `GlassSearch` and what it adds is `GlassButton`,** one capsule height, the
+   sidebar's search the same part.
+14. **Taking something away asks in the system's own dialog,** its choices in there as a checkbox,
+   Uninstall the first. Asked by Milos on 2026-11-25.
+15. **A number is typed, `NumberSetting`,** a few digits and the unit after them, never a slider. Seconds
+   are typed in milliseconds and a share in percent. Any number in the range is taken, the step only
+   says the decimals, and one outside it is refused with the range in the header. Undo goes back to
+   the built in value. Asked by Milos on 2026-11-25, replacing the sliders.
 
 ## What it holds, for Milos to trim
 

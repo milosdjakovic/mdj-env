@@ -49,7 +49,8 @@ public enum PluginBuild {
     let text = String(data: pipe.fileHandleForReading.readDataToEndOfFile(), encoding: .utf8) ?? ""
     p.waitUntilExit()
     guard p.terminationStatus == 0 else {
-      throw Failure.compile(text.split(separator: "\n").filter { $0.contains("error") }.prefix(20).joined(separator: "\n"))
+      throw Failure.compile(text.split(separator: "\n").filter { $0.contains(": error:") || $0.hasPrefix("error:") }.prefix(20).joined(separator: "\n")
+        .replacingOccurrences(of: folder.path + "/", with: ""))
     }
     return out
   }

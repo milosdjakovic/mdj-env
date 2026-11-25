@@ -19,15 +19,28 @@ import Combine
 import SwiftUI
 import UniformTypeIdentifiers
 
-/// What the window is showing, the section chosen, the search typed, a slider being dragged and the
+/// What the window is showing, the section chosen, the search typed and the
 /// last refusal. A class the window owns rather than view state, since the command line tools the
 /// app builds with ship no SwiftUI macros and @State is one in macOS 27's SDK.
 @MainActor
 final class SettingsModel: ObservableObject {
   @Published var share: SettingsShare?
   @Published var selection: String? {
-    didSet { if oldValue != selection { pluginPage = nil } }
+    didSet {
+      guard oldValue != selection else { return }
+      pluginPage = nil
+      leaveOffer()
+    }
   }
+  /// The plugin the install page shows, nil for no page, InstallPage.swift.
+  @Published var offer: PluginOffer?
+  /// It was allowed and is being put in place and built.
+  @Published var offerBusy = false
+  /// A file is held over Plugins.
+  @Published var dropping = false
+  /// Which request for a page is the newest, so an older answer is dropped.
+  var offerTurn = 0
+  let installer: PluginInstaller?
   /// The plugin whose own page is open inside Plugins, nil for the Plugins list itself.
   @Published var pluginPage: String?
   @Published var query = ""
@@ -36,8 +49,6 @@ final class SettingsModel: ObservableObject {
   /// The row a search chose, which its page scrolls to once it holds it, and the row lit for it.
   @Published var focus: String?
   @Published var lit: String?
-  /// A slider's value while it is dragged, sent when it is let go.
-  @Published var drafts: [String: Double] = [:]
   /// A text setting's words while they are typed, sent on Return or when the field is left.
   @Published var texts: [String: String] = [:]
   /// The last change Hammerspoon refused, the setting's title and why.
@@ -109,7 +120,8 @@ final class SettingsModel: ObservableObject {
     setting.needsReload && running[setting.id].map { $0 != setting.value } == true
   }
 
-  init(share: SettingsShare?, service: SettingsService?, permissions: [Permission] = []) {
+  init(share: SettingsShare?, service: SettingsService?, permissions: [Permission] = [], installer: PluginInstaller? = nil) {
+    self.installer = installer
     self.share = share
     self.service = service
     self.permissions = permissions
@@ -133,6 +145,7 @@ final class SettingsModel: ObservableObject {
   func jump(to hit: SearchHit) {
     if hit.id.hasPrefix("app:") { appsPage.filter = "" }
     selection = hit.section
+    leaveOffer()
     pluginPage = hit.page
     focus = hit.id
     query = ""
@@ -157,7 +170,6 @@ final class SettingsModel: ObservableObject {
     Task { @MainActor in
       let answer = await service.change(setting.id, value, reset)
       busy.remove(setting.id)
-      drafts[setting.id] = nil
       picksDrafts[setting.id] = nil
       if let share = answer.share { self.share = share }
       // An ability turned on or off changes what Olm reads for the plugins, the browsers' profiles.
@@ -180,13 +192,16 @@ public final class SettingsWindow: NSObject, NSWindowDelegate {
   private let share: () -> SettingsShare?
   private let service: SettingsService?
   private let permissions: [Permission]
+  private let installer: PluginInstaller?
+  private var plugins: NSObjectProtocol?
 
   /// permissions, every permission the app uses, listed on the Permissions page.
   public init(share: @escaping () -> SettingsShare? = { SettingsShare.read() }, service: SettingsService? = nil,
-    permissions: [Permission] = []) {
+    permissions: [Permission] = [], installer: PluginInstaller? = nil) {
     self.share = share
     self.service = service
     self.permissions = permissions
+    self.installer = installer
   }
 
   public var isShown: Bool { window?.isVisible ?? false }
@@ -271,8 +286,14 @@ public final class SettingsWindow: NSObject, NSWindowDelegate {
   }
 
   private func build() {
-    let model = SettingsModel(share: share(), service: service, permissions: permissions)
+    let model = SettingsModel(share: share(), service: service, permissions: permissions, installer: installer)
     self.model = model
+    plugins = NotificationCenter.default.addObserver(forName: ExternalPlugins.changed, object: nil, queue: .main) { [weak self] _ in
+      MainActor.assumeIsolated {
+        guard let self, let model = self.model else { return }
+        model.share = self.share()
+      }
+    }
     let w = NSWindow(contentViewController: SettingsSplit(model: model))
     w.title = "Olm Settings"
     w.titleVisibility = .hidden
@@ -405,19 +426,20 @@ enum Space {
   static let related: CGFloat = 6
   /// Between the rows of one list.
   static let row: CGFloat = 2
+  /// A card's corner.
+  static let corner: CGFloat = 20
   /// The height of a sidebar row and of the search, one line of text and its pad.
   static let rowHeight: CGFloat = 32
-  /// The width a number's value is shown in, the widest it can be, so dragging moves nothing.
-  static let value: CGFloat = 76
-  /// A number's slider.
-  static let slider: CGFloat = 200
+  /// A number's field, and its unit after it.
+  static let digits: CGFloat = 64
+  static let unit: CGFloat = 32
+  /// A text's field.
+  static let field: CGFloat = 200
   /// A reset beside a control, kept in place while hidden.
   static let mark: CGFloat = 16
   /// The column a row's control sits in, fixed, so a popup's width changing with its choice moves
-  /// nothing else in the row. Made of its widest content, a number's reset, slider and value with
-  /// a pad between each, since a column narrower than that let the value overflow it, centred, and
-  /// stand half the overflow nearer the card's right edge than the title stands to its left.
-  static let control: CGFloat = mark + pad + slider + pad + value
+  /// nothing else in the row, as wide as its widest content, a reset, the gear and a text's field.
+  static let control: CGFloat = mark + pad + mark + pad + field + 48
 }
 
 /// The search, the sections and the app's row. The sidebar's edge is where the window's close
@@ -429,7 +451,7 @@ struct SettingsSidebar: View {
   var body: some View {
     let hits = model.query.isEmpty ? [] : model.hits
     VStack(alignment: .leading, spacing: Space.group) {
-      SearchField(text: $model.query, move: { move($0, hits.count) }, submit: {
+      GlassSearch(prompt: "Search", text: $model.query, move: { move($0, hits.count) }, submit: {
         if hits.indices.contains(model.hit) { model.jump(to: hits[model.hit]) }
       })
       ScrollView {
@@ -504,35 +526,6 @@ struct SidebarRow: View {
   }
 }
 
-/// The search over the sections, a Liquid Glass capsule a row tall and a little more, its magnifier
-/// in line with the sections' symbols, the field inside it plain so the glass is the only bezel. The
-/// clear button keeps its place when hidden, so typing moves nothing.
-struct SearchField: View {
-  @Binding var text: String
-  let move: (Int) -> Void
-  let submit: () -> Void
-
-  var body: some View {
-    HStack(spacing: Space.pad) {
-      Image(systemName: "magnifyingglass").foregroundStyle(.secondary).frame(width: 20)
-      TextField("Search", text: $text)
-        .textFieldStyle(.plain)
-        .onKeyPress(.downArrow) { move(1); return .handled }
-        .onKeyPress(.upArrow) { move(-1); return .handled }
-        .onSubmit(submit)
-      Button { text = "" } label: {
-        Image(systemName: "xmark.circle.fill").foregroundStyle(.secondary)
-      }
-      .buttonStyle(.plain)
-      .opacity(text.isEmpty ? 0 : 1)
-      .disabled(text.isEmpty)
-    }
-    .padding(.horizontal, Space.pad)
-    .frame(height: Space.rowHeight + 4)
-    .glassCapsule()
-  }
-}
-
 /// The chosen section on the window's own background.
 struct SettingsDetail: View {
   @ObservedObject var model: SettingsModel
@@ -550,6 +543,9 @@ struct SettingsDetail: View {
       } else if model.share == nil {
         ContentUnavailableView("No settings yet", systemImage: "gearshape",
           description: Text("Hammerspoon writes them when it loads, with the olmapp piece on."))
+      } else if model.current?.id == "plugins", let offer = model.offer {
+        InstallPage(offer: offer, model: model)
+          .id(offer.id)
       } else if let section = model.current, let plugin = model.pluginPage,
         section.settings.contains(where: { $0.page == plugin }) {
         SectionPage(section: section, model: model, plugin: plugin)
@@ -668,7 +664,7 @@ struct SectionPage: View {
 
   private var rows: [Setting] {
     guard let plugin else { return section.settings.filter { $0.page == nil } }
-    return (owner.map { [$0] } ?? []) + section.settings.filter { $0.page == plugin && $0.kind != .ability }
+    return (owner.map { [$0] } ?? []) + section.settings.filter { $0.page == plugin && $0.kind != .ability && $0.kind != .uninstall }
   }
 
   /// The plugin's abilities, its Permissions group under its settings, none on a section's page.
@@ -676,6 +672,14 @@ struct SectionPage: View {
     guard let plugin else { return [] }
     return section.settings.filter { $0.page == plugin && $0.kind == .ability }
   }
+
+  /// Uninstall, on the page of a plugin that did not come with Olm.
+  private var uninstall: Setting? {
+    plugin == nil ? nil : section.settings.first { $0.page == plugin && $0.kind == .uninstall }
+  }
+
+  /// Plugins' own page takes a plugin to install.
+  private var installs: Bool { section.id == "plugins" && plugin == nil && model.installer != nil }
 
   /// The plugins that have a page of their own, each reached from its switch.
   private var pages: Set<String> { Set(section.settings.compactMap(\.page)) }
@@ -689,34 +693,29 @@ struct SectionPage: View {
             subtitle: rows.count == 1 ? "1 setting" : "\(rows.count) settings", note: note) {
             SectionSymbol(symbol: section.symbol)
           }
-          VStack(spacing: 0) {
-            ForEach(Array(rows.enumerated()), id: \.element.id) { index, setting in
-              if index > 0 { Divider().padding(.leading, Space.pad + 4) }
-              // A plugin with a page of its own is reached by the gear just before its switch, so
-              // every switch stays in the one column at the right.
-              let page = plugin == nil ? setting.plugin.flatMap { pages.contains($0) ? $0 : nil } : nil
-              SettingRow(setting: setting, model: model, page: page,
-                pageSet: page.map { p in section.settings.contains { $0.page == p && $0.differs } } ?? false)
-              .padding(.horizontal, Space.pad + 4).padding(.vertical, Space.pad)
+          if installs { InstallRow(model: model) }
+          CardList(rows) { setting in
+            // A plugin with a page of its own is reached by the gear just before its switch, so
+            // every switch stays in the one column at the right.
+            SettingRow(setting: setting, model: model,
+              page: plugin == nil ? setting.plugin.flatMap { pages.contains($0) ? $0 : nil } : nil)
               .searchMark(model, SearchTarget.setting(setting.id))
-            }
           }
-          .glassCard(cornerRadius: 20)
           if !abilities.isEmpty {
             // What the plugin asks Olm to do with Olm's permissions, each turned off here or under
             // the permission on the Permissions page, the same setting, docs/DESIGN-APP-PLUGINS.md.
-            VStack(alignment: .leading, spacing: Space.pad) {
-              Text("Permissions").font(.headline)
-              VStack(spacing: 0) {
-                ForEach(Array(abilities.enumerated()), id: \.element.id) { index, ability in
-                  if index > 0 { Divider().padding(.leading, Space.pad + 4) }
-                  AbilityRow(setting: ability, model: model)
-                    .padding(.horizontal, Space.pad + 4).padding(.vertical, Space.pad)
-                    .searchMark(model, SearchTarget.setting(ability.id))
-                }
+            CardSection("Permissions") {
+              CardList(abilities) { ability in
+                AbilityRow(setting: ability, model: model)
+                  .searchMark(model, SearchTarget.setting(ability.id))
               }
-              .glassCard(cornerRadius: 20)
             }
+          }
+          if let uninstall, let plugin {
+            UninstallRow(setting: uninstall, model: model, plugin: plugin, title: owner?.title ?? plugin)
+              .searchMark(model, SearchTarget.setting(uninstall.id))
+              .cardRow()
+              .glassCard()
           }
         }
         .padding(Space.edge)
@@ -729,8 +728,9 @@ struct SectionPage: View {
     // pane, so the page sits the same distance from all four edges.
     .ignoresSafeArea(.container, edges: .top)
     .softTopEdge()
+    .pluginDrop(installs, model)
     .backBar(plugin == nil ? nil : section.title, model: model) { model.pluginPage = nil }
-    .searchJump(model, proxy, Set((rows + abilities).map { SearchTarget.setting($0.id) }))
+    .searchJump(model, proxy, Set((rows + abilities + (uninstall.map { [$0] } ?? [])).map { SearchTarget.setting($0.id) }))
     }
     // Whether Olm holds each permission, which an ability's switch waits for.
     .onAppear { if !abilities.isEmpty { model.recheck() } }
@@ -773,8 +773,6 @@ struct SettingRow: View {
   @ObservedObject var model: SettingsModel
   /// The plugin page the gear before the control opens, nil for a row with none.
   var page: String? = nil
-  /// Whether that page holds a value moved off the config files, the gear then in the accent.
-  var pageSet = false
 
   var body: some View {
     // The reset button sits a pad's gap before the control, in the control's column of fixed width,
@@ -788,7 +786,7 @@ struct SettingRow: View {
         Spacer(minLength: 0)
         UndoButton(shown: canReset) { model.change(setting, to: .none, reset: true) }
         if let page {
-          PageButton(set: pageSet, help: "Settings of \(setting.title)") { model.pluginPage = page }
+          PageButton(help: "Settings of \(setting.title)") { model.pluginPage = page }
         }
         control.labelsHidden()
       }
@@ -807,18 +805,19 @@ struct SettingRow: View {
 
   @ViewBuilder private var label: some View {
     VStack(alignment: .leading, spacing: Space.related / 2) {
-      Text(setting.title).onTitleLine()
+      HStack(spacing: Space.pad) {
+        Text(setting.title)
+        // Beside the title, so a change grows no row and a row keeps no room for it.
+        if setting.locked == nil, model.waitsForReload(setting) {
+          Label("Applies on reload", systemImage: "arrow.clockwise").font(.caption).foregroundStyle(.secondary)
+        }
+      }
+      .onTitleLine()
       if let detail = setting.detail, !detail.isEmpty {
         Text(detail).font(.caption).foregroundStyle(.secondary)
       }
       if let locked = setting.locked {
         Text("Locked, \(locked)").font(.caption).foregroundStyle(.secondary)
-      } else if setting.needsReload {
-        // Said only once the value has moved off the running one, its line kept while hidden so
-        // a change grows no row.
-        Label("Applies on reload", systemImage: "arrow.clockwise")
-          .font(.caption).foregroundStyle(.secondary)
-          .opacity(model.waitsForReload(setting) ? 1 : 0)
       }
     }
   }
@@ -832,15 +831,6 @@ struct SettingRow: View {
   private var flag: Binding<Bool> {
     Binding(get: { setting.value.flag ?? false }, set: { value in
       if value != setting.value.flag { model.change(setting, to: .flag(value)) }
-    })
-  }
-
-  /// The slider's value, the drag's while it is held, snapped to the setting's step.
-  private func number(_ lo: Double, _ hi: Double) -> Binding<Double> {
-    Binding(get: { model.drafts[setting.id] ?? min(max(setting.value.number ?? lo, lo), hi) }, set: { value in
-      var v = value
-      if let step = setting.step, step > 0 { v = (v / step).rounded() * step }
-      model.drafts[setting.id] = min(max(v, lo), hi)
     })
   }
 
@@ -870,21 +860,7 @@ struct SettingRow: View {
     case .text:
       if (setting.lines ?? 1) > 1 { EmptyView() } else { TextSetting(setting: setting, model: model) }
     case .number:
-      HStack(spacing: Space.pad) {
-        if let lo = setting.min, let hi = setting.max, lo < hi {
-          Slider(value: number(lo, hi), in: lo...hi) { editing in
-            if !editing, let v = model.drafts[setting.id] {
-              if v != setting.value.number { model.change(setting, to: .number(v)) } else { model.drafts[setting.id] = nil }
-            }
-          }
-          .frame(width: Space.slider)
-        }
-        Text(SettingFormat.number(model.drafts[setting.id] ?? setting.value.number ?? 0, step: setting.step,
-          unit: setting.unit))
-          .monospacedDigit()
-          .lineLimit(1)
-          .frame(width: Space.value, alignment: .trailing)
-      }
+      NumberSetting(setting: setting, model: model)
     case .font:
       Picker(setting.title, selection: choice) {
         ForEach(FontChoices.names(including: setting.value.text), id: \.self) { name in
@@ -892,12 +868,74 @@ struct SettingRow: View {
         }
       }
       .fixedSize()
+    case .review:
+      // A plugin kept from running until its page is read, InstallPage.swift.
+      Button("Review…") { model.reviewPlugin(String(setting.id.dropFirst(SettingsModel.heldPrefix.count))) }
+        .disabled(model.offerBusy)
+    case .uninstall:
+      // A folder Olm cannot take, which only its author can mend.
+      Button("Uninstall…", role: .destructive) {
+        model.askUninstall(String(setting.id.dropFirst(SettingsModel.heldPrefix.count)), setting.title)
+      }
+      .disabled(model.offerBusy)
     case .apps, .keys, .sizes, .ability:
       // Drawn by their own page, AppsView, or an ability's own row, AbilityRow, never as a row here.
       EmptyView()
     case .other:
       Text(String(describing: setting.value))
     }
+  }
+}
+
+/// A number typed, a few digits and its unit, sent on Return or when the field is left. One outside its
+/// range is not taken, the header saying the range, and the field goes back to what is set.
+struct NumberSetting: View {
+  let setting: Setting
+  @ObservedObject var model: SettingsModel
+  @FocusState private var focused: Bool
+
+  private var shown: String { SettingFormat.number(setting.value.number ?? 0, step: setting.step, unit: setting.unit) }
+
+  private var text: Binding<String> {
+    Binding(get: { model.texts[setting.id] ?? shown }, set: { value in
+      model.texts[setting.id] = String(value.filter { $0.isNumber || $0 == "." || $0 == "," }.prefix(6))
+    })
+  }
+
+  private var range: String? {
+    guard let lo = setting.min, let hi = setting.max else { return nil }
+    let e = SettingFormat.entry(step: setting.step, unit: setting.unit)
+    func word(_ v: Double) -> String { SettingFormat.number(v, step: setting.step, unit: setting.unit) }
+    return "from \(word(lo)) to \(word(hi)) \(e.unit)"
+  }
+
+  var body: some View {
+    HStack(spacing: Space.related) {
+      TextField(setting.title, text: text)
+        .textFieldStyle(.roundedBorder)
+        .multilineTextAlignment(.trailing)
+        .monospacedDigit()
+        .frame(width: Space.digits)
+        .focused($focused)
+        .onSubmit(send)
+        .onChange(of: focused) { if !focused { send() } }
+        .onDisappear(perform: send)
+        .help(range.map { "A number \($0)" } ?? "")
+      // The column of the widest unit, rows, so every field ends on one line.
+      Text(SettingFormat.entry(step: setting.step, unit: setting.unit).unit)
+        .foregroundStyle(.secondary)
+        .frame(width: Space.unit, alignment: .leading)
+    }
+  }
+
+  private func send() {
+    guard let typed = model.texts.removeValue(forKey: setting.id), typed != shown else { return }
+    guard let v = SettingFormat.value(typed, step: setting.step, unit: setting.unit),
+      v >= setting.min ?? v, v <= setting.max ?? v else {
+      model.refusal = "\(setting.title) takes a number\(range.map { " " + $0 } ?? "")."
+      return
+    }
+    if v != setting.value.number { model.change(setting, to: .number(v)) }
   }
 }
 
@@ -936,7 +974,7 @@ struct TextSetting: View {
     } else {
       TextField(setting.title, text: text, prompt: setting.placeholder.map { Text($0) })
         .textFieldStyle(.roundedBorder)
-        .frame(width: Space.slider)
+        .frame(width: Space.field)
         .focused($focused)
         .onSubmit(send)
         .onChange(of: focused) { if !focused { send() } }
@@ -1105,7 +1143,7 @@ extension View {
     }
   }
 
-  @ViewBuilder func glassCard(cornerRadius: CGFloat) -> some View {
+  @ViewBuilder func glassCard(cornerRadius: CGFloat = Space.corner) -> some View {
     let shape = RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
     if #available(macOS 26, *) {
       glassEffect(.regular, in: shape)

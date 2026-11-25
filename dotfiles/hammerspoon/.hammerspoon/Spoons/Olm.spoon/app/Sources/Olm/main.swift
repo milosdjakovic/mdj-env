@@ -122,7 +122,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
   private let plugins: PluginHost
   // The Olm Settings window, its changes sent over the bridge, S.3 of docs/DESIGN-APP-SETTINGS.md.
   private lazy var settingsWindow = SettingsWindow(share: { ExternalPlugins.merged(SettingsShare.read()) },
-    service: Self.settingsService(bridge), permissions: Self.permissions())
+    service: Self.settingsService(bridge), permissions: Self.permissions(), installer: plugins.installer)
 
   /// Every permission the app uses, for the Permissions page of Olm Settings: Accessibility for
   /// bringing an app forward, Input Monitoring for hearing the keys, and the three folders file

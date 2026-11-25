@@ -142,7 +142,7 @@ func runAll() async {
     })
   await runner.onEnded { _, why in endingsLock.lock(); endings.append(why); endingsLock.unlock() }
   try! await runner.load(folder: work)
-  let plugin = await runner.plugin(manifest.id)!
+  var plugin = await runner.plugin(manifest.id)!
 
   func fresh() async -> ExternalSource {
     await runner.switchOn(manifest.id)
@@ -201,8 +201,10 @@ func runAll() async {
     check(verdict() == .waiting(["program:tmux"]), "asking for more waits, with only what is new")
     rewrite(", \"tmux\",", ",")
     check(verdict() == .allowed, "asking for no more runs")
-    records.allow("misbehave", nil)
-    check(!verdict().runs, "taken back, it waits")
+    records.forget(except: ["misbehave"])
+    check(verdict() == .allowed, "still there, it keeps its yes")
+    records.forget(except: [])
+    check(!verdict().runs, "taken away and put back, it waits")
     let moved = dir.appendingPathComponent("other")
     try! fm.copyItem(at: folder, to: moved)
     if case .refused = PluginGate.verdict(folder: moved, bundled: own, records: records).0 { check(true, "a folder whose name is not its id is refused") } else { check(false, "a folder whose name is not its id is refused") }
@@ -254,6 +256,154 @@ func runAll() async {
     check(cat(work.appendingPathComponent("olm-plugin.json").path) == 0, "its own folder is")
     try? fm.removeItem(atPath: secret)
     try? fm.removeItem(atPath: home)
+  }
+
+  await scenario("the sandbox, a plugin cannot turn a place it writes into another") {
+    let dir = work.deletingLastPathComponent().appendingPathComponent("places")
+    try? fm.removeItem(at: dir)
+    let data = dir.appendingPathComponent("data"), tmp = dir.appendingPathComponent("tmp")
+    let given = URL(fileURLWithPath: NSHomeDirectory()).appendingPathComponent(".olm-plugin-check-place")
+    try? fm.removeItem(at: given)
+    for d in [data, tmp, given] { try! fm.createDirectory(at: d, withIntermediateDirectories: true) }
+    func box(_ files: [PluginManifest.FileGrant], _ programs: [String] = ["rmdir", "mv", "touch", "ln"]) -> Sandbox {
+      Sandbox(folder: dir, data: data, temp: tmp, executable: dir.appendingPathComponent("bin/x"),
+        permissions: .init(programs: programs, files: files))
+    }
+    func run(_ words: [String], _ b: Sandbox) -> Int32 {
+      let p = Process()
+      p.executableURL = URL(fileURLWithPath: "/usr/bin/sandbox-exec")
+      p.arguments = ["-p", b.profile().rules] + words
+      p.standardOutput = FileHandle.nullDevice
+      p.standardError = FileHandle.nullDevice
+      do { try p.run() } catch { return -1 }
+      p.waitUntilExit()
+      return p.terminationStatus
+    }
+    let b = box([.init(path: given.path, write: true)])
+    for d in [data, tmp, given] {
+      check(run(["/usr/bin/touch", d.path + "/a"], b) == 0 && fm.fileExists(atPath: d.path + "/a"), "it writes inside \(d.lastPathComponent)")
+      check(run(["/bin/mv", d.path, tmp.path + "/gone"], b) != 0 && fm.fileExists(atPath: d.path), "it cannot move \(d.lastPathComponent) away")
+      try? fm.removeItem(at: d.appendingPathComponent("a"))
+      check(run(["/bin/rmdir", d.path], b) != 0 && fm.fileExists(atPath: d.path), "or remove it")
+    }
+    try! fm.createSymbolicLink(at: given.appendingPathComponent("in"), withDestinationURL: fm.homeDirectoryForCurrentUser)
+    let wide = box([.init(path: given.path, write: true), .init(path: given.path + "/in", write: true)]).profile().rules
+    check(!wide.contains("(subpath \"\(NSHomeDirectory())\")"), "a grant through a link it can make grants nothing")
+    try! fm.createSymbolicLink(at: data.appendingPathComponent("prog"), withDestinationURL: URL(fileURLWithPath: "/bin/ls"))
+    check(box([], [data.path + "/prog"]).profile().programs.isEmpty, "a program it can put in place is not run")
+    let file = given.appendingPathComponent("note")
+    try! "x".write(to: file, atomically: true, encoding: .utf8)
+    let one = box([.init(path: file.path, write: true)])
+    check(run(["/bin/mv", file.path, tmp.path + "/gone"], one) != 0, "a single file it writes is not moved away")
+    try? fm.removeItem(at: dir)
+    try? fm.removeItem(at: given)
+  }
+
+  await scenario("install, a dropped plugin is copied aside and put in place whole") {
+    let dir = work.deletingLastPathComponent().appendingPathComponent("install")
+    try? fm.removeItem(at: dir)
+    let drop = dir.appendingPathComponent("My Plugin"), root = dir.appendingPathComponent("root")
+    try! fm.createDirectory(at: dir, withIntermediateDirectories: true)
+    try! fm.copyItem(at: source, to: drop)
+    try! fm.createDirectory(at: drop.appendingPathComponent("bin"), withIntermediateDirectories: true)
+    try! fm.copyItem(atPath: "/bin/echo", toPath: drop.path + "/bin/misbehave")
+    try! fm.createSymbolicLink(at: drop.appendingPathComponent("data"), withDestinationURL: fm.homeDirectoryForCurrentUser)
+    var n = 0
+    func stage(_ item: URL) -> Result<PluginInstall.Staged, Error> {
+      n += 1
+      return Result { try PluginInstall.stage(item, into: dir.appendingPathComponent("aside\(n)")) }
+    }
+    func refused(_ item: URL, _ what: String) {
+      if case .failure(let e) = stage(item) { check(true, "\(what) is refused, it \(e)") } else { check(false, "\(what) is refused") }
+    }
+    func shell(_ command: String) {
+      let p = Process()
+      p.executableURL = URL(fileURLWithPath: "/bin/sh")
+      p.arguments = ["-c", command]
+      p.currentDirectoryURL = dir
+      p.standardError = FileHandle.nullDevice
+      try! p.run()
+      p.waitUntilExit()
+    }
+    guard case .success(let s) = stage(drop) else { check(false, "a folder is taken"); return }
+    check(((try? fm.contentsOfDirectory(atPath: s.folder.path)) ?? []).sorted() == ["Sources", "olm-plugin.json"], "its manifest and sources are taken, nothing else of it")
+    check(s.print == (try? PluginGate.fingerprint(source)), "and are the same files")
+    try! PluginInstall.put(s, in: root)
+    let dest = root.appendingPathComponent("misbehave")
+    check(fm.fileExists(atPath: dest.path + "/olm-plugin.json"), "it is put under its id, whatever its folder was called")
+    let records = PluginRecords(url: dir.appendingPathComponent("records.json"))
+    check(!PluginGate.verdict(folder: dest, bundled: nil, records: records).0.runs, "put in place, it still waits")
+
+    try! fm.createDirectory(at: dest.appendingPathComponent("data"), withIntermediateDirectories: true)
+    try! "kept".write(to: dest.appendingPathComponent("data/note"), atomically: true, encoding: .utf8)
+    try! "old".write(to: dest.appendingPathComponent("Sources/old.swift"), atomically: true, encoding: .utf8)
+    shell("ditto -c -k --keepParent 'My Plugin' dropped.olmplugin")
+    refused(dir.appendingPathComponent("records.txt"), "what is not there")
+    if case .success(let z) = stage(dir.appendingPathComponent("dropped.olmplugin")) {
+      check(z.print == s.print, "a .olmplugin holds the same plugin")
+      try! PluginInstall.put(z, in: root)
+      check((try? String(contentsOf: dest.appendingPathComponent("data/note"), encoding: .utf8)) == "kept", "an update keeps its data")
+      check(!fm.fileExists(atPath: dest.path + "/Sources/old.swift"), "and none of the old sources")
+    } else { check(false, "a .olmplugin is taken") }
+
+    // These two go to the Trash, as the real one does, and are taken out of it again.
+    if let gone = try? PluginInstall.remove("misbehave", from: root, data: false, aside: dir.appendingPathComponent("going")) { try? fm.removeItem(at: gone) }
+    check(((try? fm.contentsOfDirectory(atPath: dest.path)) ?? []) == ["data"], "uninstalled, its data alone stays")
+    check(fm.fileExists(atPath: dest.path + "/data/note"), "with what it held")
+    if let gone = try? PluginInstall.remove("misbehave", from: root, data: true, aside: dir.appendingPathComponent("going")) { try? fm.removeItem(at: gone) }
+    check(!fm.fileExists(atPath: dest.path), "uninstalled with its data, nothing stays")
+
+    shell("rm -f 'My Plugin/data'; ln -s /etc/hosts 'My Plugin/Sources/more.swift'")
+    refused(drop, "a link among the sources")
+    shell("rm -f 'My Plugin/Sources/more.swift'; mkfifo 'My Plugin/Sources/pipe.swift'")
+    refused(drop, "a pipe among the sources")
+    shell("cp -Rp 'My Plugin' misbehave")
+    if case .refused = PluginGate.verdict(folder: dir.appendingPathComponent("misbehave"), bundled: nil, records: records).0 { check(true, "a pipe in a folder put in place is refused and not waited on") } else { check(false, "a pipe is refused") }
+    shell("rm -f 'My Plugin/Sources/pipe.swift'; ln -s 'My Plugin' linked")
+    refused(dir.appendingPathComponent("linked"), "a link to a plugin")
+    refused(dir.appendingPathComponent("root"), "a folder with no manifest")
+    shell("mkfile 33m 'My Plugin/Sources/big.swift'")
+    refused(drop, "over 32 MB of sources")
+    shell("ditto -c -k --keepParent 'My Plugin' big.olmplugin")
+    refused(dir.appendingPathComponent("big.olmplugin"), "an archive that unpacks to over 32 MB")
+    // An archive whose link points out and whose next file goes through it, and one that climbs.
+    let out = NSHomeDirectory() + "/.olm/cache/plugin-check/install/escaped"
+    try! fm.createDirectory(atPath: out, withIntermediateDirectories: true)
+    try! """
+    import zipfile, stat
+    z = zipfile.ZipFile('evil.olmplugin', 'w')
+    i = zipfile.ZipInfo('p/l'); i.create_system = 3; i.external_attr = (stat.S_IFLNK | 0o755) << 16
+    z.writestr(i, '\(out)')
+    z.writestr('p/l/through', 'x')
+    z.writestr('../../escaped/climbed', 'x')
+    z.writestr('p/olm-plugin.json', '{}')
+    z.close()
+    """.write(to: dir.appendingPathComponent("evil.py"), atomically: true, encoding: .utf8)
+    shell("/usr/bin/python3 evil.py")
+    check(fm.fileExists(atPath: dir.path + "/evil.olmplugin"), "the escaping archive was made")
+    refused(dir.appendingPathComponent("evil.olmplugin"), "an archive that writes outside itself")
+    check(((try? fm.contentsOfDirectory(atPath: out)) ?? []).isEmpty, "and nothing of it is outside")
+    func manifest(_ json: String) -> Bool {
+      try! json.write(to: dir.appendingPathComponent("olm-plugin.json"), atomically: true, encoding: .utf8)
+      return (try? PluginManifest.read(folder: dir)) != nil
+    }
+    check(manifest(#"{"id":"a","title":"A","abilities":[{"use":"readClipboard","why":"x"}]}"#), "a plain manifest is read")
+    check(PluginGate.asks((try! PluginManifest.read(folder: dir))) == ["ability:readClipboard"], "an ability is asked for")
+    check(!manifest(#"{"id":"a","title":"A\u202Eb"}"#), "a title that turns the writing round is refused")
+    check(!manifest(#"{"id":"a","title":"A","permissions":{"files":[{"path":"~/Music/../.ssh"}]}}"#), "a path that climbs is refused")
+    check(!manifest(#"{"id":"a","title":"A","permissions":{"programs":["ls\nfine"]}}"#), "a program of two lines is refused")
+    try? fm.removeItem(at: dir)
+  }
+
+  await scenario("let go, a plugin whose files changed is never started again") {
+    let src = await fresh()
+    check(await plugin.running, "it runs")
+    await runner.unload(manifest.id)
+    await wait(0.5)
+    check(await !plugin.running, "it is stopped")
+    _ = await rows(src, "hello")
+    check(await !plugin.running, "a list still open on it does not start it")
+    plugin = try! await runner.load(folder: work)
   }
 
   await scenario("requests, what a plugin may ask of Olm") {

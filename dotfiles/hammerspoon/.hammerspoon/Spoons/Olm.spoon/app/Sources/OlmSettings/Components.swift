@@ -26,17 +26,16 @@ struct UndoButton: View {
 }
 
 /// The gear, after the undo and before the control, opening the row's own page inside the window,
-/// a plugin's settings or an application's. Drawn in the accent when that page holds anything set,
-/// the rule every set value follows.
+/// a plugin's settings or an application's. Always muted, whatever its page holds, asked by Milos on
+/// 2026-11-25.
 struct PageButton: View {
-  let set: Bool
   let help: String
   let action: () -> Void
 
   var body: some View {
     Button(action: action) {
       Image(systemName: "gearshape")
-        .foregroundStyle(set ? AnyShapeStyle(.tint) : AnyShapeStyle(.secondary))
+        .foregroundStyle(.secondary)
         .frame(width: Space.mark)
     }
     .buttonStyle(.borderless)
@@ -131,6 +130,135 @@ extension VerticalAlignment {
 extension View {
   /// Marks this view's middle as the title line, on a row's title and on its control.
   func onTitleLine() -> some View { alignmentGuide(.titleLine) { $0[VerticalAlignment.center] } }
+}
+
+/// Rows on one glass card, a divider between each, every list in the window.
+struct CardList<Item: Identifiable, Row: View>: View {
+  let items: [Item]
+  @ViewBuilder let row: (Item) -> Row
+
+  init(_ items: [Item], @ViewBuilder row: @escaping (Item) -> Row) {
+    self.items = items
+    self.row = row
+  }
+
+  var body: some View {
+    VStack(spacing: 0) {
+      ForEach(Array(items.enumerated()), id: \.element.id) { index, item in
+        if index > 0 { CardDivider() }
+        row(item).cardRow()
+      }
+    }
+    .glassCard()
+  }
+}
+
+/// The line between two rows of a card, starting where their words do.
+struct CardDivider: View {
+  var body: some View { Divider().padding(.leading, Space.pad + 4) }
+}
+
+/// A card's title over it, with what belongs to the whole card at its right.
+struct CardSection<Trailing: View, Content: View>: View {
+  let title: String
+  @ViewBuilder let trailing: Trailing
+  @ViewBuilder let content: Content
+
+  var body: some View {
+    VStack(alignment: .leading, spacing: Space.pad) {
+      HStack(spacing: Space.pad) {
+        Text(title).font(.headline).frame(maxWidth: .infinity, alignment: .leading)
+        trailing
+      }
+      .padding(.horizontal, Space.pad + 4)
+      content
+    }
+  }
+}
+
+extension CardSection where Trailing == EmptyView {
+  init(_ title: String, @ViewBuilder content: () -> Content) {
+    self.init(title: title, trailing: { EmptyView() }, content: content)
+  }
+}
+
+/// A name and its control, a row of a page that edits one thing.
+struct LabelRow<Control: View>: View {
+  let title: String
+  @ViewBuilder let control: Control
+
+  init(_ title: String, @ViewBuilder control: () -> Control) {
+    self.title = title
+    self.control = control()
+  }
+
+  var body: some View {
+    HStack(alignment: .center, spacing: Space.pad) {
+      Text(title)
+      Spacer(minLength: Space.pad)
+      control.labelsHidden()
+    }
+    .cardRow()
+  }
+}
+
+/// A search on a Liquid Glass capsule, the sidebar's and a page's, the field inside it plain so the
+/// glass is the only bezel. The clear button keeps its place when hidden, so typing moves nothing.
+struct GlassSearch: View {
+  let prompt: String
+  @Binding var text: String
+  var move: (Int) -> Void = { _ in }
+  var submit: () -> Void = {}
+
+  var body: some View {
+    HStack(spacing: Space.pad) {
+      Image(systemName: "magnifyingglass").foregroundStyle(.secondary).frame(width: 20)
+      TextField(prompt, text: $text)
+        .textFieldStyle(.plain)
+        .onKeyPress(.downArrow) { move(1); return .handled }
+        .onKeyPress(.upArrow) { move(-1); return .handled }
+        .onSubmit(submit)
+      Button { text = "" } label: {
+        Image(systemName: "xmark.circle.fill").foregroundStyle(.secondary)
+      }
+      .buttonStyle(.plain)
+      .opacity(text.isEmpty ? 0 : 1)
+      .disabled(text.isEmpty)
+    }
+    .padding(.horizontal, Space.pad)
+    .frame(height: Space.rowHeight + 4)
+    .glassCapsule()
+  }
+}
+
+/// A button on the same capsule, as tall as a search beside it, what a page adds to itself.
+struct GlassButton: View {
+  let title: String
+  let symbol: String
+  let help: String
+  let action: () -> Void
+
+  var body: some View {
+    Button(action: action) {
+      Label(title, systemImage: symbol)
+        .lineLimit(1)
+        .padding(.horizontal, Space.pad + 4)
+        .frame(height: Space.rowHeight + 4)
+        .contentShape(Capsule())
+    }
+    .buttonStyle(.plain)
+    .glassCapsule()
+    .fixedSize()
+    .help(help)
+  }
+}
+
+extension View {
+  /// A row's room inside its card, the same on every page.
+  func cardRow() -> some View {
+    frame(maxWidth: .infinity, alignment: .leading)
+      .padding(.horizontal, Space.pad + 4).padding(.vertical, Space.pad)
+  }
 }
 
 /// A row that folds open a short list belonging to it, switched in place, the chevron at its left

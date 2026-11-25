@@ -396,13 +396,51 @@ shadow where its rows can be compared, then flipped, which switches the Lua plug
 
 ## As built
 
+**The install page, built 2026-11-25.** Step 2 of the install plan, asked by Milos. Nothing of a plugin
+builds or runs until its button is pressed.
+
+- **Two ways in.** Plugins in Olm Settings takes a plugin folder or a `.olmplugin`, a zip of one,
+  dropped on the page or chosen with Install a Plugin. A folder put in `~/.olm/plugins` has a row with
+  Review. Both open one page with Back, `OlmSettings/InstallPage.swift`.
+- **The page** shows what the plugin says of itself in quotes and a line for everything it asks for,
+  made by `PluginOffer` from the same reading of the manifest the sandbox's rules are made from, the
+  abilities listed with no switches, Milos on 2026-11-25. A home folder, a service or the internet says
+  what that means. Asked for more, it lists only what is new. Cancel, Back or another section leaves it.
+- **A dropped plugin is copied aside,** its manifest and `Sources` alone, `OlmPlugins/PluginInstall.swift`,
+  to `~/.olm/cache/plugin-install`, so what was read is what is put in place. Links, pipes, over 5000
+  files or 32 MB and the id of one of Olm's own are refused. An archive is unpacked in a sandbox that
+  writes to that place alone. An update keeps the data folder and nothing else.
+- **Allow** puts it in place, records everything shown, turns a new plugin on, then builds and loads
+  it. A folder whose files moved while the page was open is shown again. One that does not build keeps
+  its page, with the compiler's errors and Build Again, and is a row in Plugins until it does.
+- **The folder is followed,** `PluginWatcher`, a second after a manifest or source moves. A plugin gone,
+  changed or asking for more is stopped for good and built again only as the gate allows, so nothing
+  needs a restart of Olm.
+- **A file held over Plugins** covers the page with where it lands and what happens then, asked by Milos.
+- **Uninstall,** asked by Milos the same day. Every plugin that did not come with Olm has a gear, and
+  its page ends with Uninstall. Uninstall asks in a dialog holding the box. It goes to the Trash, and its data
+  stays in its folder unless the box is ticked, which takes its settings too. The install page says so
+  when a plugin gets data an earlier one by its id left. A folder Olm holds has it on its page or row.
+  Ours are switched off instead, since `src/setup-olmapp.sh` puts them back.
+- **A plugin whose folder is gone loses its yes,** so another by its id is asked about.
+- **Abilities are asked for now,** part of what the gate records, so an update adding one waits. Each
+  is still switched off on its page.
+- **Ours come first** where one plugin takes a turn, Receive Links, so a plugin installed later does
+  not take links from Browser Switcher.
+- **A plugin cannot widen its own grants.** The sandbox lets it write inside a place and not the place
+  itself, and leaves out a grant, program or socket standing in a place it writes, since it could
+  put a link there and Olm follows links as it starts it. A place granted to write must exist. Two
+  plugins working together are not covered.
+- **Texts a person reads** are refused in the manifest when they hold characters that do not show, and
+  a file path must start with `~/` or `/` and hold no `..`.
+
 **Nothing runs before Allow, built 2026-11-25.** Asked by Milos, before the install page.
 
 - **The gate,** `OlmPlugins/PluginGate.swift`. A folder in `~/.olm/plugins` is built, loaded and read
   only when it is Olm's own, the same manifest and sources as the copy in the signed app's
   `Resources/Plugins`, or when the person allowed everything it asks for, its `needs`, its permissions
-  and running in the background. Asking for more waits with only what is new. Abilities are not part
-  of it, they are allowed with the plugin. A change to the sources alone is not asked about again.
+  and running in the background. Asking for more waits with only what is new. Abilities were not part
+  of it until the install page, the same day. A change to the sources alone is not asked about again.
 - **The records** are `~/.olm/state/plugin-records.json`, never a setting, so no import reaches them.
   A broken file lets nothing through but Olm's own.
 - **Its program is always one Olm built,** from the sources and the kit it has now, known by hash. One
@@ -411,8 +449,7 @@ shadow where its rows can be compared, then flipped, which switches the Lua plug
   uses as a word, more than 5000 files or 32 MB of sources.
 - **`~/.olm` is kept from every plugin** whatever place it is granted, its own folder given back after,
   since a grant of the home folder reached the records and the signing key.
-- A held plugin is a locked row in Plugins saying why. Nothing can allow one until the install page.
-  Olm reads the folder at launch only, until then.
+- A held plugin is a row in Plugins saying why, with Uninstall alone when only its author can help.
 
 **Requests narrowed, built 2026-11-25.** `OlmPlugins/PluginRequests.swift` reads a link and
 `RunningPlugin` refuses a request the manifest's `needs` does not name, a bad link and a link nobody
@@ -451,8 +488,7 @@ and 4 in part, asked by Milos, the install page and the `olm` command left for t
   own, `src/setup-olmapp.sh` copying it into `~/.olm/plugins`. The Lua one was switched off, then
   deleted the same day once Milos confirmed this one, and the favourites saved for it were taken over once. Checked by driving the
   built program over its pipes, and `test/olmplugins.sh` still holds every case.
-- **Not yet.** Installing a plugin by dropping it on Olm Settings and asking for its sandbox
-  permissions, offering a block with Allow, the `olm` command, and the plugin's own log in the window.
+- **Not yet.** Offering a block with Allow, the `olm` command, and the plugin's own log in the window.
 
 **Step 2, Olm.app signed with this Mac's certificate, built 2026-11-24.** `src/setup-olmapp.sh` makes
 a self signed code signing certificate once, with the system's `openssl`, into

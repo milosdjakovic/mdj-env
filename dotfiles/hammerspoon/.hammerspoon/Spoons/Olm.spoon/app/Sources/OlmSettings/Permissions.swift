@@ -61,44 +61,28 @@ struct PermissionsView: View {
     ScrollView {
       GlassGroup {
         VStack(alignment: .leading, spacing: Space.group) {
-          HStack(spacing: Space.pad + 4) {
-            Image(systemName: PermissionsPage.section.symbol)
-              // look-exempt, the section's picture in its glass circle, sized as System Settings does.
-              .font(.system(size: 26, weight: .medium))
-              .foregroundStyle(.tint)
-              .frame(width: SectionPage.header, height: SectionPage.header)
-              .glassCircle()
-            VStack(alignment: .leading, spacing: Space.row) {
-              Text("Permissions").font(.largeTitle.weight(.semibold))
-              Text(summary).font(.callout).foregroundStyle(.secondary)
-            }
-            Spacer(minLength: Space.group)
+          PageHeader(title: "Permissions", subtitle: summary) {
+            SectionSymbol(symbol: PermissionsPage.section.symbol)
           }
-          .frame(height: SectionPage.header)
-          VStack(spacing: 0) {
-            ForEach(Array(rows.enumerated()), id: \.element.id) { index, permission in
-              if index > 0 { Divider().padding(.leading, Space.pad + 4) }
-              let uses = model.abilities(riding: permission.id)
-              DisclosureRow(open: model.openPermissions.contains(permission.id), folds: !uses.isEmpty,
-                toggle: { model.togglePermission(permission.id) }) {
-                PermissionRow(permission: permission, granted: granted(permission),
-                  plugins: Set(uses.compactMap { $0.ability?.owner }).count)
-              } content: {
-                if let own = permission.ownUse {
-                  OwnUseRow(text: own)
-                  Divider()
-                }
-                ForEach(Array(uses.enumerated()), id: \.element.id) { i, use in
-                  if i > 0 { Divider() }
-                  AbilityRow(setting: use, model: model, plugin: model.pluginTitle(use.ability?.owner ?? ""))
-                    .padding(.vertical, Space.pad)
-                }
+          CardList(rows) { permission in
+            let uses = model.abilities(riding: permission.id)
+            DisclosureRow(open: model.openPermissions.contains(permission.id), folds: !uses.isEmpty,
+              toggle: { model.togglePermission(permission.id) }) {
+              PermissionRow(permission: permission, granted: granted(permission),
+                plugins: Set(uses.compactMap { $0.ability?.owner }).count)
+            } content: {
+              if let own = permission.ownUse {
+                OwnUseRow(text: own)
+                Divider()
               }
-              .padding(.horizontal, Space.pad + 4).padding(.vertical, Space.pad)
-              .searchMark(model, SearchTarget.permission(permission.id))
+              ForEach(Array(uses.enumerated()), id: \.element.id) { i, use in
+                if i > 0 { Divider() }
+                AbilityRow(setting: use, model: model, plugin: model.pluginTitle(use.ability?.owner ?? ""))
+                  .padding(.vertical, Space.pad)
+              }
             }
+            .searchMark(model, SearchTarget.permission(permission.id))
           }
-          .glassCard(cornerRadius: 20)
         }
         .padding(Space.edge)
         .frame(maxWidth: .infinity, alignment: .leading)

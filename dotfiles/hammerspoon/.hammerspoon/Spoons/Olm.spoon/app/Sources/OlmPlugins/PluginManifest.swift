@@ -17,6 +17,8 @@ public struct PluginManifest: Sendable, Equatable {
   public var permissions: Permissions
   /// What it asks of Olm, PluginRequests.known, anything else refused.
   public var needs: Set<String> = []
+  /// What Olm does for it with a permission Olm holds, each ability's `use`.
+  public var abilities: Set<String> = []
 
   public struct Permissions: Sendable, Equatable {
     /// Programs it runs, a bare name looked up on the plugin path or an absolute path.
@@ -98,6 +100,8 @@ public struct PluginManifest: Sendable, Equatable {
     }
     guard !reserved.contains(id) else { throw Failure.field("has the id \(id), which is Olm's own word") }
     guard let title = o["title"] as? String, !title.isEmpty else { throw Failure.field("needs a title") }
+    try plain(title, "title", 60)
+    try plain(o["version"] as? String ?? "", "version", 30)
     var m = PluginManifest(id: id, title: title, version: o["version"] as? String ?? "0",
       proto: o["protocol"] as? Int ?? 1, background: o["background"] as? Bool ?? false)
     if let needs = o["needs"] {
@@ -107,13 +111,24 @@ public struct PluginManifest: Sendable, Equatable {
       }
       m.needs = Set(list)
     }
+    for a in o["abilities"] as? [[String: Any]] ?? [] {
+      guard let use = a["use"] as? String else { throw Failure.field("an ability needs a use") }
+      try plain(use, "ability", 200)
+      m.abilities.insert(use)
+    }
     guard let p = o["permissions"] as? [String: Any] else { return m }
     if let programs = p["programs"] {
       guard let list = programs as? [String] else { throw Failure.field("permissions.programs is a list of names") }
+      for name in list { try plain(name, "program", 500) }
       m.permissions.programs = list
     }
     for f in p["files"] as? [[String: Any]] ?? [] {
       guard let path = f["path"] as? String else { throw Failure.field("a file grant needs a path") }
+      try plain(path, "file path", 1000)
+      // A path a person reads on the install page is the one granted, with no way back up in it.
+      guard path == "~" || path.hasPrefix("~/") || path.hasPrefix("/"), !path.split(separator: "/").contains("..") else {
+        throw Failure.field("a file grant's path starts with ~/ or / and has no ..")
+      }
       let access = f["access"] as? String ?? "read"
       guard access == "read" || access == "write" else { throw Failure.field("a file grant's access is read or write") }
       m.permissions.files.append(FileGrant(path: path, write: access == "write"))
@@ -123,6 +138,7 @@ public struct PluginManifest: Sendable, Equatable {
       m.permissions.network = net
     }
     for s in p["services"] as? [[String: Any]] ?? [] {
+      for word in s.values.compactMap({ $0 as? String }) { try plain(word, "service", 500) }
       if let name = s["mach"] as? String {
         m.permissions.services.append(.mach(name))
       } else if let path = s["socket"] as? String {
@@ -134,5 +150,14 @@ public struct PluginManifest: Sendable, Equatable {
       }
     }
     return m
+  }
+
+  /// Refuses a text that could show as something else than it is on the install page, a line break, a
+  /// control character or one that turns the writing round.
+  static func plain(_ s: String, _ what: String, _ most: Int) throws {
+    let odd = s.unicodeScalars.contains {
+      [.control, .format, .lineSeparator, .paragraphSeparator, .privateUse, .unassigned].contains($0.properties.generalCategory)
+    }
+    guard !odd, s.count <= most else { throw Failure.field("has a \(what) that is too long or holds characters that do not show") }
   }
 }

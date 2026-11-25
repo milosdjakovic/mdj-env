@@ -56,8 +56,14 @@ public struct Sandbox: Sendable {
 
     """
     r += "(allow process-exec \(Self.literal(Self.real(executable.path))))\n"
+    // Every place it writes. A grant standing inside one is the plugin's own to point elsewhere with a
+    // link, and Olm resolves links as it starts, so such a grant is left out: a place there is already
+    // its to read and write, and a program or socket there is not one Olm vouches for.
+    let writes = [data, temp].map { Self.real($0.path) }
+      + permissions.files.filter(\.write).map { Self.place($0.path).path }
+    func own(_ path: String) -> Bool { Self.standsIn(path, writes) }
     for program in permissions.programs {
-      guard let found = Self.resolve(program) else {
+      guard let found = Self.resolve(program), !own(found.link), !own(found.real) else {
         missing.append(program)
         continue
       }
@@ -70,14 +76,17 @@ public struct Sandbox: Sendable {
       }
     }
     for grant in permissions.files {
+      guard !own((grant.path as NSString).expandingTildeInPath) else { continue }
       let place = Self.place(grant.path)
-      r += grant.write ? "(allow file-read* file-write* \(Self.subpath(place)))\n" : "(allow file-read* \(Self.subpath(place)))\n"
+      r += "(allow file-read* \(Self.subpath(place)))\n"
+      if grant.write { r += Self.writing(place) }
     }
     // Olm's own folder is never part of a granted place, what the person allowed and the signing key
     // among it, and a plugin's own places are given back after, since the last rule that matches wins.
     r += "(deny file-read* file-write* \(Self.subpath(Self.place("~/.olm"))))\n"
     r += "(allow file-read* \(Self.subpath(folder)))\n"
-    r += "(allow file-read* file-write* \(Self.subpath(data)) \(Self.subpath(temp)))\n"
+    r += "(allow file-read* \(Self.subpath(data)) \(Self.subpath(temp)))\n"
+    r += Self.writing(data) + Self.writing(temp)
     switch permissions.network {
     case .none:
       break
@@ -93,6 +102,7 @@ public struct Sandbox: Sendable {
       case .mach(let name):
         r += "(allow mach-lookup (global-name \(Self.quote(name))))\n"
       case .socket(let path):
+        if own(path) { continue }
         r += "(allow network-outbound (remote unix-socket (path-literal \(Self.quote(Self.real(path))))))\n"
       case .iokit(let cls):
         r += "(allow iokit-open (iokit-user-client-class \(Self.quote(cls))))\n"
@@ -101,9 +111,33 @@ public struct Sandbox: Sendable {
     return (r, programs, missing)
   }
 
+  /// Where a declared path really is, for the install page.
+  public static func resolved(_ path: String) -> String { place(path).path }
+
   /// A declared place as the sandbox matches it, `~` expanded and symlinks resolved.
   static func place(_ path: String) -> URL {
     URL(fileURLWithPath: real((path as NSString).expandingTildeInPath))
+  }
+
+  /// Writing what is inside a place and never the place itself, which it could otherwise replace with a
+  /// link and be given what that leads to at its next start. A file's contents only, for the same reason.
+  static func writing(_ place: URL) -> String {
+    var dir: ObjCBool = false
+    if FileManager.default.fileExists(atPath: place.path, isDirectory: &dir), !dir.boolValue {
+      return "(allow file-write-data \(literal(real(place.path))))\n"
+    }
+    return "(allow file-write* (require-all \(subpath(place)) (require-not \(literal(real(place.path))))))\n"
+  }
+
+  /// Whether any step of a path stands in a folder inside one of places.
+  static func standsIn(_ path: String, _ places: [String]) -> Bool {
+    var at = URL(fileURLWithPath: path).standardizedFileURL.path
+    while at != "/" && !at.isEmpty {
+      at = (at as NSString).deletingLastPathComponent
+      let dir = real(at)
+      if places.contains(where: { $0 == "/" || dir == $0 || dir.hasPrefix($0 + "/") }) { return true }
+    }
+    return false
   }
 
   /// The path the sandbox sees, every symlink resolved by realpath, /private/var/run for /var/run.

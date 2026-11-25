@@ -4,6 +4,7 @@
 
 import Foundation
 import OlmApps
+import OlmPlugins
 import OlmSettings
 
 var failures = 0, checks = 0
@@ -262,6 +263,27 @@ eq(titles([profile("Person 1", owned: false), profile("Person 2", owned: false)]
 let work = Browsers.targets(browser: "Chrome", bundle: "c", path: "/c", profiles: [profile("Work")])[0]
 eq(work.id, "c|--p=Work", "saved by the browser and the profile")
 eq(work.oldTitle, "Chrome (Work)", "and found by the title it had")
+
+// The install page, docs/DESIGN-APP-PLUGINS.md: a line for everything that is allowed, none left out.
+var asker = PluginManifest(id: "a", title: "A", version: "2", background: true, permissions: .init(
+  programs: ["tmux"], files: [.init(path: "~", write: true), .init(path: "~/Music", write: false)], network: .internet,
+  services: [.mach("m"), .socket("/s"), .iokit("i")]))
+asker.needs = ["open", "copy", "notify"]
+asker.abilities = ["readClipboard", "madeUp"]
+func offer(_ given: Set<String>?, failed: String? = nil) -> PluginOffer {
+  PluginOffer(id: "t", manifest: asker, declared: nil, from: nil, replaces: nil, given: given, failed: failed)
+}
+let every = PluginGate.asks(asker)
+eq(Set(offer(nil).groups.flatMap(\.lines).map(\.id)), every, "the page has a line for everything allowing records")
+eq(offer(nil).state, .new, "never allowed")
+eq(offer(every.subtracting(["write:~"])).groups.flatMap(\.lines).map(\.id), ["write:~"], "asking for more lists only what is new")
+eq(offer(every.subtracting(["write:~"])).state, .more, "and says so")
+eq(offer(every).state, .same, "nothing new is an update")
+eq(offer(every, failed: "x").state, .failed("x"), "one that did not build says why")
+let home = offer(nil).groups.flatMap(\.lines).first { $0.id == "write:~" }
+eq(home?.detail?.contains("whole home folder"), true, "the home folder is said")
+asker.permissions.network = .local
+eq(Set(offer(nil).groups.flatMap(\.lines).map(\.id)), PluginGate.asks(asker), "the local network too")
 
 print("olm-apps-check: \(checks) checks, \(failures) failures")
 exit(failures == 0 ? 0 : 1)

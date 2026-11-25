@@ -35,7 +35,7 @@ public enum PluginGate {
   }
 
   /// What a person allows, a line each, stable so a later manifest is compared with it. Abilities are
-  /// not here, they are allowed with the plugin and switched off in Olm Settings.
+  /// among them, so an update adding one asks, and each is switched off in Olm Settings.
   public static func asks(_ m: PluginManifest) -> Set<String> {
     var out = Set(m.needs.map { "need:\($0)" })
     out.formUnion(m.permissions.programs.map { "program:\($0)" })
@@ -48,6 +48,7 @@ public enum PluginGate {
       case .iokit(let c): out.insert("iokit:\(c)")
       }
     }
+    out.formUnion(m.abilities.map { "ability:\($0)" })
     if m.background { out.insert("background") }
     return out
   }
@@ -89,6 +90,8 @@ public enum PluginGate {
         if type == .typeDirectory {
           if prefix.isEmpty, name == "data" || name == "tmp" { continue }
           try walk(url, path + "/")
+        } else if type != .typeRegular {
+          throw Refused(description: "it holds a special file, \(path), which Olm does not read")
         } else if path == "olm-plugin.json" || path.hasPrefix("Sources/") {
           files.append((path, url))
         }
@@ -162,6 +165,11 @@ public final class PluginRecords: @unchecked Sendable {
   public func built(_ id: String) -> Built? { read().built[id] }
   /// The person's yes to everything asked, nil takes it back.
   public func allow(_ id: String, _ asks: Set<String>?) { change { $0.allowed[id] = asks?.sorted() } }
+  /// Takes back the yes given to every plugin no longer there, so another by its id is asked about.
+  public func forget(except here: Set<String>) {
+    guard read().allowed.keys.contains(where: { !here.contains($0) }) else { return }
+    change { doc in doc.allowed = doc.allowed.filter { here.contains($0.key) } }
+  }
   public func setBuilt(_ id: String, _ built: Built) { change { $0.built[id] = built } }
 
   private func load() -> Doc {
