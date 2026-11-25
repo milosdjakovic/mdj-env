@@ -18,7 +18,7 @@ local function pane_cwd(block_id)
 end
 
 -- Whether the pane the key was pressed in fills its window. Rex keeps a zoom only while the
--- zoomed pane has focus, so opening the float clears it, and tools/keep-zoom gives it back when
+-- zoomed pane has focus, so opening the float clears it, and tools/return-to-caller gives it back when
 -- the tool exits.
 local function pane_zoomed(session_id, block_id)
   if session_id == nil or block_id == nil then return false end
@@ -34,8 +34,8 @@ end
 -- tool is the script name and nothing else, so adding one is a script in tools/ and a binding
 -- below. The pane closes when the tool exits, and the layer goes with it since the pane is its
 -- only block. MDJ_REX_TARGET names the pane the key was pressed in, because inside the float
--- REX_BLOCK names the float itself. Every tool runs inside tools/keep-zoom, and MDJ_REX_ZOOMED
--- tells it the calling pane was zoomed.
+-- REX_BLOCK names the float itself. Every tool runs inside tools/return-to-caller, which focuses
+-- that pane again as the tool exits, and MDJ_REX_ZOOMED tells it the calling pane was zoomed.
 rex.action{
   name  = "float_tool",
   title = "Open a Tool in a Floating Pane",
@@ -55,7 +55,7 @@ rex.action{
               "env",
               "MDJ_REX_TARGET=" .. (ctx.block_id or ""),
               "MDJ_REX_ZOOMED=" .. (pane_zoomed(ctx.session_id, ctx.block_id) and "1" or ""),
-              tools .. "keep-zoom", tools .. "upper-slots", tools .. args.tool,
+              tools .. "return-to-caller", tools .. "upper-slots", tools .. args.tool,
             },
           },
         },

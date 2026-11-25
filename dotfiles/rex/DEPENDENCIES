@@ -9,6 +9,6 @@ fzf | path | fzf | required | .config/rex/tools/find.sh, .config/rex/tools/lazyg
 fd | path | fd | required | .config/rex/tools/find.sh | listing the folders and files the picker ranks | brew | fd
 nvim | path | nvim | optional | .config/rex/tools/find.sh | opening a chosen file, choosing a folder still works without it | brew | neovim
 lf | path | lf | optional | .config/rex/tools/browse.sh | the file browser floating pane, the binding is dead without it | brew | lf
-jq | path | jq | required | .config/rex/tools/find.sh, .config/rex/tools/keep-zoom | reading whether the calling pane is free, and whether focus is still in the float | brew | jq
+jq | path | jq | required | .config/rex/tools/find.sh, .config/rex/tools/return-to-caller | reading whether the calling pane is free, and whether focus is still in the float | brew | jq
 osascript | path | osascript | required | .config/rex/tools/find.sh, .config/rex/tools/lazygit.sh | the notification that is the only feedback once a floating pane has closed | macos | ships with macOS
-rex-cli | path | rex | required | .config/rex/tools/find.sh, .config/rex/tools/keep-zoom | sending the chosen place to the calling pane, or opening it as a new tab, zooming the calling pane again, and Rex puts it on PATH in every floating pane
+rex-cli | path | rex | required | .config/rex/tools/find.sh, .config/rex/tools/return-to-caller | sending the chosen place to the calling pane, or opening it as a new tab, focusing and zooming the calling pane again, and Rex puts it on PATH in every floating pane

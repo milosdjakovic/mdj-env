@@ -57,11 +57,13 @@ carries them from `theme/`, so Rex still has no theme map or emitter of its own.
 get them. A plain Rex pane still answers those slots with the cube, so fzf run by hand there
 shows the blue row until Rex's import keeps the slots.
 
-A float clears the calling pane's zoom, because Rex keeps a zoom only while the zoomed pane has
-focus, and zooming again while the float is open pulls focus back out of it. So the action reads
-whether the calling pane was zoomed and runs every tool inside `tools/keep-zoom`, which zooms
-that pane again as the tool exits, unless focus has already left the float, as it does when the
-finder opens a new tab. Behind an open float the layout shows unzoomed, and that cannot be
+When a float closes Rex focuses the last pane in the layout, not the one the key was pressed in.
+A float also clears the calling pane's zoom, because Rex keeps a zoom only while the zoomed pane
+has focus, and zooming again while the float is open pulls focus back out of it. So the action
+reads whether the calling pane was zoomed and runs every tool inside `tools/return-to-caller`,
+which focuses that pane again as the tool exits, while the float still has focus, and then zooms
+it when it was zoomed. Both are skipped when focus has already left the float, as it does when
+the finder opens a new tab. Behind an open float the layout shows unzoomed, and that cannot be
 changed from here. A new tool needs nothing for this, the action wraps it.
 
 Rex does not watch the file. After an edit run `rex config reload` from a Rex terminal, and

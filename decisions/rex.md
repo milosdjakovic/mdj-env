@@ -12,8 +12,8 @@ is off by default and on for Miloss-MacBook-Pro-Vicert.
 
 `dotfiles/rex/.config/rex/init.lua` is stowed and binds herdr's three tools, lazygit, the fuzzy
 search and lf, to the same `alt+z` keys, each opened by one action in a floating pane over the
-current tab. The tools are copies of herdr's for now. A float opened from a zoomed pane gives
-the zoom back when its tool exits, through `tools/keep-zoom`.
+current tab. The tools are copies of herdr's for now. A float gives the calling pane its focus
+back when its tool exits, and its zoom when it was zoomed, through `tools/return-to-caller`.
 
 Hyper and backtick opens Rex in place of Ghostty on Miloss-MacBook-Pro-Vicert only, set in that
 machine's `hammerspoon-apps.lua` with Rex's bundle id beside it, while every other machine keeps
@@ -166,3 +166,9 @@ The settings in `SETTINGS` are not tied to this machine and apply wherever the p
 - 2026-11-19 14:54, the switcher's keys settled at `cmd+k` for Activity, `cmd+s` for Sessions and `cmd+p`
   for Blocks, asked by Milos since Activity is the one used most. `cmd+k` is taken from Rex's
   own Change Session, and `cmd+shift+a` from the entry before is gone.
+- 2026-11-25 17:35, closing a float focused the wrong pane, found by Milos with the finder. Measured
+  in a throwaway session with three panes and the middle one focused. A float opened through
+  `session.new_layer` and left to exit handed focus to the last pane in the layout, and the same
+  float running `rex focus` on the middle pane just before it exited left the middle pane focused
+  with the float gone. `tools/keep-zoom` became `tools/return-to-caller`, which focuses the calling
+  pane before it zooms it, under the same rule that skips both once focus has left the float.

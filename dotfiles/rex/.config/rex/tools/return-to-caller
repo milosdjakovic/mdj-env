@@ -1,0 +1,27 @@
+#!/usr/bin/env bash
+# Runs one floating tool and then hands the calling pane back what the float took from it. When a
+# float closes Rex focuses the last pane in the layout rather than the one the key was pressed in,
+# so the calling pane is focused again just before the tool exits, while the float still has focus.
+# Rex keeps a zoom only while the zoomed pane has focus, so the float taking focus clears it, and
+# zooming again while the float is open would pull focus back out of the float. So the zoom
+# returns here too, after the focus it depends on. MDJ_REX_ZOOMED is set only when the calling
+# pane was zoomed when the key was pressed. Both are skipped when focus has left the float by
+# then, since the tool sent the person somewhere else, a new tab for one, and pulling them back
+# would undo that.
+set -u
+
+"$@"
+status=$?
+
+if [ -n "${MDJ_REX_TARGET:-}" ]; then
+  in_float=$(rex api call -s "$REX_SESSION" session.view 2>/dev/null | jq -r --arg b "$REX_BLOCK" '
+    .active_window_id as $a | .windows[] | select(.window_id == $a) | .focused_block_id == $b')
+  if [ "$in_float" = true ]; then
+    rex focus -s "$REX_SESSION" "$MDJ_REX_TARGET" >/dev/null 2>&1
+    if [ -n "${MDJ_REX_ZOOMED:-}" ]; then
+      rex zoom -s "$REX_SESSION" "$MDJ_REX_TARGET" --on >/dev/null 2>&1
+    fi
+  fi
+fi
+
+exit "$status"
