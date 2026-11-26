@@ -1851,3 +1851,8 @@ unasked. Plugins Olm.app runs stood after the Lua ones, and all are by name now.
 
 Add Size stood at the inset of the controls inside the cards. Only bare words outside a card are held in
 now, a shape reaches the edge, rule 20 of DESIGN-APP-SETTINGS.md.
+
+### 2026-11-25 18:33, Allow stays in the plugin, asked by Milos
+
+Allow went back to Plugins with the row lit. Milos did not like being put out of the screen. The page now
+becomes the plugin's own, as any allowed plugin's. Three crashes of the allowed Misbehave switched it off.

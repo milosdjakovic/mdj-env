@@ -411,7 +411,8 @@ builds or runs until its button is pressed.
   files or 32 MB and the id of one of Olm's own are refused. An archive is unpacked in a sandbox that
   writes to that place alone. An update keeps the data folder and nothing else.
 - **Allow** puts it in place, records everything shown, turns a new plugin on, then builds and loads
-  it. A folder whose files moved while the page was open is shown again. One that does not build keeps
+  it. The page then becomes the plugin's own, the one its gear opens, asked by Milos on 2026-11-25. A
+  folder whose files moved while the page was open is shown again. One that does not build keeps
   its page, with the compiler's errors and Build Again, and is a row in Plugins until it does.
 - **The folder is followed,** `PluginWatcher`, a second after a manifest or source moves. A plugin gone,
   changed or asking for more is stopped for good and built again only as the gate allows, so nothing

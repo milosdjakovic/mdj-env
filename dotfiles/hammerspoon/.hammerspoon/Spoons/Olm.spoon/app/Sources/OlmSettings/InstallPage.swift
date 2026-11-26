@@ -51,8 +51,9 @@ extension SettingsModel {
         return
       }
       if answer.offer == nil, answer.why != nil { return }
+      // Allowed, the page becomes the plugin's own, the one its gear opens.
+      if answer.offer == nil { pluginPage = offer.plugin }
       self.offer = answer.offer
-      if answer.offer == nil { focus = SearchTarget.setting(ExternalPlugins.prefix + offer.plugin) }
     }
   }
 
