@@ -285,5 +285,9 @@ eq(home?.detail?.contains("whole home folder"), true, "the home folder is said")
 asker.permissions.network = .local
 eq(Set(offer(nil).groups.flatMap(\.lines).map(\.id)), PluginGate.asks(asker), "the local network too")
 
+// A plugin's page, what it was allowed: every line but the abilities, which keep their switches.
+eq(Set(PluginOffer.granted(asker, nil).flatMap(\.lines).map(\.id)),
+  PluginGate.asks(asker).filter { !$0.hasPrefix("ability:") }, "its page lists what it was allowed, its abilities apart")
+
 print("olm-apps-check: \(checks) checks, \(failures) failures")
 exit(failures == 0 ? 0 : 1)

@@ -1856,3 +1856,9 @@ now, a shape reaches the edge, rule 20 of DESIGN-APP-SETTINGS.md.
 
 Allow went back to Plugins with the row lit. Milos did not like being put out of the screen. The page now
 becomes the plugin's own, as any allowed plugin's. Three crashes of the allowed Misbehave switched it off.
+
+### 2026-11-26 21:52, a plugin's page says what it was allowed, asked by Milos
+
+Misbehave asks only for its sandbox, so once allowed its page showed nothing of what was agreed. A card of
+the install page's lines now stands on every plugin's page, read only. Its abilities stay on the
+Permissions card, since a second list of them without switches would say the same thing twice.

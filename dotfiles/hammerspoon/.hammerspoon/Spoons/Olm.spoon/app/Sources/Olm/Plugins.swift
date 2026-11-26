@@ -126,7 +126,11 @@ final class PluginHost {
     let held = scan.held + scan.through.filter { failed[$0.manifest.id]?.print == $0.print }.map {
       .init(id: $0.manifest.id, title: $0.manifest.title, why: "Did not build, so it does not run", review: true)
     }
-    guard declared != ExternalPlugins.declared || held != ExternalPlugins.held else { return }
+    let granted = Dictionary(through.map { ($0.manifest.id, PluginOffer.granted($0.manifest, $0.declared)) },
+      uniquingKeysWith: { a, _ in a })
+    guard declared != ExternalPlugins.declared || held != ExternalPlugins.held || granted != ExternalPlugins.granted
+    else { return }
+    ExternalPlugins.granted = granted
     for h in held where !ExternalPlugins.held.contains(h) { NSLog("Olm plugins: %@ is held, %@", h.id, h.why) }
     for p in ExternalPlugins.declared { ExternalBars.docs[p.id] = nil }
     for p in declared { ExternalBars.docs[p.id] = Self.bars(p) }

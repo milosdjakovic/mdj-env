@@ -207,7 +207,14 @@ public enum ExternalPlugins {
     get { lock.lock(); defer { lock.unlock() }; return heldNow }
     set { lock.lock(); defer { lock.unlock() }; heldNow = newValue }
   }
+  /// What each plugin running now was allowed, its sandbox and what Olm does for it, by id, the lines
+  /// its install page showed. Its abilities are left out, its Permissions card has them with switches.
+  public static var granted: [String: [PluginOffer.Group]] {
+    get { lock.lock(); defer { lock.unlock() }; return grantedNow }
+    set { lock.lock(); defer { lock.unlock() }; grantedNow = newValue }
+  }
   private static let lock = NSLock()
+  nonisolated(unsafe) private static var grantedNow: [String: [PluginOffer.Group]] = [:]
   nonisolated(unsafe) private static var declaredNow: [PluginDeclarations] = []
   nonisolated(unsafe) private static var heldNow: [Held] = []
   /// Posted on the main thread when either moved.

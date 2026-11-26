@@ -179,6 +179,9 @@ defect, not a choice.
 20. **Outside a card, bare words are held in and shapes are not.** A card's title, a column's name and a
    paragraph take `bareText`, the card's inset, so they line up with the words inside it. A button, a
    search or a capsule reaches the card's edge, its own padding doing that. Asked by Milos on 2026-11-25.
+21. **A plugin's page shows what it was allowed,** a card of the install page's lines, each saying the
+   group it stood in, to read only, its abilities left to the Permissions card that switches them.
+   Asked by Milos on 2026-11-26.
 
 ## What it holds, for Milos to trim
 

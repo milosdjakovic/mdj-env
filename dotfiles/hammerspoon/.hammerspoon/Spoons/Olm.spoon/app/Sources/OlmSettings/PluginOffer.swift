@@ -75,6 +75,14 @@ public struct PluginOffer: Equatable, Sendable, Identifiable {
     }
   }
 
+  /// What a running plugin was allowed, every line but its abilities, for its page.
+  public static func granted(_ m: PluginManifest, _ declared: PluginDeclarations?) -> [Group] {
+    groups(m, declared).compactMap { g in
+      let lines = g.lines.filter { !$0.id.hasPrefix("ability:") }
+      return lines.isEmpty ? nil : Group(title: g.title, lines: lines)
+    }
+  }
+
   /// Every line a manifest makes, one for each thing PluginGate asks, which the check holds it to.
   static func groups(_ m: PluginManifest, _ declared: PluginDeclarations?) -> [Group] {
     let home = NSHomeDirectory()

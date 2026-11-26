@@ -737,6 +737,21 @@ struct SectionPage: View {
               }
             }
           }
+          if let plugin, let granted = ExternalPlugins.granted[plugin], !granted.isEmpty {
+            // What was allowed on its install page, to read, changed only by a new version asking.
+            CardSection("What it was allowed") {
+              // Each line says which of the install page's groups it stood in.
+              CardList(granted.flatMap { g in g.lines.map {
+                PluginOffer.Line(id: $0.id, text: $0.text, detail: ([g.title] + [$0.detail].compactMap { $0 }).joined(separator: " · "))
+              } }) { line in
+                VStack(alignment: .leading, spacing: Space.related / 2) {
+                  Text(line.text)
+                  if let detail = line.detail { Text(detail).font(.caption).foregroundStyle(.secondary) }
+                }
+                .fixedSize(horizontal: false, vertical: true)
+              }
+            }
+          }
           if let log {
             LogRow(setting: log, model: model)
               .searchMark(model, SearchTarget.setting(log.id))
