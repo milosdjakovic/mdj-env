@@ -181,7 +181,18 @@ defect, not a choice.
    search or a capsule reaches the card's edge, its own padding doing that. Asked by Milos on 2026-11-25.
 21. **A plugin's page shows what it was allowed,** a card of the install page's lines, each saying the
    group it stood in, to read only, its abilities left to the Permissions card that switches them.
+   What its sandbox blocked is a card of its own above it, one row for each thing, kept across a
+   relaunch, with a mini switch that allows it or blocks it again and never moves the row, and the
+   reason in place of the switch for what Olm never offers. Added 2026-11-27.
    Asked by Milos on 2026-11-26.
+22. **A control answers the moment it is used, and never freezes.** A switch flips, a choice is
+   chosen and a value shows as soon as a person sets it, and while Olm applies it the control is
+   greyed, with a small spinner where the wait can be felt, in space the row always keeps. A change
+   refused goes back with the reason in the header. `SettingsModel.change` draws every setting's new
+   value before Hammerspoon answers, and a part that waits on something else holds its own pending
+   value on the model, the block switches' `unblocking`, never in `@State`, which the check builds
+   cannot expand. Nothing a click starts waits longer than it must, a plugin stopped returns once it
+   has gone, not after its whole grace. Asked by Milos on 2026-11-27, for every control and not one.
 
 ## What it holds, for Milos to trim
 

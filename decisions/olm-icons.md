@@ -163,6 +163,9 @@ for a permission wears ✅ and ✋ is for a row that only says one is held back.
   `checkmark.square.fill`, drew its check as a darker stroke on a grey square rather than a hole,
   and the Olm Plugins checkboxes read as dark blobs on the glass. The monochrome rendering keeps
   the knockouts and every layer at full strength.
+- **`circle.dashed` for a row that names no icon.** 2026-11-27. Milos did not like the circle. A
+  row's fallback says what choosing it does, so a row that does something wears `play` and a row
+  that only says something, `enabled = false` or `inert`, wears `text.alignleft`, his idea.
 
 ## Log
 
@@ -504,3 +507,11 @@ are unchanged, so the launcher's weight is still the open question he raised.
 Milos tried dbeb3a2c live, the bar's info icon, the actions pane's lines and a verb's choices in
 Olm.app and the swift chooser, and called it good. List row icons stay at `stroke.symbol`,
 semibold, since he raised nothing further about them once the panes matched their text.
+
+### 2026-11-27 16:31, a row with no icon wears what choosing it does, asked by Milos
+
+A row with no icon of its own was drawn with none, which Milos did not want. The first fallback,
+`circle.dashed`, he turned down. A row that does something wears `play`, ▶️, the actions pane's Run
+icon, and a row that does nothing, already marked `enabled = false` in Lua and bridged as `inert`,
+wears `text.alignleft`, 📝, so nothing is guessed. Both are Olm's own keys, `none` and `says`, in the
+actions pane's manifest, stamped in `lib/icons/rows.lua` and `Stage.swift`, and `OlmRow` takes `inert`.

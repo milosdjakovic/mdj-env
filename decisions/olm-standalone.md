@@ -86,6 +86,10 @@ bridge socket, runs on the trial key Hyper and 0 until step 3.5 gives it Hyper a
   2026-11-24. Olm starts the program itself, outside the plugin's sandbox, so a plugin could run
   anything, and without arguments too, by writing a script into its data folder and opening it in
   Terminal. Found by reading, never demonstrated.
+- **Allow moving a blocked door into What it was allowed, with undo to take it back.** 2026-11-27.
+  Built that way the same morning. Undo removed the line, and it came back only at the next block, so
+  Milos found it lost. One row a door now stays where it is with a switch, kept across a relaunch.
+  Plus and minus were turned down too, since they read as adding doors a plugin never asked for.
 
 ## Log
 
@@ -1876,3 +1880,25 @@ the app's Resources, since a file named olm in MacOS is the app's own Olm on a f
 ### 2026-11-27 11:17, the Uninstall dialog from the olm command, found in the trial
 
 `olm plugin remove` first opened Olm Settings in the background, so no window was key and the Uninstall dialog never showed, and the plugin page was chosen before the window settled. The request link now opens without `-g`, so Olm comes in front, the dialog is handed the Settings window itself, and the page is chosen a moment after the window shows. Tried with Milos the same day, dev rebuilding Greeter on a change, remove showing the dialog on its page, and Uninstall taking the folder to the Trash since it held no data.
+
+### 2026-11-27 16:31, a sandbox's block offered with a switch, step 5 of the install plan, asked by Milos
+
+The As built of docs/DESIGN-APP-PLUGINS.md has it. Every refusing rule names the plugin through
+`with message`, the tag on the report's last line so a path cannot forge it. Following the log cost
+3.7% of a core and 1.2% with `--process 0`, so it runs only while a plugin does. A write to a missing
+file offers its folder. Peek, a scratch plugin reading a note it was never given, was blocked, allowed
+and read it in Milos's trial. The first page moved an allowed door to What it was allowed with an undo,
+and the line was lost on undo, so each door is one row with a switch now, saved with what was allowed.
+
+### 2026-11-27 16:31, the plugin check's timing failures are the machine
+
+Several runs failed main thread limits, p99 under 8 ms, the baseline with no plugin running among them,
+under a load average up to 28. The same scenarios with the log follower patched out still showed
+spikes to 22 ms, and back to back runs pass. Starting `log` was moved off the main thread anyway.
+
+### 2026-11-27 16:31, a control never waits frozen, asked by Milos
+
+The block switch stayed put while the plugin stopped, since stopping slept its whole grace even after
+the plugin had gone. Stop returns once the process has ended, and every setting in Olm Settings now
+draws its new value at once and greys while it applies, rule 22 of DESIGN-APP-SETTINGS.md, for every
+control and not only this one.

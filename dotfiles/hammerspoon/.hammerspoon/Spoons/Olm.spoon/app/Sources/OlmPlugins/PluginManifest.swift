@@ -162,3 +162,32 @@ public struct PluginManifest: Sendable, Equatable {
     guard !odd, s.count <= most else { throw Failure.field("has a \(what) that is too long or holds characters that do not show") }
   }
 }
+
+extension PluginManifest.Permissions {
+  /// These and the doors allowed on this Mac when the sandbox blocked one, each a line in the gate's
+  /// words, PluginRecords.unblocked. A line Olm does not read adds nothing.
+  public func adding(_ grants: [String]) -> PluginManifest.Permissions {
+    var out = self
+    for line in grants {
+      let parts = line.split(separator: ":", maxSplits: 1).map(String.init)
+      guard parts.count == 2, !parts[1].isEmpty else { continue }
+      let v = parts[1]
+      switch parts[0] {
+      case "read" where !out.files.contains(.init(path: v, write: false)) && !out.files.contains(.init(path: v, write: true)):
+        out.files.append(.init(path: v, write: false))
+      case "write" where !out.files.contains(.init(path: v, write: true)):
+        out.files.removeAll { $0.path == v }
+        out.files.append(.init(path: v, write: true))
+      case "program" where v.hasPrefix("/") && !out.programs.contains(v): out.programs.append(v)
+      case "mach" where !out.services.contains(.mach(v)): out.services.append(.mach(v))
+      case "socket" where !out.services.contains(.socket(v)): out.services.append(.socket(v))
+      case "iokit" where !out.services.contains(.iokit(v)): out.services.append(.iokit(v))
+      case "network":
+        if v == "internet" { out.network = .internet }
+        else if v == "local", out.network == .none { out.network = .local }
+      default: continue
+      }
+    }
+    return out
+  }
+}

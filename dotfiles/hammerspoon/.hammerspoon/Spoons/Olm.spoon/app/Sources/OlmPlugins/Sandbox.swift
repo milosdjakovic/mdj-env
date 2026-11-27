@@ -20,8 +20,11 @@ public struct Sandbox: Sendable {
   /// The program it is, inside its folder.
   public var executable: URL
   public var permissions: PluginManifest.Permissions
+  /// The plugin's id, which every refusing rule names in its report, SandboxReports.
+  public var id: String
 
-  public init(folder: URL, data: URL, temp: URL, executable: URL, permissions: PluginManifest.Permissions) {
+  public init(folder: URL, data: URL, temp: URL, executable: URL, permissions: PluginManifest.Permissions, id: String = "") {
+    self.id = id
     self.folder = folder
     self.data = data
     self.temp = temp
@@ -44,9 +47,10 @@ public struct Sandbox: Sendable {
   public func profile() -> (rules: String, programs: [String: String], missing: [String]) {
     var programs: [String: String] = [:]
     var missing: [String] = []
+    let tag = id.isEmpty ? "" : " (with message \(Self.quote(SandboxBlock.tag(id))))"
     var r = """
     (version 1)
-    (deny default)
+    (deny default\(tag))
     (import "bsd.sb")
     (allow process-fork)
     (allow signal (target same-sandbox))
@@ -83,7 +87,7 @@ public struct Sandbox: Sendable {
     }
     // Olm's own folder is never part of a granted place, what the person allowed and the signing key
     // among it, and a plugin's own places are given back after, since the last rule that matches wins.
-    r += "(deny file-read* file-write* \(Self.subpath(Self.place("~/.olm"))))\n"
+    r += "(deny file-read* file-write* \(Self.subpath(Self.place("~/.olm")))\(tag))\n"
     r += "(allow file-read* \(Self.subpath(folder)))\n"
     r += "(allow file-read* \(Self.subpath(data)) \(Self.subpath(temp)))\n"
     r += Self.writing(data) + Self.writing(temp)

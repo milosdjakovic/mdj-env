@@ -22,6 +22,11 @@ public struct PluginOffer: Equatable, Sendable, Identifiable {
     public let id: String
     public let text: String
     public let detail: String?
+    public init(id: String, text: String, detail: String?) {
+      self.id = id
+      self.text = text
+      self.detail = detail
+    }
   }
 
   public struct Group: Equatable, Sendable, Identifiable {
@@ -172,12 +177,16 @@ public struct PluginInstaller: Sendable {
   public let leave: @MainActor @Sendable (PluginOffer) -> Void
   /// Uninstalls a plugin by its folder's name, its data too when told, why not when it was not.
   public let remove: @MainActor @Sendable (String, Bool) async -> String?
+  /// Allows a plugin one door its sandbox blocked, in the gate's words, or takes it back, why not.
+  public let unblock: @MainActor @Sendable (String, String, Bool) async -> String?
 
   public init(review: @escaping @MainActor @Sendable (String) async -> Answer,
     take: @escaping @MainActor @Sendable (URL) async -> Answer,
     allow: @escaping @MainActor @Sendable (PluginOffer) async -> Answer,
     leave: @escaping @MainActor @Sendable (PluginOffer) -> Void,
-    remove: @escaping @MainActor @Sendable (String, Bool) async -> String?) {
+    remove: @escaping @MainActor @Sendable (String, Bool) async -> String?,
+    unblock: @escaping @MainActor @Sendable (String, String, Bool) async -> String? = { _, _, _ in "Olm cannot allow it here." }) {
+    self.unblock = unblock
     self.review = review
     self.take = take
     self.allow = allow

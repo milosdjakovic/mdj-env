@@ -54,6 +54,12 @@ return {
     -- Told apart from off by the check, a shape, never by colour. Chosen by Milos on 2026-11-03.
     checked = { emoji = "☑️", sf = "checkmark.square" },
     unchecked = { emoji = "⬜", sf = "square" },
+    -- What a row naming no icon and carrying no picture wears, so no row of any list stands without
+    -- one, and a row naming its own replaces it, asked by Milos on 2026-11-27. none on a row that
+    -- does something, primary's play since choosing it runs it, and says on a row that only says
+    -- something, enabled false. Olm.app's twins are Icon.none and Icon.says in OlmKit.
+    none = { emoji = "▶️", sf = "play" },
+    says = { emoji = "📝", sf = "text.alignleft" },
   },
 
   needs = {

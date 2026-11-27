@@ -1427,7 +1427,7 @@ function obj.run(olm, cfg)
     -- Olm's other own icons, so no plugin declares a marker of its own.
     -- The owner is asked late, since the plan that names identities is built after this.
     marks = { owner = function() return plan and plan.identity.actionspane or "actionspane" end,
-              chosen = "chosen", notChosen = "notChosen", on = "checked", off = "unchecked" },
+              chosen = "chosen", notChosen = "notChosen", on = "checked", off = "unchecked", none = "none", says = "says" },
   })
   -- The sf source renders every declared symbol it lacks in the background, see wireIconRenders.
   -- A share for Olm.app written before its pictures were drawn is written again once they are, so

@@ -1407,7 +1407,9 @@ macOS is holding back, and the lock a VPN's secure or not. Chosen by Milos on 20
 2026-11-03, `decisions/olm-icons.md`. A row a person chooses to do something wears the icon of
 what choosing it does, its intent, never the state the row is about, Milos's rule of 2026-11-09.
 A row that asks macOS for a permission wears ✅, the action that confirms, not ✋, which is for a
-row that only says a permission is held back.
+row that only says a permission is held back. A row naming no icon of its own wears what choosing it does, `play`
+when it does something and `text.alignleft` when it only says something, `enabled = false`, stamped
+from Olm's own `none` and `says` keys, Milos's call on 2026-11-27.
 
 **Back is the first row in a chooser menu.** The actions pane under the swift chooser and the
 canvas chooser is the one exception, since it is a floating pane left by Escape over a list that never

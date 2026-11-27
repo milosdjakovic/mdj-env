@@ -25,7 +25,13 @@ import UniformTypeIdentifiers
 /// app builds with ship no SwiftUI macros and @State is one in macOS 27's SDK.
 @MainActor
 final class SettingsModel: ObservableObject {
-  @Published var share: SettingsShare?
+  /// What every page draws, with each change still being applied showing the value it was set to, so a
+  /// control moves the moment it is used and never waits on the answer, rule 22 of Parts in docs/DESIGN-APP-SETTINGS.md.
+  @Published var share: SettingsShare? {
+    didSet { if !shownEarly.isEmpty, let share, share.showing(shownEarly) != share { self.share = share.showing(shownEarly) } }
+  }
+  /// The values set and not answered yet, by setting id.
+  private var shownEarly: [String: SettingValue] = [:]
   @Published var selection: String? {
     didSet {
       guard oldValue != selection else { return }
@@ -63,6 +69,8 @@ final class SettingsModel: ObservableObject {
   /// A change taken that applies on reload, so the window reloads once when it closes.
   @Published var reloadDue = false
   @Published var busy: Set<String> = []
+  /// Block switches flipped and still being applied, by plugin and door, the way each was flipped.
+  @Published var unblocking: [String: Bool] = [:]
   /// Where the window's close button starts, which the sidebar's search and the app's row line up
   /// with.
   @Published var leading: CGFloat = 20
@@ -74,6 +82,8 @@ final class SettingsModel: ObservableObject {
   /// The permissions the Permissions page lists, and whether macOS gives each now.
   let permissions: [Permission]
   @Published var granted: [String: Bool] = [:]
+  /// What each plugin's sandbox refused since Olm started, and the doors allowed after a block.
+  @Published var blocked: [String: [ExternalPlugins.Blocked]] = [:]
   /// The permissions folded open on the Permissions page, several at once, kept across visits.
   @Published var openPermissions: Set<String> = []
 
@@ -185,10 +195,22 @@ final class SettingsModel: ObservableObject {
     // A part of a setting kept beside it, a list's order, is sent under its own id.
     let id = part.map { setting.id + $0 } ?? setting.id
     busy.insert(id)
+    // Drawn at once, a list's checkboxes having drafts of their own.
+    let early = reset ? setting.defaultValue : value
+    let drawnEarly = part == nil && setting.kind != .picks && early != .none
+    if drawnEarly {
+      shownEarly[id] = early
+      share = share?.showing(shownEarly)
+    }
     Task { @MainActor in
       let answer = await service.change(id, value, reset)
       busy.remove(id)
       picksDrafts[id] = nil
+      if drawnEarly {
+        shownEarly[id] = nil
+        // Refused with nothing read back, it shows what it was.
+        if answer.share == nil, !answer.ok { share = share?.showing([id: setting.value]) }
+      }
       if let share = answer.share { self.share = share }
       // An ability turned on or off changes what Olm reads for the plugins, the browsers' profiles.
       if setting.kind == .ability { browsers = Browsers.refresh(share: self.share) }
@@ -339,8 +361,10 @@ public final class SettingsWindow: NSObject, NSWindowDelegate {
       MainActor.assumeIsolated {
         guard let self, let model = self.model else { return }
         model.share = self.share()
+        if model.blocked != ExternalPlugins.blocked { model.blocked = ExternalPlugins.blocked }
       }
     }
+    model.blocked = ExternalPlugins.blocked
     let w = NSWindow(contentViewController: SettingsSplit(model: model))
     w.title = "Olm Settings"
     w.titleVisibility = .hidden
@@ -766,18 +790,30 @@ struct SectionPage: View {
               }
             }
           }
-          if let plugin, let granted = ExternalPlugins.granted[plugin], !granted.isEmpty {
-            // What was allowed on its install page, to read, changed only by a new version asking.
-            CardSection("What it was allowed") {
-              // Each line says which of the install page's groups it stood in.
-              CardList(granted.flatMap { g in g.lines.map {
-                PluginOffer.Line(id: $0.id, text: $0.text, detail: ([g.title] + [$0.detail].compactMap { $0 }).joined(separator: " · "))
-              } }) { line in
-                VStack(alignment: .leading, spacing: Space.related / 2) {
-                  Text(line.text)
-                  if let detail = line.detail { Text(detail).font(.caption).foregroundStyle(.secondary) }
+          if let plugin, let blocked = model.blocked[plugin], !blocked.isEmpty {
+            // What its sandbox refused it, each door with a switch that allows it or blocks it again
+            // and keeps its row, or saying why it is never offered, docs/DESIGN-APP-PLUGINS.md A block
+            // is offered, not hidden.
+            CardSection("What its sandbox blocked") {
+              CardList(blocked) { block in BlockRow(block: block, plugin: plugin, model: model) }
+            }
+          }
+          if let plugin {
+            let granted = ExternalPlugins.granted[plugin] ?? []
+            if !granted.isEmpty {
+              // What was allowed on its install page, to read, changed only by a new version asking.
+              CardSection("What it was allowed") {
+                // Each line says which of the install page's groups it stood in.
+                CardList(granted.flatMap { g in g.lines.map {
+                  PluginOffer.Line(id: $0.id, text: $0.text, detail: ([g.title] + [$0.detail].compactMap { $0 }).joined(separator: " · "))
+                } }) { line in
+                  VStack(alignment: .leading, spacing: Space.related / 2) {
+                    Text(line.text).onTitleLine()
+                    if let detail = line.detail { Text(detail).font(.caption).foregroundStyle(.secondary) }
+                  }
+                  .fixedSize(horizontal: false, vertical: true)
+                  .frame(maxWidth: .infinity, alignment: .leading)
                 }
-                .fixedSize(horizontal: false, vertical: true)
               }
             }
           }
@@ -819,6 +855,68 @@ struct SectionPage: View {
     if let refusal = model.refusal { return (refusal, "exclamationmark.triangle") }
     if model.reloadDue { return ("Applies when this window closes", "arrow.clockwise") }
     return ("", "arrow.clockwise")
+  }
+}
+
+/// One door the sandbox refused a plugin, what it tried, when and by which program, and a switch that
+/// allows it or blocks it again, or why Olm never offers it. The row stays whichever way it is set.
+struct BlockRow: View {
+  let block: ExternalPlugins.Blocked
+  let plugin: String
+  @ObservedObject var model: SettingsModel
+
+  private static let clock: DateFormatter = {
+    let f = DateFormatter()
+    f.dateFormat = "HH:mm"
+    return f
+  }()
+
+  private var detail: String {
+    let b = block.block
+    let when = b.process.isEmpty ? "Allowed after it was blocked"
+      : (b.times > 1 ? "Blocked \(b.times) times, last at " : "Blocked at ") + Self.clock.string(from: b.last) + ", by " + b.process
+    return ([when] + [b.never, block.note].compactMap { $0 }.map { $0.prefix(1).uppercased() + $0.dropFirst() })
+      .joined(separator: " · ")
+  }
+
+  private var key: String { plugin + "|" + block.id }
+  /// The way the switch was just flipped, shown at once while Olm applies it.
+  private var pending: Bool? { model.unblocking[key] }
+
+  private func allowed(_ grant: String) -> Binding<Bool> {
+    Binding(get: { pending ?? block.allowed }, set: { on in
+      guard on != (pending ?? block.allowed), !model.offerBusy else { return }
+      model.unblock(plugin, grant, on: on)
+    })
+  }
+
+  var body: some View {
+    HStack(alignment: .titleLine, spacing: Space.pad) {
+      VStack(alignment: .leading, spacing: Space.related / 2) {
+        Text(block.block.text).onTitleLine()
+        Text(detail).font(.caption).foregroundStyle(.secondary)
+      }
+      .fixedSize(horizontal: false, vertical: true)
+      Spacer(minLength: Space.pad)
+      HStack(spacing: Space.pad) {
+        Spacer(minLength: 0)
+        if let grant = block.block.grant, block.block.never == nil {
+          // Always there, so applying grows nothing.
+          ProgressView()
+            .controlSize(.mini)
+            .opacity(pending == nil ? 0 : 1)
+          Toggle(block.block.text, isOn: allowed(grant))
+            .toggleStyle(.switch)
+            .controlSize(.mini)
+            .labelsHidden()
+            .disabled(model.offerBusy)
+            .help(block.allowed ? "Allowed on this Mac, off blocks it again from its next use"
+              : "Blocked, on allows it on this Mac from its next use")
+        }
+      }
+      .frame(width: Space.control)
+      .onTitleLine()
+    }
   }
 }
 

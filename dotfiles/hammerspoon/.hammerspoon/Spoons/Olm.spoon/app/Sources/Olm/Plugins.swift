@@ -50,13 +50,17 @@ final class PluginHost {
   private var last: Task<Void, Never>?
   private var watcher: PluginWatcher?
   private let bridge: Bridge
+  /// The sandbox's refusals of a plugin's rules, followed while a plugin runs.
+  private var reports: SandboxReports?
+  /// Counts the times the last plugin stopped, so following ends only after a quiet stretch.
+  private var quiet = 0
 
   init(bridge: Bridge) {
     self.bridge = bridge
     let version = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "0"
     runner = PluginRunner(appVersion: version, log: { ExternalPlugins.log.add($0, $1, from: $2) }, serve: { id, method, params in
       await PluginHost.serve(id, method, params, bridge: bridge)
-    })
+    }, grants: { PluginRecords().unblocked($0) })
     // Read here as well as in start, so a link that launched Olm finds the plugin it goes to.
     publish(Self.scan(records))
     Self.migrate()
@@ -78,6 +82,11 @@ final class PluginHost {
           let title = ExternalPlugins.plugin(id)?.title ?? id
           _ = try? await bridge.request("notify", .object(["text": .string("\(title) was switched off, \(why)")]))
         }
+      }
+      let reports = SandboxReports { block in Task { @MainActor [weak self] in self?.heard(block) } }
+      self.reports = reports
+      await runner.onRunning { running in
+        Task { @MainActor [weak self] in self?.follow(running) }
       }
       await Task.detached(priority: .utility) { Self.migrateTitles() }.value
       await rescan()
@@ -128,6 +137,7 @@ final class PluginHost {
     }
     let granted = Dictionary(through.map { ($0.manifest.id, PluginOffer.granted($0.manifest, $0.declared)) },
       uniquingKeysWith: { a, _ in a })
+    publishBlocks(Set(through.map(\.manifest.id)))
     guard declared != ExternalPlugins.declared || held != ExternalPlugins.held || granted != ExternalPlugins.granted
     else { return }
     ExternalPlugins.granted = granted
@@ -137,6 +147,110 @@ final class PluginHost {
     ExternalPlugins.declared = declared
     ExternalPlugins.held = held
     NotificationCenter.default.post(name: ExternalPlugins.changed, object: nil)
+  }
+
+  /// What the sandbox refused every plugin that runs, for its page, a row for each door allowed after
+  /// a block too, one whose block was dropped from the kept list or allowed before blocks were kept.
+  private func publishBlocks(_ ids: Set<String>) {
+    var out: [String: [ExternalPlugins.Blocked]] = [:]
+    for id in ids {
+      let given = records.unblocked(id)
+      var list = records.blocks(id)
+      for g in given where !list.contains(where: { $0.grant == g }) {
+        list.append(.init(grant: g, text: BlockOffer.words(g), never: nil, process: "", last: .distantPast))
+      }
+      guard !list.isEmpty else { continue }
+      out[id] = list.map { b in
+        let allowed = b.grant.map(given.contains) ?? false
+        return ExternalPlugins.Blocked(b, allowed: allowed,
+          note: allowed && stillBlocked.contains(id + "|" + b.id) ? "Blocked again after it was allowed, Olm has nothing more to offer" : nil)
+      }
+    }
+    guard out != ExternalPlugins.blocked else { return }
+    ExternalPlugins.blocked = out
+    NotificationCenter.default.post(name: ExternalPlugins.changed, object: nil)
+  }
+
+  // MARK: Blocks
+
+  /// Follows the sandbox's reports from the first plugin starting until a while after the last stops,
+  /// since a report reaches the log a moment after the refusal and the follower costs while it runs.
+  private func follow(_ running: Bool) {
+    quiet += 1
+    if running {
+      reports?.start()
+      return
+    }
+    let turn = quiet
+    Task { @MainActor [weak self] in
+      try? await Task.sleep(for: .seconds(15))
+      guard let self, self.quiet == turn else { return }
+      self.reports?.stop()
+    }
+  }
+
+  /// Most blocks kept for one plugin's page.
+  private static let mostBlocks = 30
+  /// Doors refused again after they were allowed, by plugin and door, since Olm started.
+  private var stillBlocked: Set<String> = []
+
+  /// One refusal heard and kept on the plugin's page, a door already there keeping its row, and said in
+  /// its log and once in a message while it is something Olm offers and has not allowed.
+  private func heard(_ block: SandboxBlock) {
+    guard let p = ExternalPlugins.plugin(block.plugin) else { return }
+    let offer = BlockOffer.offer(block)
+    let given = Set(records.unblocked(p.id))
+    let made = PluginRecords.Block(grant: offer.grant, text: offer.text, never: offer.never, process: block.process, last: Date())
+    var list = records.blocks(p.id)
+    let lower = offer.text.prefix(1).lowercased() + offer.text.dropFirst()
+    if let i = list.firstIndex(where: { $0.id == made.id }) {
+      list[i].last = made.last
+      list[i].times += 1
+      list[i].process = made.process
+    } else {
+      list.insert(made, at: 0)
+      if list.count > Self.mostBlocks, let drop = list.lastIndex(where: { $0.grant.map(given.contains) != true }) {
+        list.remove(at: drop)
+      }
+    }
+    if let grant = offer.grant, given.contains(grant) {
+      // A place given to write that it still cannot make, which Olm has no wider door for.
+      if stillBlocked.insert(p.id + "|" + grant).inserted {
+        ExternalPlugins.log.add(p.id, "blocked by its sandbox although it was allowed, \(lower), by \(block.process)")
+      }
+    } else if list.first?.id == made.id, list.first?.times == 1 {
+      ExternalPlugins.log.add(p.id, "blocked by its sandbox, \(lower), by \(block.process), "
+        + (offer.never.map { "not offered, \($0)" } ?? "its page in Olm Settings can allow it"))
+      if offer.never == nil {
+        let bridge = self.bridge
+        Task { _ = try? await bridge.request("notify", .object(["text": .string("\(p.title) was blocked, it \(lower). Its page in Olm Settings can allow it.")])) }
+      }
+    }
+    records.setBlocks(p.id, list)
+    publishBlocks(Set(ExternalPlugins.declared.map(\.id)))
+  }
+
+  /// Allows one door its sandbox blocked, only one it was offered, or blocks it again, and stops the
+  /// plugin so its next use runs under it. Its row stays where it is either way.
+  private func unblock(_ id: String, _ grant: String, _ on: Bool) async -> String? {
+    guard let p = ExternalPlugins.plugin(id) else { return "\(id) is not a plugin Olm runs." }
+    let given = records.unblocked(id)
+    if on {
+      guard given.contains(grant) || records.blocks(id).contains(where: { $0.grant == grant && $0.never == nil }) else {
+        return "\(p.title) was not offered that."
+      }
+      records.unblock(id, grant)
+      ExternalPlugins.log.add(id, "allowed after a block, \(BlockOffer.words(grant).lowercased())")
+    } else {
+      guard given.contains(grant) else { return "\(p.title) was not allowed that." }
+      records.unblock(id, grant, false)
+      ExternalPlugins.log.add(id, "blocked again, \(BlockOffer.words(grant).lowercased())")
+    }
+    stillBlocked.remove(id + "|" + grant)
+    // The row first, then the plugin stopped so its next use runs under the change.
+    publishBlocks(Set(ExternalPlugins.declared.map(\.id)))
+    await runner.restart(id)
+    return nil
   }
 
   private func alone<T: Sendable>(_ body: @escaping @MainActor () async -> T) async -> T {
@@ -200,6 +314,10 @@ final class PluginHost {
       remove: { [weak self] id, data in
         guard let self else { return nil }
         return await self.alone { await self.remove(id, data: data) }
+      },
+      unblock: { [weak self] id, grant, on in
+        guard let self else { return nil }
+        return await self.alone { await self.unblock(id, grant, on) }
       })
   }
 

@@ -148,10 +148,38 @@ public final class PluginRecords: @unchecked Sendable {
     public var program: String
   }
 
+  /// One door the sandbox refused a plugin, kept so its row on the plugin's page stays put whether it
+  /// is allowed or not, across a relaunch too, what Olm offers for it or why it never is.
+  public struct Block: Codable, Sendable, Equatable, Identifiable {
+    public var id: String { grant ?? "never:" + text }
+    /// The door in the gate's words, nil for one never offered.
+    public var grant: String?
+    public var text: String
+    /// Why Olm never offers it.
+    public var never: String?
+    /// The program refused, the plugin's own or one it ran, empty for a row made from an allowed door
+    /// that has no block kept.
+    public var process: String
+    public var last: Date
+    public var times: Int
+    public init(grant: String?, text: String, never: String?, process: String, last: Date, times: Int = 1) {
+      self.grant = grant
+      self.text = text
+      self.never = never
+      self.process = process
+      self.last = last
+      self.times = times
+    }
+  }
+
   private struct Doc: Codable {
     var version = 1
     var allowed: [String: [String]] = [:]
     var built: [String: Built] = [:]
+    /// Doors allowed after the sandbox blocked each, by plugin, on top of what its manifest asks.
+    var unblocked: [String: [String]]? = nil
+    /// What the sandbox refused each plugin, by plugin, its page's rows in their order.
+    var blocks: [String: [Block]]? = nil
   }
 
   public static let path = FileManager.default.homeDirectoryForCurrentUser
@@ -163,12 +191,50 @@ public final class PluginRecords: @unchecked Sendable {
 
   public func allowed(_ id: String) -> Set<String>? { read().allowed[id].map(Set.init) }
   public func built(_ id: String) -> Built? { read().built[id] }
-  /// The person's yes to everything asked, nil takes it back.
-  public func allow(_ id: String, _ asks: Set<String>?) { change { $0.allowed[id] = asks?.sorted() } }
+  /// The person's yes to everything asked, nil takes it back with every door allowed after a block.
+  public func allow(_ id: String, _ asks: Set<String>?) {
+    change {
+      $0.allowed[id] = asks?.sorted()
+      if asks == nil {
+        $0.unblocked?[id] = nil
+        $0.blocks?[id] = nil
+      }
+    }
+  }
+  /// The doors allowed after a block, in the gate's words, oldest first.
+  public func unblocked(_ id: String) -> [String] { read().unblocked?[id] ?? [] }
+  /// One door allowed after the sandbox blocked it, or taken back.
+  public func unblock(_ id: String, _ grant: String, _ on: Bool = true) {
+    change { doc in
+      var list = (doc.unblocked?[id] ?? []).filter { $0 != grant }
+      if on { list.append(grant) }
+      var all = doc.unblocked ?? [:]
+      all[id] = list.isEmpty ? nil : list
+      doc.unblocked = all.isEmpty ? nil : all
+    }
+  }
+  /// What the sandbox refused it, in its page's order.
+  public func blocks(_ id: String) -> [Block] { read().blocks?[id] ?? [] }
+  public func setBlocks(_ id: String, _ list: [Block]) {
+    change { doc in
+      var all = doc.blocks ?? [:]
+      all[id] = list.isEmpty ? nil : list
+      doc.blocks = all.isEmpty ? nil : all
+    }
+  }
   /// Takes back the yes given to every plugin no longer there, so another by its id is asked about.
   public func forget(except here: Set<String>) {
-    guard read().allowed.keys.contains(where: { !here.contains($0) }) else { return }
-    change { doc in doc.allowed = doc.allowed.filter { here.contains($0.key) } }
+    let doc = read()
+    guard doc.allowed.keys.contains(where: { !here.contains($0) })
+      || (doc.unblocked ?? [:]).keys.contains(where: { !here.contains($0) })
+      || (doc.blocks ?? [:]).keys.contains(where: { !here.contains($0) }) else { return }
+    change { doc in
+      doc.allowed = doc.allowed.filter { here.contains($0.key) }
+      let kept = (doc.unblocked ?? [:]).filter { here.contains($0.key) }
+      doc.unblocked = kept.isEmpty ? nil : kept
+      let blocks = (doc.blocks ?? [:]).filter { here.contains($0.key) }
+      doc.blocks = blocks.isEmpty ? nil : blocks
+    }
   }
   public func setBuilt(_ id: String, _ built: Built) { change { $0.built[id] = built } }
 

@@ -77,6 +77,20 @@ extension SettingsModel {
     }
   }
 
+  /// Allows a plugin one door its sandbox blocked, or takes one back, the plugin starting again under
+  /// it on its next use.
+  func unblock(_ id: String, _ grant: String, on: Bool) {
+    guard let installer, !offerBusy else { return }
+    offerBusy = true
+    let key = id + "|" + grant
+    unblocking[key] = on
+    Task { @MainActor in
+      refusal = await installer.unblock(id, grant, on)
+      offerBusy = false
+      unblocking[key] = nil
+    }
+  }
+
   /// Uninstalls a plugin and goes back to the list it was in.
   private func uninstall(_ id: String, data: Bool) {
     guard let installer, !offerBusy else { return }

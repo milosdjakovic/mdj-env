@@ -47,6 +47,9 @@ public struct OlmRow {
   public var keywords: [String]
   /// Kept below every match and on an empty query, a placeholder while a list loads.
   public var pinned: Bool
+  /// A row that says something rather than does something, a status or why a list is empty, drawn
+  /// disabled and never chosen.
+  public var inert: Bool
 
   public enum Icon {
     case symbol(String)
@@ -55,7 +58,8 @@ public struct OlmRow {
   }
 
   public init(key: String, title: String, subtitle: String = "", icon: Icon? = nil, keywords: [String] = [],
-              pinned: Bool = false) {
+              pinned: Bool = false, inert: Bool = false) {
+    self.inert = inert
     self.key = key
     self.title = title
     self.subtitle = subtitle
@@ -69,6 +73,7 @@ public struct OlmRow {
     if !subtitle.isEmpty { o["subtitle"] = subtitle }
     if !keywords.isEmpty { o["keywords"] = keywords }
     if pinned { o["pinned"] = true }
+    if inert { o["enabled"] = false }
     switch icon {
     case .symbol(let name)?: o["icon"] = ["sf": name]
     case .emoji(let glyph)?: o["icon"] = ["emoji": glyph]

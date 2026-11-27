@@ -28,10 +28,12 @@ local M = {}
 --- opts.declared  function of an owner identity answering that plugin's icons table or nil.
 --- opts.points    the side the image is drawn at, what a chooser row scales down from.
 --- opts.log       optional table with w, the warning sink.
---- opts.marks     optional { owner, chosen, notChosen, on, off }, Olm's own two pairs, the radio
+--- opts.marks     optional { owner, chosen, notChosen, on, off, none, says }, Olm's own two pairs, the radio
 ---                for a row saying chosen and the checkbox for a row saying on, the four keys and
 ---                the identity whose manifest declares them, a function when the identity is
----                only known after the resolver is built.
+---                only known after the resolver is built. none is what a row naming no icon and
+---                carrying no picture wears, so no row stands without one, and says the same for a
+---                row that only says something, enabled false.
 function M.new(opts)
   local engine = assert(opts.engine, "icons.rows, new needs an engine")
   local declared = assert(opts.declared, "icons.rows, new needs a declared function")
@@ -128,6 +130,15 @@ function M.new(opts)
       local copy = {}
       for k, v in pairs(row) do copy[k] = v end
       copy.icon, copy.iconOwner = key, markOwner
+      return copy
+    end
+    if type(row) == "table" and row.icon == nil and row.image == nil and marks and marks.none then
+      local markOwner = marks.owner
+      if type(markOwner) == "function" then markOwner = markOwner() end
+      local copy = {}
+      for k, v in pairs(row) do copy[k] = v end
+      copy.icon = row.enabled == false and marks.says or marks.none
+      copy.iconOwner = markOwner
       return copy
     end
     if type(row) ~= "table" or row.icon == nil or row.image ~= nil or row.iconOwner ~= nil then

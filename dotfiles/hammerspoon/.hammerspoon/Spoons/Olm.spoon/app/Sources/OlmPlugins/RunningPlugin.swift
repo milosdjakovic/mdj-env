@@ -93,6 +93,10 @@ public actor RunningPlugin: LevelPeer {
   private let log: PluginRunner.Log
   /// Answers what the plugin asks of Olm, by plugin id, method and params, a result or why not.
   private let serve: Serve
+  /// The doors allowed on this Mac after a block, read at each start.
+  private let grants: @Sendable (String) -> [String]
+  /// Told once its process is running.
+  private let begun: @Sendable (String) -> Void
 
   private var process: PluginProcess?
   private var starting: Task<Void, Error>?
@@ -127,7 +131,11 @@ public actor RunningPlugin: LevelPeer {
 
   init(manifest: PluginManifest, folder: URL, budgets: Budgets, appVersion: String,
        ended: @escaping @Sendable (String, Ending) -> Void, log: @escaping PluginRunner.Log,
-       serve: @escaping Serve = { _, method, _ in .failure(Refusal(-32601, "no method \(method)")) }) {
+       serve: @escaping Serve = { _, method, _ in .failure(Refusal(-32601, "no method \(method)")) },
+       grants: @escaping @Sendable (String) -> [String] = { _ in [] },
+       begun: @escaping @Sendable (String) -> Void = { _ in }) {
+    self.grants = grants
+    self.begun = begun
     self.manifest = manifest
     self.folder = folder
     self.budgets = budgets
@@ -224,7 +232,8 @@ public actor RunningPlugin: LevelPeer {
       throw PluginError.unstartable("it is not built, no \(executable.path)")
     }
     if retired { throw PluginError.off("its files changed, open it again") }
-    let sandbox = Sandbox(folder: folder, data: data, temp: temp, executable: executable, permissions: manifest.permissions)
+    let sandbox = Sandbox(folder: folder, data: data, temp: temp, executable: executable,
+      permissions: manifest.permissions.adding(grants(manifest.id)), id: manifest.id)
     let profile = sandbox.profile()
     for name in profile.missing { note("asks for \(name), which this Mac does not have") }
     programs = profile.programs
@@ -257,6 +266,7 @@ public actor RunningPlugin: LevelPeer {
     }
     Task { [weak self] in await self?.watch(generation: gen) }
     note("started, pid \(p.pid)")
+    begun(manifest.id)
     let hello: JSON
     do {
       hello = try await send("hello", .object([
@@ -280,7 +290,11 @@ public actor RunningPlugin: LevelPeer {
     stopping = why
     process.closeInput()
     let gen = generation
-    try? await Task.sleep(for: .seconds(budgets.grace))
+    // Back as soon as it has gone, so whoever waits on it is not held for the whole grace.
+    let end = Date().addingTimeInterval(budgets.grace)
+    while gen == generation, self.process != nil, Date() < end {
+      try? await Task.sleep(for: .milliseconds(20))
+    }
     if gen == generation, self.process != nil { process.kill() }
   }
 

@@ -25,6 +25,9 @@ public actor PluginRunner {
   private var onOff: (@Sendable (String, String) -> Void)?
   private var onEnded: (@Sendable (String, Ending) -> Void)?
   private let serve: RunningPlugin.Serve
+  private let grants: @Sendable (String) -> [String]
+  private var live: Set<String> = []
+  private var onRunning: (@Sendable (Bool) -> Void)?
 
   /// Failures within the window that switch a plugin off.
   public static let strikes = 3
@@ -34,7 +37,9 @@ public actor PluginRunner {
   public init(budgets: Budgets = Budgets(), appVersion: String = "0",
               log: @escaping Log = { id, text, _ in NSLog("Olm plugins: %@ %@", id, text) },
               serve: @escaping RunningPlugin.Serve = { _, method, _ in
-                .failure(RunningPlugin.Refusal(-32601, "no method \(method)")) }) {
+                .failure(RunningPlugin.Refusal(-32601, "no method \(method)")) },
+              grants: @escaping @Sendable (String) -> [String] = { _ in [] }) {
+    self.grants = grants
     self.budgets = budgets
     self.appVersion = appVersion
     self.log = log
@@ -43,6 +48,19 @@ public actor PluginRunner {
 
   /// Who hears a plugin switched off and why, before anything can start it again.
   public func onOff(_ fn: @escaping @Sendable (String, String) -> Void) { onOff = fn }
+
+  /// Who hears whether any plugin's process is running, as the first starts and the last ends, what
+  /// the sandbox's reports are followed for.
+  public func onRunning(_ fn: @escaping @Sendable (Bool) -> Void) { onRunning = fn }
+
+  /// Stops a plugin so its next use starts it under what it is allowed now.
+  public func restart(_ id: String) async { await plugins[id]?.stop() }
+
+  private func begun(_ id: String) {
+    let was = !live.isEmpty
+    live.insert(id)
+    if !was { onRunning?(true) }
+  }
 
   /// Who hears each ending, the check.
   public func onEnded(_ fn: @escaping @Sendable (String, Ending) -> Void) {
@@ -55,7 +73,8 @@ public actor PluginRunner {
     let manifest = try PluginManifest.read(folder: folder)
     if let held = plugins[manifest.id] { return held }
     let plugin = RunningPlugin(manifest: manifest, folder: folder, budgets: budgets, appVersion: appVersion,
-      ended: { [weak self] id, why in Task { await self?.ended(id, why) } }, log: log, serve: serve)
+      ended: { [weak self] id, why in Task { await self?.ended(id, why) } }, log: log, serve: serve,
+      grants: grants, begun: { [weak self] id in Task { await self?.begun(id) } })
     plugins[manifest.id] = plugin
     return plugin
   }
@@ -95,6 +114,7 @@ public actor PluginRunner {
   }
 
   private func ended(_ id: String, _ why: Ending) {
+    if live.remove(id) != nil, live.isEmpty { onRunning?(false) }
     if why.failed {
       let now = Date()
       var list = (failures[id] ?? []).filter { now.timeIntervalSince($0) < Self.strikeWindow }

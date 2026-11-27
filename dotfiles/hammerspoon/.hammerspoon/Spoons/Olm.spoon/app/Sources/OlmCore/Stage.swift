@@ -961,7 +961,7 @@ public final class Stage {
     row.title = r.title
     row.subtitle = fitted(r)
     row.enabled = !r.inert
-    switch r.icon {
+    switch Optional(r.icon ?? (r.inert ? Icon.says : Icon.none)) {
     case .file(let path)?: row.image = icons.object(forKey: path as NSString)
     case .symbol?:
       row.image = icon(r)
@@ -975,7 +975,7 @@ public final class Stage {
   }
 
   private func icon(_ r: OlmKit.Row) -> NSImage? {
-    switch r.icon {
+    switch Optional(r.icon ?? (r.inert ? Icon.says : Icon.none)) {
     case .file(let path)?:
       if let image = icons.object(forKey: path as NSString) { return image }
       let image = NSWorkspace.shared.icon(forFile: path)

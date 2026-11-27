@@ -21,6 +21,12 @@ public enum Icon: Sendable, Hashable {
   /// A picture file drawn as it is, a row's own, a clipboard thumbnail, a file type's icon or a
   /// colour chip the Lua side wrote, keeping its own colours as an app's icon does.
   case picture(String)
+
+  /// What a row naming no icon wears, so no row stands without one, the actions pane manifest's none
+  /// and says, asked by Milos on 2026-11-27. play on a row choosing runs, text on one that only says
+  /// something.
+  public static let none = Icon.symbol("play")
+  public static let says = Icon.symbol("text.alignleft")
 }
 
 /// One row, the bridge protocol's row with the fields the app reads today. key is the row's

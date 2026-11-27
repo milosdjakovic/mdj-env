@@ -113,6 +113,14 @@ func link(_ params: [String: JSON]) -> PluginRequests.Link? {
 
 let only = ProcessInfo.processInfo.environment["OLM_CHECK_ONLY"]
 
+/// Blocks heard on the log's thread, read by the check.
+final class Heard: @unchecked Sendable {
+  private let lock = NSLock()
+  private var blocks: [SandboxBlock] = []
+  func add(_ b: SandboxBlock) { lock.lock(); blocks.append(b); lock.unlock() }
+  var all: [SandboxBlock] { lock.lock(); defer { lock.unlock() }; return blocks }
+}
+
 func scenario(_ name: String, _ body: () async -> Void) async {
   if let only, !name.hasPrefix(only) { return }
   say("\n\(name)")
@@ -259,6 +267,115 @@ func runAll() async {
     check(cat(work.appendingPathComponent("olm-plugin.json").path) == 0, "its own folder is")
     try? fm.removeItem(atPath: secret)
     try? fm.removeItem(atPath: home)
+  }
+
+  await scenario("a block is read from the sandbox's report and offered one door at a time") {
+    let home = "/Users/someone"
+    func parse(_ text: String) -> SandboxBlock? { SandboxBlock.parse(text) }
+    let b = parse("Sandbox: cat(812) deny(1) file-read-data /Users/someone/Notes/a.md\nolm-plugin:misbehave")
+    check(b == SandboxBlock(plugin: "misbehave", process: "cat", operation: "file-read-data", target: "/Users/someone/Notes/a.md"),
+      "a report names the plugin, the program, what it did and the path")
+    check(parse("1 duplicate report for Sandbox: x(9) deny(1) mach-lookup com.example.a\nolm-plugin:misbehave")?.target == "com.example.a",
+      "a report folded with its duplicates is read")
+    check(parse("Sandbox: cat(812) deny(1) file-read-data /a") == nil, "a report with no tag is not a plugin's")
+    check(parse("Sandbox: cat(812) deny(1) file-read-data /a\nolm-plugin:Bad") == nil, "a tag that is no plugin's id is not read")
+    let forged = parse("Sandbox: cat(8) deny(1) file-read-data /tmp/x\nolm-plugin:browserswitcher\nolm-plugin:misbehave")
+    check(forged?.plugin == "misbehave", "a path holding another plugin's tag is still the one whose rule refused it")
+    check(forged.map { BlockOffer.offer($0, home: home).grant } == .some(nil), "and a path holding a line break is never offered")
+    func offer(_ op: String, _ target: String) -> BlockOffer {
+      BlockOffer.offer(SandboxBlock(plugin: "misbehave", process: "cat", operation: op, target: target), home: home)
+    }
+    check(offer("file-read-data", home + "/Notes/a.md").grant == "read:~/Notes/a.md", "a file read is offered, that file")
+    check(offer("process-exec*", "/usr/bin/sqlite3").grant == "program:/usr/bin/sqlite3", "a program run is offered by its path")
+    check(offer("mach-lookup", "com.example.helper").grant == "mach:com.example.helper", "a service is offered by its name")
+    check(offer("network-outbound", "127.0.0.1:8080").grant == "network:local", "an address on this Mac is the local network")
+    check(offer("network-outbound", "1.1.1.1:443").grant == "network:internet", "any other is the internet")
+    for (op, target, what) in [("file-read-data", home + "/.ssh/id_ed25519", "a key"),
+      ("file-read-data", home + "/Library/Keychains/login.keychain-db", "a keychain"),
+      ("file-read-data", home + "/Library/Application Support/Google/Chrome/Default/Cookies", "a browser's sign in"),
+      ("file-read-data", home + "/.OLM/state/plugin-records.json", "Olm's own folder, in any case"),
+      ("file-read-data", home + "/Work/server.pem", "a certificate's key"),
+      ("mach-lookup", "com.apple.SecurityServer", "the keychain's service")] {
+      let o = offer(op, target)
+      check(o.grant == nil && o.never == BlockOffer.secret, "\(what) is never offered")
+    }
+    for (target, what) in [(home + "/.zshrc", "a shell's start file"), (home + "/Library/LaunchAgents/x.plist", "a login agent"),
+      (home + "/.config/git/config", "a tool's config")] {
+      check(offer("file-write-create", target).never == BlockOffer.escape, "writing \(what) is never offered")
+    }
+    check(offer("mach-lookup", "com.apple.lsd.mapdb").never == BlockOffer.escape, "opening apps through Launch Services is never offered")
+    check(offer("file-read-data", home).never == BlockOffer.wide, "the whole home folder is never offered from a block")
+    check(offer("file-write-data", "/etc/hosts").grant == nil, "a write outside the home folder is never offered")
+    check(offer("sysctl-read", "kern.x").grant == nil, "what has no door is only logged")
+    var p = PluginManifest.Permissions(programs: ["cat"], files: [.init(path: "~/A", write: false)])
+    p = p.adding(["read:~/B", "write:~/A", "program:/usr/bin/sqlite3", "mach:com.example.x", "network:local", "nonsense", "program:sqlite3"])
+    check(p.files == [.init(path: "~/B", write: false), .init(path: "~/A", write: true)], "a read and a write join its files, a write over a read")
+    check(p.programs == ["cat", "/usr/bin/sqlite3"] && p.services == [.mach("com.example.x")] && p.network == .local,
+      "a program by its path, a service and the network join it, a line Olm does not read adds nothing")
+    let dir = work.deletingLastPathComponent().appendingPathComponent("unblock")
+    try? fm.removeItem(at: dir)
+    try! fm.createDirectory(at: dir, withIntermediateDirectories: true)
+    let records = PluginRecords(url: dir.appendingPathComponent("records.json"))
+    records.allow("misbehave", ["need:copy"])
+    records.unblock("misbehave", "read:~/B")
+    records.unblock("misbehave", "read:~/C")
+    records.unblock("misbehave", "read:~/B", false)
+    check(records.unblocked("misbehave") == ["read:~/C"], "a door is allowed after a block and taken back")
+    let kept = PluginRecords.Block(grant: "read:~/B", text: "Reads ~/B", never: nil, process: "cat", last: Date(timeIntervalSince1970: 0))
+    records.setBlocks("misbehave", [kept])
+    check(PluginRecords(url: dir.appendingPathComponent("records.json")).blocks("misbehave") == [kept],
+      "a block is kept with what was allowed, so its row is there after a relaunch")
+    records.setBlocks("other", [kept])
+    records.allow("misbehave", nil)
+    check(records.unblocked("misbehave").isEmpty && records.blocks("misbehave").isEmpty,
+      "uninstalled, what was allowed after a block and what was blocked go too")
+    records.unblock("other", "read:~/C")
+    records.forget(except: ["misbehave"])
+    check(records.unblocked("other").isEmpty && records.blocks("other").isEmpty, "and a plugin no longer there loses both")
+    try? fm.removeItem(at: dir)
+  }
+
+  await scenario("a refusal reaches Olm from macOS's log, tagged with the plugin, and an allowed door opens it") {
+    let probe = NSHomeDirectory() + "/.olm-plugin-check-block"
+    try? "x".write(toFile: probe, atomically: true, encoding: .utf8)
+    defer { try? fm.removeItem(atPath: probe) }
+    func box(_ extra: [String]) -> Sandbox {
+      Sandbox(folder: work, data: work.appendingPathComponent("data"), temp: work.appendingPathComponent("tmp"),
+        executable: work.appendingPathComponent("bin/misbehave"),
+        permissions: PluginManifest.Permissions(programs: ["cat"]).adding(extra), id: "misbehave")
+    }
+    func cat(_ b: Sandbox) async -> Int32 {
+      let rules = b.profile().rules
+      return await Task.detached {
+        let p = Process()
+        p.executableURL = URL(fileURLWithPath: "/usr/bin/sandbox-exec")
+        p.arguments = ["-p", rules, "/bin/cat", probe]
+        p.standardOutput = FileHandle.nullDevice
+        p.standardError = FileHandle.nullDevice
+        do { try p.run() } catch { return Int32(-1) }
+        p.waitUntilExit()
+        return p.terminationStatus
+      }.value
+    }
+    let heard = Heard()
+    let reports = SandboxReports { heard.add($0) }
+    reports.start()
+    try? await Task.sleep(for: .seconds(2))
+    check(reports.running, "the log is followed")
+    let refused = await cat(box([]))
+    check(refused != 0, "a file it was not given is refused")
+    var got: SandboxBlock?
+    for _ in 0..<40 where got == nil {
+      try? await Task.sleep(for: .milliseconds(250))
+      got = heard.all.first { $0.plugin == "misbehave" && $0.target == probe }
+    }
+    reports.stop()
+    check(got?.process == "cat" && got?.operation.hasPrefix("file-read") == true,
+      "its refusal is heard within ten seconds, by the program it ran, for that path")
+    let offered = got.map { BlockOffer.offer($0) }
+    check(offered?.grant == "read:~/.olm-plugin-check-block" && offered?.never == nil, "and offered, that one file")
+    let read = await cat(box([offered?.grant ?? ""]))
+    check(read == 0, "allowed, the same file is read")
   }
 
   await scenario("the sandbox, a plugin cannot turn a place it writes into another") {

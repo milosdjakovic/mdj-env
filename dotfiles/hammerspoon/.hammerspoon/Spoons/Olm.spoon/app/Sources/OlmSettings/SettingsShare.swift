@@ -310,7 +310,7 @@ public struct Setting: Equatable, Sendable, Identifiable {
   /// Why a person cannot change it here, set in a config file that wins over the window.
   public let locked: String?
   public let defaultValue: SettingValue
-  public let value: SettingValue
+  public var value: SettingValue
   /// The app toggler's catalog, for the Applications page, empty for every other setting.
   public var catalog: [CatalogApp] = []
   /// The window manager's actions, for the Window Management page, empty for every other setting.
@@ -365,6 +365,17 @@ public struct SettingsSection: Equatable, Sendable, Identifiable {
 public struct SettingsShare: Equatable, Sendable {
   public let version: Int
   public let sections: [SettingsSection]
+
+  /// The share with these settings showing these values, a change drawn before it is answered.
+  func showing(_ values: [String: SettingValue]) -> SettingsShare {
+    SettingsShare(version: version, sections: sections.map { section in
+      SettingsSection(id: section.id, title: section.title, symbol: section.symbol, settings: section.settings.map {
+        var setting = $0
+        if let value = values[$0.id] { setting.value = value }
+        return setting
+      })
+    })
+  }
 
   public static let path = FileManager.default.homeDirectoryForCurrentUser
     .appendingPathComponent(".olm/run/settings.json")

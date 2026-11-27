@@ -437,6 +437,34 @@ builds or runs until its button is pressed.
 - **Texts a person reads** are refused in the manifest when they hold characters that do not show, and
   a file path must start with `~/` or `/` and hold no `..`.
 
+**Blocks offered, built 2026-11-27.** Step 5 of the install plan, asked by Milos.
+
+- **Heard from macOS,** `OlmPlugins/SandboxReports.swift`. Every refusing rule of a plugin's profile
+  carries `(with message "olm-plugin:<id>")`, so the kernel's report names the plugin on its last line,
+  which a path in the report cannot forge. Olm follows `log stream --process 0` for the Sandbox sender
+  only while a plugin's process runs and for 15 seconds after the last one ends, since following costs
+  about 1.2% of a core, 3.7% without `--process 0`.
+- **Offered one door at a time,** `BlockOffer.offer`: a file read, a write inside the home folder, a
+  missing file's folder for a write, a program, a mach service, a socket, the network, an IOKit class,
+  each in the gate's words. Never offered: the secret places and files, ~/.ssh, ~/.gnupg, ~/.olm, the
+  keychains, browser profiles, Mail and Messages, TCC, .pem, .key and .p12 among them, the ways out of
+  the sandbox, launch agents, preferences, ~/.config and home's own dotfiles, Launch Services and the
+  pasteboard, anything as wide as the home folder or the root, a write outside home, and a name with a
+  control character. Anything with no door is only logged.
+- **Kept and switched,** `PluginRecords` beside what was allowed: `blocks`, one row a door in the order
+  they came, at most 30, and `unblocked`, the doors allowed, joined to the manifest's permissions at each
+  start. The plugin's page has a card, What its sandbox blocked, each row with a mini switch that allows
+  it or blocks it again and stays where it is, rule 21 of DESIGN-APP-SETTINGS.md. A flip stops the
+  plugin, so its next use runs under it, and the switch moves at once, rule 22. Uninstall clears both.
+- **Said,** a log line for each new door, and a message once for one Olm offers. A door refused again
+  after it was allowed, a place it may write that it still cannot make, says Olm has nothing more to offer.
+- `test/olmplugins.sh` parses reports, every never case, the records, and a live refusal heard from
+  macOS's log within ten seconds and allowed.
+
+**Rows with no icon of their own, built 2026-11-27.** Asked by Milos. A row that does something wears
+`play`, ▶️, and a row that only says something, `enabled = false` in Lua and `inert` in Olm.app and
+`OlmRow`, wears `text.alignleft`, 📝, stamped in `lib/icons/rows.lua` and `Stage.swift`.
+
 **The olm command, built 2026-11-27.** Step 4 of the install plan, asked by Milos.
 
 - **Where it is,** `app/Sources/olm-cli`, in the app at `Contents/Resources/bin/olm`, beside the kit and
@@ -456,8 +484,8 @@ builds or runs until its button is pressed.
   Uninstall dialog, so Allow and Uninstall stay a person's click. The command writes the request in
   `~/.olm/run/requests` named by a random id and opens `olm://settings?request=` with it, so a link
   alone asks nothing. Ours are neither installed nor removed by it.
-- **Not built:** a plugin shown in Olm Settings as in development, and `dev` showing a sandbox's block
-  as it happens, which waits for the runner reading the system's log.
+- **Not built:** a plugin shown in Olm Settings as in development. A sandbox's block reaches `dev` since
+  2026-11-27, as a line of the log it prints, below.
 - `test/olmplugins.sh` makes a plugin with `new`, has `test` pass it, and fails one case to see it fail.
 
 **The log, the last use and why a plugin is off, built 2026-11-25.** Step 3 of the install plan.

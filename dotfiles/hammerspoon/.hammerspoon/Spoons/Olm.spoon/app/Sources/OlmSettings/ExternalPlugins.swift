@@ -213,6 +213,26 @@ public enum ExternalPlugins {
     get { lock.lock(); defer { lock.unlock() }; return grantedNow }
     set { lock.lock(); defer { lock.unlock() }; grantedNow = newValue }
   }
+  /// What the sandbox refused each plugin, one row for each door in the order they came, each saying
+  /// whether it is allowed now.
+  public static var blocked: [String: [Blocked]] {
+    get { lock.lock(); defer { lock.unlock() }; return blockedNow }
+    set { lock.lock(); defer { lock.unlock() }; blockedNow = newValue }
+  }
+  nonisolated(unsafe) private static var blockedNow: [String: [Blocked]] = [:]
+  /// One door the sandbox refused, whether it is allowed now, and a word on it.
+  public struct Blocked: Sendable, Equatable, Identifiable {
+    public var id: String { block.id }
+    public let block: PluginRecords.Block
+    public let allowed: Bool
+    /// Said under it, a block heard after it was allowed.
+    public let note: String?
+    public init(_ block: PluginRecords.Block, allowed: Bool, note: String? = nil) {
+      self.block = block
+      self.allowed = allowed
+      self.note = note
+    }
+  }
   private static let lock = NSLock()
   nonisolated(unsafe) private static var grantedNow: [String: [PluginOffer.Group]] = [:]
   nonisolated(unsafe) private static var declaredNow: [PluginDeclarations] = []
@@ -273,8 +293,11 @@ public enum ExternalPlugins {
     let off = list("plugins.off"), abilitiesOff = list("abilities.off")
     for p in declared {
       let stopped = history.stopped(p.id)
+      let offered = (blocked[p.id] ?? []).filter { $0.block.never == nil && !$0.allowed }.count
+      let note = offered == 0 ? nil : offered == 1 ? "Blocked from 1 thing, its page can allow it."
+        : "Blocked from \(offered) things, its page can allow them."
       var sw = Setting(id: prefix + p.id, title: p.title,
-        detail: stopped.map { "Olm switched it off, \($0). Turn it on to try again." } ?? p.description, kind: .switch,
+        detail: stopped.map { "Olm switched it off, \($0). Turn it on to try again." } ?? note ?? p.description, kind: .switch,
         keywords: [p.id, "plugin", "enable", "disable"], applies: "live", choices: [], min: nil, max: nil,
         step: nil, unit: nil, locked: nil, defaultValue: .flag(true), value: .flag(stopped == nil && !off.contains(p.id)))
       sw.plugin = p.id

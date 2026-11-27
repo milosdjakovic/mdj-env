@@ -311,6 +311,7 @@ func new(_ args: [String]) {
       "protocol": 1,
       "run": { "swift": "Sources" },
       "icon": "puzzlepiece.extension",
+      "row": { "detail": "say what it does in a few words" },
       "needs": ["copy", "notify"],
       "permissions": {}
     }
