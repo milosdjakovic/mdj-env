@@ -19,6 +19,8 @@
 # never installed. The app carries its own copy of each, and a folder the same as it runs without
 # being allowed by a person. The copy keeps the files' times, so an unchanged plugin is not built again.
 #
+# The olm command, inside the app, is linked as ~/.local/bin/olm, where setup-zshrc.sh puts the PATH first.
+#
 # Switching the piece off stops a run from building it and removes nothing, rule 4 of AGENTS.md.
 
 set -uo pipefail
@@ -59,6 +61,17 @@ for dir in "$plugins"/*/; do
   cp -p "$manifest" "$dest/olm-plugin.json"
   echo "    plugin $id, in $dest"
 done
+
+# The olm command inside the app, linked onto the PATH, docs/DESIGN-APP-PLUGINS.md The olm command. A
+# file of another's at that name is left alone and said, since this step removes nothing.
+cli="$HOME/.local/bin/olm"
+mkdir -p "$HOME/.local/bin"
+if [ -L "$cli" ] || [ ! -e "$cli" ]; then
+  ln -sfn "$app/Contents/Resources/bin/olm" "$cli"
+  echo "    olm command, in $cli"
+else
+  mdj_note "~/.local/bin/olm is a file this step did not put there, so the olm command was not linked. Move it aside and run src/setup-olmapp.sh again."
+fi
 
 old="$HOME/.olm/app/Olm.app"
 if [ -d "$old" ]; then

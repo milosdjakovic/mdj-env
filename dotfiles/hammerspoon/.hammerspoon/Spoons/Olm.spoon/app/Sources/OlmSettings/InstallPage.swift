@@ -59,8 +59,8 @@ extension SettingsModel {
 
   /// Asks first, in the system's own dialog, with whether its data goes too, unticked each time. Return
   /// does nothing there, so the plugin goes only by a click.
-  func askUninstall(_ id: String, _ title: String) {
-    guard !offerBusy, let window = NSApp.keyWindow else { return }
+  func askUninstall(_ id: String, _ title: String, on given: NSWindow? = nil) {
+    guard !offerBusy, let window = given ?? NSApp.keyWindow else { return }
     let alert = NSAlert()
     alert.messageText = "Uninstall \(title)?"
     alert.informativeText = "It goes to the Trash. Its data and settings stay for when you install it again."

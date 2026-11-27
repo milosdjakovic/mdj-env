@@ -296,6 +296,35 @@ public final class SettingsWindow: NSObject, NSWindowDelegate {
   /// Builds the window and lays it out without showing it, called by the app a moment after it
   /// starts, so the first open shows a window already drawn rather than building SwiftUI's views
   /// while it comes up, which was slow and flickered.
+  /// The install page of a folder or a .olmplugin the olm command names, Allow left to the person.
+  public func install(_ url: URL) {
+    show()
+    guard let model else { return }
+    model.selection = "plugins"
+    model.takePlugin([url])
+  }
+
+  /// The install page of a folder in ~/.olm/plugins waiting to be allowed, olm plugin dev.
+  public func review(_ id: String) {
+    show()
+    guard let model else { return }
+    model.selection = "plugins"
+    model.reviewPlugin(id)
+  }
+
+  /// The plugin's page with the dialog asking whether to uninstall it, olm plugin remove.
+  public func uninstall(_ id: String) {
+    show()
+    guard let model else { return }
+    model.selection = "plugins"
+    // Once the window has settled, its sidebar having taken the section, the page and then the
+    // dialog, a sheet on this window whether or not it is key yet.
+    DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) { [weak self] in
+      if model.current?.settings.contains(where: { $0.page == id }) == true { model.pluginPage = id }
+      model.askUninstall(id, model.pluginTitle(id), on: self?.window)
+    }
+  }
+
   public func prepare() {
     guard window == nil else { return }
     build()

@@ -37,7 +37,8 @@ mkdir -p "$scratch" "$out"
 log="$(mktemp)"
 trap 'rm -f "$log"' EXIT
 if ! (cd "$here" && SDKROOT="$tools/SDKs/MacOSX.sdk" DEVELOPER_DIR="$tools" "$tools/usr/bin/swift" build --build-system native \
-  -c release --scratch-path "$scratch" --product Olm) >"$log" 2>&1; then
+  -c release --scratch-path "$scratch" --product Olm && SDKROOT="$tools/SDKs/MacOSX.sdk" DEVELOPER_DIR="$tools" \
+  "$tools/usr/bin/swift" build --build-system native -c release --scratch-path "$scratch" --product olm-cli) >"$log" 2>&1; then
   grep -E 'error' "$log" | head -20 >&2
   echo "olmapp: the build FAILED" >&2
   exit 1
@@ -58,6 +59,10 @@ cp "$here/Info.plist" "$stage/Contents/Info.plist"
 mkdir -p "$stage/Contents/Resources"
 # The app's icon, drawn by icon/make-icon.sh and committed, Info.plist's CFBundleIconFile.
 cp "$here/Olm.icns" "$stage/Contents/Resources/Olm.icns"
+# The olm command, docs/DESIGN-APP-PLUGINS.md The olm command, beside the kit and the plugins it reads.
+# Not in MacOS, whose Olm differs from olm only in case and this file system ignores case.
+mkdir -p "$stage/Contents/Resources/bin"
+cp "$scratch/release/olm-cli" "$stage/Contents/Resources/bin/olm"
 # OlmPluginKit's source, compiled into every external plugin the app builds, docs/DESIGN-APP-PLUGINS.md.
 cp "$here/PluginKit/OlmPluginKit.swift" "$stage/Contents/Resources/OlmPluginKit.swift"
 # Olm's own external plugins, sealed by the app's signature, so a folder in ~/.olm/plugins holding the

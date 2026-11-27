@@ -27,6 +27,7 @@ import OlmKeys
 import OlmLauncher
 import OlmCore
 import OlmKit
+import OlmPlugins
 import OlmSettings
 
 let home = FileManager.default.homeDirectoryForCurrentUser
@@ -575,6 +576,19 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     shadow.run(id: id)
   }
 
+  /// The request the olm command wrote under ~/.olm/run/requests, read once and removed, nil for an id
+  /// that is not one or a file that is not there.
+  static func request(_ id: String, in run: URL) -> [String: String]? {
+    guard id.range(of: "^[0-9a-f-]{36}$", options: .regularExpression) != nil else { return nil }
+    let file = run.appendingPathComponent("requests/\(id).json")
+    defer { try? FileManager.default.removeItem(at: file) }
+    guard PluginInstall.type(file) == .typeRegular, let data = try? Data(contentsOf: file),
+      let o = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any] else { return nil }
+    let asked = o.compactMapValues { $0 as? String }
+    if let id = asked["id"], id.range(of: "^[a-z][a-z0-9]{0,31}$", options: .regularExpression) == nil { return nil }
+    return asked
+  }
+
   func application(_ application: NSApplication, open urls: [URL]) {
     for url in urls {
       if Links.isWeb(url) {
@@ -606,6 +620,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
           if let data = try? JSONSerialization.data(withJSONObject: doc, options: [.sortedKeys]) {
             try? data.write(to: out, options: .atomic)
           }
+        }
+      } else if url.host == "settings", let request = item("request") {
+        // What the olm command asks the window, read from the file its id names, so a link alone
+        // asks nothing, docs/DESIGN-APP-PLUGINS.md The olm command.
+        guard let asked = Self.request(request, in: context.run) else { settingsWindow.show(); continue }
+        switch (asked["do"], asked["path"], asked["id"]) {
+        case ("install", let path?, _): settingsWindow.install(URL(fileURLWithPath: path))
+        case ("review", _, let id?): settingsWindow.review(id)
+        case ("uninstall", _, let id?): settingsWindow.uninstall(id)
+        default: settingsWindow.show()
         }
       } else if url.host == "settings" {
         settingsWindow.show()

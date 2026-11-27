@@ -1862,3 +1862,17 @@ becomes the plugin's own, as any allowed plugin's. Three crashes of the allowed 
 Misbehave asks only for its sandbox, so once allowed its page showed nothing of what was agreed. A card of
 the install page's lines now stands on every plugin's page, read only. Its abilities stay on the
 Permissions card, since a second list of them without switches would say the same thing twice.
+
+### 2026-11-27 09:25, the olm command, step 4 of the install plan, asked by Milos
+
+`olm plugin list, log, test, new, dev, install, remove`, the As built of docs/DESIGN-APP-PLUGINS.md.
+Install and remove ask the window rather than act, so Allow and Uninstall stay a click. A request
+carried in the olm:// link itself, a path or an id, was turned down, since any web page can open an
+olm:// link and would then raise an install page or the Uninstall dialog, so the link names a file
+only a program on this Mac can write. Linking a folder into ~/.olm/plugins for `dev` was turned down,
+the gate refuses a folder that is a link, so `dev` copies on every change instead. The command sits in
+the app's Resources, since a file named olm in MacOS is the app's own Olm on a file system ignoring case.
+
+### 2026-11-27 11:17, the Uninstall dialog from the olm command, found in the trial
+
+`olm plugin remove` first opened Olm Settings in the background, so no window was key and the Uninstall dialog never showed, and the plugin page was chosen before the window settled. The request link now opens without `-g`, so Olm comes in front, the dialog is handed the Settings window itself, and the page is chosen a moment after the window shows. Tried with Milos the same day, dev rebuilding Greeter on a change, remove showing the dialog on its page, and Uninstall taking the folder to the Trash since it held no data.

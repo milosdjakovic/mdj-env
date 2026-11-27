@@ -37,6 +37,28 @@ if ! "$tools/usr/bin/swiftc" -sdk "$tools/SDKs/MacOSX.sdk" -o "$kit/check" "$her
   echo "olmplugins, the kit FAILED"
   exit 1
 fi
+# The olm command: a plugin it makes builds and passes its own test, and a test that should fail does.
+if ! (cd "$here/../app" && SDKROOT="$tools/SDKs/MacOSX.sdk" DEVELOPER_DIR="$tools" "$tools/usr/bin/swift" build --build-system native \
+  --scratch-path "$scratch" --product olm-cli) >"$out" 2>&1; then
+  grep -E 'error' "$out" | head -20
+  echo "olmplugins, the olm command's build FAILED"
+  exit 1
+fi
+mkdir -p "$kit/res/Plugins"
+cp "$here/../app/PluginKit/OlmPluginKit.swift" "$kit/res/"
+cli=(env OLM_RESOURCES="$kit/res" "$scratch/debug/olm-cli" plugin)
+if ! "${cli[@]}" new greeter "$kit" >"$out" 2>&1 || ! "${cli[@]}" test "$kit/greeter" >"$out" 2>&1; then
+  cat "$out"
+  echo "olmplugins, a plugin olm plugin new made did not pass olm plugin test, FAILED"
+  exit 1
+fi
+sed -i '' 's/"rows": \["Bravo"\]/"rows": ["Alpha"]/' "$kit/greeter/test.json"
+if "${cli[@]}" test "$kit/greeter" >"$out" 2>&1 || ! grep -q '1 FAILED' "$out"; then
+  cat "$out"
+  echo "olmplugins, olm plugin test passed a case that should fail, FAILED"
+  exit 1
+fi
+echo "olm plugin new and test, a new plugin passes and a wrong case fails"
 # Foundation's own cache complaints, from a sandboxed plugin denied ~/Library/Caches, are left out.
 "$scratch/debug/olm-plugin-check" "$@" 2>&1 | grep -v -e 'NetworkStorageDB' -e 'there is no SQL cache' -e 'read-connection to the DB'
 exit "${PIPESTATUS[0]}"

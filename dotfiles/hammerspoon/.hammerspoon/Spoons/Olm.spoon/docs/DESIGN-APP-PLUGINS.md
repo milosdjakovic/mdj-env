@@ -178,7 +178,8 @@ language, are a later step when someone asks, the protocol unchanged.
   rebuilds and restarts the plugin whenever a file in it changes, and the plugin shows in Olm
   Settings as in development, its log beside it.
 - **The `olm` command.** Olm.app carries a small command line tool, `olm`, linked into the PATH by
-  `src/setup-olmapp.sh`: `olm plugin new`, `dev`, `install`, `remove`, `list`, `log` and `test`.
+  `src/setup-olmapp.sh`: `olm plugin new`, `dev`, `install`, `remove`, `list`, `log` and `test`. Built
+  2026-11-27, As built has it.
 - **Testing without Olm.** `olm plugin test <folder>` starts the plugin and speaks the protocol to it
   from fixtures, the rows a query answers, what choosing a row does, so a plugin is checked with no
   window and no person, the way the bridge's transcript golden checks Hammerspoon today.
@@ -435,6 +436,29 @@ builds or runs until its button is pressed.
   plugins working together are not covered.
 - **Texts a person reads** are refused in the manifest when they hold characters that do not show, and
   a file path must start with `~/` or `/` and hold no `..`.
+
+**The olm command, built 2026-11-27.** Step 4 of the install plan, asked by Milos.
+
+- **Where it is,** `app/Sources/olm-cli`, in the app at `Contents/Resources/bin/olm`, beside the kit and
+  Olm's own plugins it reads, and not in `MacOS`, where `olm` and `Olm` are one name on this file
+  system. `src/setup-olmapp.sh` links it as `~/.local/bin/olm`, never over a file it did not put there.
+- **`list`** reads what Olm keeps on disk, the gate's verdict, the switch, why Olm switched one off and
+  the last build in its log. **`log`** prints the log, the oldest first, `-f` following it.
+- **`test`** copies the folder as a dropped one is copied, builds it apart in `~/.olm/cache/plugin-test`
+  and runs it through the real runner and sandbox. It runs `test.json` beside the manifest, cases of
+  the text typed and what is opened with, the rows wanted, and a row chosen with what it did and asked,
+  or with no `test.json`, or with `-q`, opens it and prints the rows. What it asks of Olm is answered
+  yes and never done.
+- **`new`** writes a plugin whose `test.json` passes, so the check holds it to that.
+- **`dev`** copies the manifest and sources into `~/.olm/plugins` on every change, the data kept, and
+  prints its log as it grows. Olm's watcher builds it. Asking for anything not allowed opens its page.
+- **`install` and `remove`** only open the page, the install page or the plugin's page with the
+  Uninstall dialog, so Allow and Uninstall stay a person's click. The command writes the request in
+  `~/.olm/run/requests` named by a random id and opens `olm://settings?request=` with it, so a link
+  alone asks nothing. Ours are neither installed nor removed by it.
+- **Not built:** a plugin shown in Olm Settings as in development, and `dev` showing a sandbox's block
+  as it happens, which waits for the runner reading the system's log.
+- `test/olmplugins.sh` makes a plugin with `new`, has `test` pass it, and fails one case to see it fail.
 
 **The log, the last use and why a plugin is off, built 2026-11-25.** Step 3 of the install plan.
 

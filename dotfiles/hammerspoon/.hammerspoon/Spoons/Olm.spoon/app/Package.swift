@@ -78,6 +78,9 @@ let package = Package(
     // The runner checked against a plugin that misbehaves on purpose, step 4.1.
     .executableTarget(name: "olm-plugin-check", dependencies: ["OlmKit", "OlmBridge", "OlmPlugins"],
       path: "Sources/olm-plugin-check", swiftSettings: v5),
+    // The olm command, shipped inside the app, docs/DESIGN-APP-PLUGINS.md The olm command.
+    .executableTarget(name: "olm-cli", dependencies: ["OlmKit", "OlmBridge", "OlmPlugins"],
+      path: "Sources/olm-cli", swiftSettings: v5),
     .executableTarget(name: "olm-index-check", dependencies: ["OlmKit", "OlmLook", "OlmCore", "FileSearchPlugin"],
       path: "Sources/olm-index-check", swiftSettings: v5),
   ]
