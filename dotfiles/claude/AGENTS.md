@@ -48,6 +48,14 @@ in its frontmatter. A skill that has to read the current conversation must not c
 `commands/` for anything new, Claude Code treats both as skills and the folder can hold
 supporting files.
 
+## The Olm.app plugin skill
+
+`olm-app-plugin` guides building an external plugin for Olm.app from any folder. It routes to what
+every Mac with Olm carries, the kit and Browser Switcher inside `/Applications/Olm.app` and
+`olm plugin new`, rather than to this repository, so it works where the repository is not. Change it
+in the same change that moves the manifest, the kit or the `olm` command,
+`docs/DESIGN-APP-PLUGINS.md` in the Olm spoon has the As built.
+
 ## The handoff skill
 
 `/handoff` writes a prompt that carries this session's work into a fresh one. It reads the

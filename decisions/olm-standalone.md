@@ -1902,3 +1902,21 @@ The block switch stayed put while the plugin stopped, since stopping slept its w
 the plugin had gone. Stop returns once the process has ended, and every setting in Olm Settings now
 draws its new value at once and greys while it applies, rule 22 of DESIGN-APP-SETTINGS.md, for every
 control and not only this one.
+
+### 2026-11-27 17:12, the skill for Claude, step 6 of the install plan, asked by Milos
+
+`olm-app-plugin` in the claude package, stowed so it is there in every folder. It routes to the kit and
+Browser Switcher inside Olm.app and to `olm plugin new`, since a folder outside this repository has
+neither the spoon's docs nor its sources. A copy of the API inside the skill was turned down, it would
+drift from the kit the plugin is compiled with. It carries the rule never to propose a plugin, since
+the repository's AGENTS.md is not read in another folder.
+
+### 2026-11-27 17:49, `olm plugin test` ranks as Olm does, found in the skill's trial
+
+A Claude session in ~/olm-try built Emoji Copy from the skill alone. Its typed cases failed because
+`test` printed the plugin's rows unranked, so it filtered by hand against the skill's rule, and the
+scaffold's template did the same. `test` now ranks through the app's `Searcher`, the one search, rather
+than a copy of it in the command, and the template hands every row. The skill also said `new ID DIR`
+as if DIR were the plugin's folder, and the session got `emojicopy/emojicopy`. `dev` names what a
+plugin asks for in words, copy to the clipboard, show a message, not `need:copy`.
+

@@ -16,6 +16,7 @@
 
 import Foundation
 import OlmBridge
+import OlmCore
 import OlmKit
 import OlmPlugins
 
@@ -172,7 +173,8 @@ func showLog(_ args: [String]) {
 ///     "count": 3, "choose": "a title", "effects": ["copyText(…)"], "asks": ["copy …"] }
 ///
 /// rows are the first titles in order, has titles anywhere, effects and asks what choosing did, each
-/// written as the command prints it.
+/// written as the command prints it. The rows are ranked by Olm's own search, the app's Searcher, as
+/// the list shows them, unless the level keeps the plugin's order.
 struct Case {
   var name: String
   var query: String
@@ -248,6 +250,7 @@ func test(_ args: [String]) async -> Int32 {
   let list = (queries.isEmpty ? cases(source) : nil) ?? (queries.isEmpty ? [""] : queries).map {
     Case(name: $0.isEmpty ? "opened" : "typed \($0)", query: $0, context: .null)
   }
+  let searcher = Searcher()
   var failures = 0
   func check(_ ok: Bool, _ what: String) {
     say("  \(ok ? "ok  " : "FAIL") \(what)")
@@ -257,7 +260,7 @@ func test(_ args: [String]) async -> Int32 {
     say("\n\(c.name)")
     _ = asks.take()
     guard let src = await runner.source(manifest.id, context: c.context) else { check(false, "it opened"); continue }
-    _ = await src.open(query: c.query)
+    let level = await src.open(query: c.query)
     let answer: RowsAnswer
     do { answer = try await src.rows(Query(text: c.query, generation: 1)) } catch {
       check(false, "it answered rows, \(error)")
@@ -265,15 +268,18 @@ func test(_ args: [String]) async -> Int32 {
       continue
     }
     if let status = answer.status { say("  status \(status)") }
-    for (n, r) in answer.rows.enumerated() {
+    let ranked = await searcher.rank(answer, query: c.query, level: level)
+    let shown = ranked.rows
+    for (n, r) in shown.enumerated() {
       say("  \(n + 1). \(r.title)\(r.subtitle.isEmpty ? "" : "  ·  \(r.subtitle)")")
     }
-    let titles = answer.rows.map(\.title)
+    if ranked.more > 0 { say("  and \(ranked.more) more") }
+    let titles = shown.map(\.title)
     if let want = c.rows { check(Array(titles.prefix(want.count)) == want, "rows start \(want)") }
     if let want = c.has { for t in want { check(titles.contains(t), "has \(t)") } }
     if let want = c.count { check(titles.count == want, "\(want) rows") }
     if let pick = c.choose {
-      guard let (n, row) = answer.rows.enumerated().first(where: { $0.element.title == pick }) else {
+      guard let (n, row) = shown.enumerated().first(where: { $0.element.title == pick }) else {
         check(false, "a row called \(pick) to choose")
         await src.close()
         continue
@@ -330,9 +336,10 @@ func new(_ args: [String]) {
 
     plugin.open = { _ in OlmLevel(placeholder: "\(title)") }
 
-    plugin.rows = { query in
-      words.filter { query.isEmpty || $0.localizedCaseInsensitiveContains(query) }
-        .map { OlmRow(key: $0, title: $0, subtitle: "Copies \\($0)") }
+    // Every row, every time. Olm ranks them for what is typed with its shared search, so a plugin
+    // never filters by the text unless that text is a value rather than a search.
+    plugin.rows = { _ in
+      words.map { OlmRow(key: $0, title: $0, subtitle: "Copies \\($0)") }
     }
 
     plugin.choose = { key, _ in
@@ -347,7 +354,7 @@ func new(_ args: [String]) {
   let tests = """
     [
       { "name": "opened, every row", "query": "", "rows": ["Alpha", "Bravo", "Charlie"] },
-      { "name": "typed, the rows that hold it", "query": "ra", "rows": ["Bravo"], "count": 1 },
+      { "name": "typed, Olm's search finds it", "query": "bra", "rows": ["Bravo"], "count": 1 },
       { "name": "chosen, copied and said", "query": "", "choose": "Alpha", "effects": ["hide"],
         "asks": ["copy Alpha", "notify Copied Alpha"] }
     ]
@@ -371,6 +378,20 @@ func new(_ args: [String]) {
 }
 
 // MARK: dev
+
+/// One thing a plugin asks for in a person's words, as its install page says it.
+func askWords(_ ask: String) -> String {
+  switch ask {
+  case "need:copy": return "copy to the clipboard"
+  case "need:notify": return "show a message"
+  case "need:open": return "open links"
+  case "background": return "run in the background"
+  default:
+    if ask.hasPrefix("ability:") { return "use the ability \(ask.dropFirst("ability:".count))" }
+    let w = BlockOffer.words(ask)
+    return w.prefix(1).lowercased() + w.dropFirst()
+  }
+}
 
 /// Copies the manifest and the sources into ~/.olm/plugins, the data folder kept, as
 /// src/setup-olmapp.sh does for ours.
@@ -421,7 +442,7 @@ func dev(_ args: [String]) -> Never {
     let placed = root.appendingPathComponent(id)
     if case .waiting(let asks) = PluginGate.verdict(folder: placed, bundled: bundled, records: records).0, asks != asked {
       asked = asks
-      say("waiting for Allow, asking in Olm Settings for \(asks.joined(separator: ", "))")
+      say("waiting for Allow in Olm Settings, it asks to \(asks.map(askWords).joined(separator: ", "))")
       ask(["do": "review", "id": id])
     }
   }

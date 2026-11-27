@@ -437,6 +437,18 @@ builds or runs until its button is pressed.
 - **Texts a person reads** are refused in the manifest when they hold characters that do not show, and
   a file path must start with `~/` or `/` and hold no `..`.
 
+**The skill for Claude, built 2026-11-27.** Step 6 of the install plan, asked by Milos.
+
+- **Where it is,** `dotfiles/claude/.claude/skills/olm-app-plugin/SKILL.md` in mdj-env, stowed into
+  `~/.claude/skills`, so it is there in any folder. It is the external counterpart of the repository's
+  `olm-plugin` skill, which keeps the Lua plugins of the spoon.
+- **What it holds** is the judgment: never proposing a plugin, the order of the work, the manifest's
+  fields and what each costs, least privilege in the sandbox, Olm's list of abilities, what a row and a
+  word must be, the budgets, what to do with a block, and the gates. The truth it routes to is what a
+  Mac with Olm has, the kit and Browser Switcher inside Olm.app and `olm plugin new`, never this
+  repository, so it holds no line numbers and no copy of the API.
+- **Allow, Uninstall and a block's switch stay the person's,** and it says so.
+
 **Blocks offered, built 2026-11-27.** Step 5 of the install plan, asked by Milos.
 
 - **Heard from macOS,** `OlmPlugins/SandboxReports.swift`. Every refusing rule of a plugin's profile
@@ -477,7 +489,9 @@ builds or runs until its button is pressed.
   the text typed and what is opened with, the rows wanted, and a row chosen with what it did and asked,
   or with no `test.json`, or with `-q`, opens it and prints the rows. What it asks of Olm is answered
   yes and never done.
-- **`new`** writes a plugin whose `test.json` passes, so the check holds it to that.
+- **`new`** writes a plugin whose `test.json` passes, so the check holds it to that. Its rows filter
+  nothing, and `test` ranks every case's rows with the app's own `Searcher`, as the list shows them,
+  since a plugin trialled on 2026-11-27 filtered by hand only because `test` did not search.
 - **`dev`** copies the manifest and sources into `~/.olm/plugins` on every change, the data kept, and
   prints its log as it grows. Olm's watcher builds it. Asking for anything not allowed opens its page.
 - **`install` and `remove`** only open the page, the install page or the plugin's page with the

@@ -13,6 +13,9 @@ moved the behavior. This skill names files and rules. It never cites line number
 measurements, because those drift silently. Paths below that start at `Spoons/Olm.spoon`
 are rooted at `dotfiles/hammerspoon/.hammerspoon` in this repository.
 
+An external plugin for Olm.app, a folder with `olm-plugin.json` and Swift sources run sandboxed from
+`~/.olm/plugins`, is the `olm-app-plugin` skill's, not this one's.
+
 ## Read order
 
 Do not start from memory of how these plugins look. The contract has moved several times and a
