@@ -1937,3 +1937,17 @@ external folder goes to the Trash on Olm's start with its data moved to `~/.olm/
 The skill's worked example was Browser Switcher inside the app, so it now routes to the kit and the
 scaffold. `docs/DESIGN-APP-PLUGINS.md` has the shape and the split, and the plan's 4.4 and stage 7
 became core steps.
+
+### 2026-11-28 12:17, stage 8 added for Olm's own config and settings, Olm alone renumbered 9
+
+Milos asked how far Olm is from standing without Hammerspoon. Reading what Hammerspoon writes into
+`~/.olm/run` showed a layer no step of the plan moved: the config files under `config/` read by
+`init.lua` alone, the keymap compiled into `keymap.json`, the settings declared, checked and stored
+by `lib/settings.lua`, the look as `chooser.json`, each list's bar as a `*keys.json`, the cheat
+sheets' layout, and every message, which the app sends Hammerspoon to draw. Asked to add it with
+whatever else standing alone needs, it became stage 8 in eight steps, the format and home first as
+open question 7, TOML in a folder of its own recommended, then the config, the keymap, settings, the
+look, the bars and sheets, messages and the repository's side, and stage 9 Olm alone, whose 9.2 now
+also retires every flip switch, every shadow and the bridge. `docs/DESIGN-APP-KEYS.md` already named
+stage 8 as where the keymap leaves Lua, which the new numbering keeps true.
+

@@ -23,7 +23,7 @@ gets one line under it saying where it stands and on which branch. A decided ope
 ticked with what was decided, and the decision goes into `decisions/olm-standalone.md` in the same
 commit.
 
-Next. 3.3 is done, its five steps 3.3a to 3.3e each tried by Milos, the last on 2026-11-17. 3.4, the keys of a list pushed in the app, is done, tried by Milos on 2026-11-17. 3.5, the flip of Hyper and Space, is built and held off behind `launcherFlip` until every tool the launcher leads to is shown in the app, since a row leading to one it does not show did nothing. 3.6 is done, tried by Milos on 2026-11-18. 3.7, one look for every picture and word, is done, tried by Milos on 2026-11-18. 3.5, the flip of Hyper and Space, is done, tried by Milos on 2026-11-18. Checking the resting point found a tool's own key still opening Hammerspoon's list, so 3.8 was added and is done, tried by Milos on 2026-11-18. Input Sources' cycle in the app is done. The resting point was called reached by Milos on 2026-11-20, the launcher's timings read from 62 opens, typing never waiting on Hammerspoon, its rows a Hammerspoon round trip of 73 ms median by design until stage 4, and file search's timings left to a follow up with one open recorded. The route to Olm standing alone is stages 4 to 8, written on 2026-11-20. 4.1, the plugin runner, the sandbox and a test plugin, is built and checked, waiting on Milos's trial, and the sandbox and the disclaim flag were both proved on macOS 27.0.1 first. On 2026-11-20 Milos put keys, stage 5, and the launcher's catalog, 6.1, before the rest of stage 4, since Hammerspoon cannot go while it binds the keys and serves the core lists. 5.1, the keys in shadow, is built, `docs/DESIGN-APP-KEYS.md`, waiting on Milos's trial. On 2026-11-20 Milos settled the split, the core built into the app in Swift and every other plugin an external one, ours in Swift too, each a process of its own run by the app, `docs/DESIGN-APP-PLUGINS.md`, whose design note he said go to. 5.3, META's and Hyper's keys claimed by the app, is built and flipped behind `appKeys`, every row still run in Hammerspoon, tried by Milos on 2026-11-20 and 2026-11-23, and the plain combos built and flipped on 2026-11-23, waiting on Milos's trial. 5.2, the cheat sheets, is built and flipped on 2026-11-20 behind `sheetsInApp`, the app drawing what Hammerspoon lays out, tried by Milos on 2026-11-23 after two fixes. 6.2, the app toggler, is built and flipped on 2026-11-20 behind `appToggler`, `docs/DESIGN-APP-APPS.md`, every press on an app handed to the app once it holds Accessibility and run by Hammerspoon until then, its shadow logging beside it, waiting on Milos's grant and trial. 2.3's shadow keeps logging, and its log empty is a condition of 3.5's flip. File search is the app's since 1.5's flip on 2026-11-12. Stage 4 stands but for 4.4 as of 2026-11-27, the runner, the kit, the `olm` command, installing from Olm Settings and the skill each tried by Milos, Browser Switcher the first external plugin of ours. Next is 4.4, keep awake, or the rest of stage 6, the core lists, which hold Hammerspoon in place. On 2026-11-28 Milos made every plugin of ours core, stage 7's included, and Browser Switcher moved into the app first, waiting on his trial.
+Next. 3.3 is done, its five steps 3.3a to 3.3e each tried by Milos, the last on 2026-11-17. 3.4, the keys of a list pushed in the app, is done, tried by Milos on 2026-11-17. 3.5, the flip of Hyper and Space, is built and held off behind `launcherFlip` until every tool the launcher leads to is shown in the app, since a row leading to one it does not show did nothing. 3.6 is done, tried by Milos on 2026-11-18. 3.7, one look for every picture and word, is done, tried by Milos on 2026-11-18. 3.5, the flip of Hyper and Space, is done, tried by Milos on 2026-11-18. Checking the resting point found a tool's own key still opening Hammerspoon's list, so 3.8 was added and is done, tried by Milos on 2026-11-18. Input Sources' cycle in the app is done. The resting point was called reached by Milos on 2026-11-20, the launcher's timings read from 62 opens, typing never waiting on Hammerspoon, its rows a Hammerspoon round trip of 73 ms median by design until stage 4, and file search's timings left to a follow up with one open recorded. The route to Olm standing alone is stages 4 to 8, written on 2026-11-20, stage 9 since 2026-11-28. 4.1, the plugin runner, the sandbox and a test plugin, is built and checked, waiting on Milos's trial, and the sandbox and the disclaim flag were both proved on macOS 27.0.1 first. On 2026-11-20 Milos put keys, stage 5, and the launcher's catalog, 6.1, before the rest of stage 4, since Hammerspoon cannot go while it binds the keys and serves the core lists. 5.1, the keys in shadow, is built, `docs/DESIGN-APP-KEYS.md`, waiting on Milos's trial. On 2026-11-20 Milos settled the split, the core built into the app in Swift and every other plugin an external one, ours in Swift too, each a process of its own run by the app, `docs/DESIGN-APP-PLUGINS.md`, whose design note he said go to. 5.3, META's and Hyper's keys claimed by the app, is built and flipped behind `appKeys`, every row still run in Hammerspoon, tried by Milos on 2026-11-20 and 2026-11-23, and the plain combos built and flipped on 2026-11-23, waiting on Milos's trial. 5.2, the cheat sheets, is built and flipped on 2026-11-20 behind `sheetsInApp`, the app drawing what Hammerspoon lays out, tried by Milos on 2026-11-23 after two fixes. 6.2, the app toggler, is built and flipped on 2026-11-20 behind `appToggler`, `docs/DESIGN-APP-APPS.md`, every press on an app handed to the app once it holds Accessibility and run by Hammerspoon until then, its shadow logging beside it, waiting on Milos's grant and trial. 2.3's shadow keeps logging, and its log empty is a condition of 3.5's flip. File search is the app's since 1.5's flip on 2026-11-12. Stage 4 stands but for 4.4 as of 2026-11-27, the runner, the kit, the `olm` command, installing from Olm Settings and the skill each tried by Milos, Browser Switcher the first external plugin of ours. Next is 4.4, keep awake, or the rest of stage 6, the core lists, which hold Hammerspoon in place. On 2026-11-28 Milos made every plugin of ours core, stage 7's included, and Browser Switcher moved into the app first, waiting on his trial.
 
 Stage 0, contracts
 - [x] 0.1 The decision record, 2026-11-05
@@ -174,11 +174,21 @@ Stage 7, our other plugins, one per step, each a core plugin built into the app 
 - [ ] Capture
 - [ ] Eyedropper
 
-Stage 8, Olm alone
-- [ ] 8.1 The first run through the permissions
-- [ ] 8.2 Hammerspoon switched off on a machine, the bridge serving nothing
-- [ ] 8.3 Signing and notarization, when Olm goes to another person
-- [ ] 8.4 Where Olm lives, this repository or one of its own, asked again
+Stage 8, Olm's own config and settings, added on 2026-11-28, asked by Milos
+- [ ] 8.1 The config's format and home decided, open question 7, with Milos
+- [ ] 8.2 The config read by the app, every file under `config/`, Hammerspoon reading the same files until it goes
+- [ ] 8.3 The keymap compiled in the app, `lib/keymap.lua` ported, shadowed against `keymap.json` and flipped
+- [ ] 8.4 Settings decided by the app, the declarations, the checks and the store, Hammerspoon reading the store
+- [ ] 8.5 The look owned by the app, the theme, the type, the tokens and the motion, `chooser.json` no longer Hammerspoon's
+- [ ] 8.6 The bars, the actions pane, the info pane and the cheat sheets laid out in the app, no `*keys.json`
+- [ ] 8.7 Messages drawn by the app, the message, colour and report toasts, `notify` no longer crossing the bridge
+- [ ] 8.8 The repository's side, machine files, theme emitter, dependencies, grants and gates naming Olm.app rather than Hammerspoon
+
+Stage 9, Olm alone, stage 8 until 2026-11-28
+- [ ] 9.1 The first run through the permissions
+- [ ] 9.2 Hammerspoon switched off on a machine, the bridge serving nothing, every flip switch and shadow retired
+- [ ] 9.3 Signing and notarization, when Olm goes to another person
+- [ ] 9.4 Where Olm lives, this repository or one of its own, asked again
 
 Open questions
 - [x] 1 Where Olm.app lives, in this repository until Olm is decoupled, 2026-11-07
@@ -187,6 +197,7 @@ Open questions
 - [ ] 4 Leaders in a password field
 - [ ] 5 The calculator
 - [ ] 6 Lua after Hammerspoon
+- [ ] 7 The config's format and home, decided at 8.1
 
 ## Open measurements
 
@@ -1205,18 +1216,76 @@ with a timeout, run in shadow and flipped. Display profiles first, since it is t
 in the background and proves that path. Written as external plugins on 2026-11-20 and made core by
 Milos on 2026-11-28, `docs/DESIGN-APP-PLUGINS.md` The split.
 
-### Stage 8, Olm alone
+### Stage 8, Olm's own config and settings
 
-**8.1 The first run.** A first run that walks through what macOS asks of Olm, Accessibility, Input
+Added on 2026-11-28, asked by Milos, once reading what Hammerspoon still writes into `~/.olm/run`
+showed a layer no step moved. The lists of stages 6 and 7 move the work. This stage moves what every
+list stands on, which Hammerspoon still decides: the person's config, read from `config/*.lua` by
+`init.lua` alone, the keymap compiled from it into `keymap.json`, the settings declared in
+`lib/settings.lua` with their checks and their store, the look handed over as `chooser.json`, every
+list's bar as a `*keys.json`, the cheat sheets' layout, and every message, which the app sends to
+Hammerspoon to draw. Until it is done Olm.app draws and Hammerspoon decides, `docs/DESIGN-APP-SETTINGS.md`,
+and stage 9 cannot start. It can run beside stages 6 and 7, each step on its own, and each follows
+the plan's way, fixtures first, the app's answer compared with Hammerspoon's, then a flip one switch
+takes back. Hammerspoon reads what the app now owns, never a second copy, until it goes.
+
+**8.1 The format and the home.** Open question 7, decided with Milos before anything is moved.
+Converting the config to TOML first was turned down on 2026-11-05 for the bridge, which serves JSON,
+and left for "files the app reads itself", which these become. `icons.toml` and `typography.toml`
+already are. Recommended, TOML in a folder the app reads, linked by stow from a package of its own,
+with the Lua side reading the same files through a small reader until it goes, and the machine
+files of rule 9 of the repository's AGENTS.md beside them.
+
+**8.2 The config read by the app.** `settings.lua`, `keymap.lua`, `plugins.lua`, `apps.lua`,
+`displays.lua`, `toggles.lua`, `filesearch.lua`, `processes.lua` and `machine.lua`, each rewritten
+once in the chosen format by a converter whose output is read in `git diff` before it is committed,
+and every value the Lua side read before read the same afterwards, a golden of the resolved config
+compared before and after. Nothing a person sees changes.
+
+**8.3 The keymap in the app.** `lib/keymap.lua`'s reader, its build, `applyLists`, the collision
+checks and the leaders' policy ported to Swift, held to the keymap fixtures of 0.3c and to
+`keys.golden`, its answer compared with `keymap.json` at every load, then the app's taken. The keys
+the app already owns stop asking Hammerspoon what they mean.
+
+**8.4 Settings decided by the app.** The declarations of `lib/settings.lua` and the four providers
+move to Swift, the window's change is checked, saved and applied by the app, and
+`~/.olm/state/settings.json` keeps its one writer, the app. A setting that changes something still
+Hammerspoon's is told to it over the bridge until that thing moves.
+
+**8.5 The look in the app.** The palette, the type roles, the kit's tokens, the spacing and the
+motion read by the app from the files `src/check-theme.sh` writes and `config/settings.lua` held,
+rule 9 of this plan ending, `chooser.json` compared with what the app works out, then retired. The
+canvas chooser and the Lua kit keep their copy only while a list is drawn by Lua.
+
+**8.6 The bars and the cheat sheets.** `lib/hints.lua`'s bottom bar model, the info pane's rule, the
+actions pane's rows and the cheat sheets' layout from `host/leadersheet` ported, held to the bar and
+sheet goldens, each list's `*keys.json` then no longer read.
+
+**8.7 Messages.** The message, colour and report toasts drawn by the app on its own glass, the
+motion of the chooser's, every `notify` the app sends Hammerspoon today answered in place.
+
+**8.8 The repository's side.** What this repository runs that names Hammerspoon for Olm: the machine
+files `src/setup-hammerspoon-apps.sh` copies, the theme emitter for Olm, the plugins' declared tools
+collected without Lua, a `grants-probe` for Olm.app's own Accessibility and Input Monitoring, and the
+dry gate's and the goldens' checks that read Lua replaced by checks of the app. Each one keeps
+working on a machine that still runs Hammerspoon.
+
+### Stage 9, Olm alone
+
+Stage 8 until 2026-11-28, renumbered when Olm's own config and settings became stage 8.
+
+**9.1 The first run.** A first run that walks through what macOS asks of Olm, Accessibility, Input
 Monitoring, and the driver and the daemon where they are used.
 
-**8.2 Hammerspoon switched off.** When the bridge serves nothing on a machine, its `hammerspoon`
+**9.2 Hammerspoon switched off.** When the bridge serves nothing on a machine, its `hammerspoon`
 piece is switched off, and removing Hammerspoon is the separate act rule 4 of the repository's
-machine rules describes, done with the person's go ahead.
+machine rules describes, done with the person's go ahead. Every flip switch, `launcherCatalog`,
+`appKeys`, `sheetsInApp`, `appToggler` and the rest, and every shadow log is retired with it, and
+the bridge with them, since nothing is left to cross it.
 
-**8.3 Signing and notarization,** with a Developer ID, when Olm goes to another person.
+**9.3 Signing and notarization,** with a Developer ID, when Olm goes to another person.
 
-**8.4 Where Olm lives.** Open question 1 comes back, this repository or one of its own, asked
+**9.4 Where Olm lives.** Open question 1 comes back, this repository or one of its own, asked
 before Hammerspoon is switched off.
 
 ## Open questions
@@ -1237,3 +1306,6 @@ before Hammerspoon is switched off.
    the GPL library behind `qalc`. Decided when convert moves in stage 4.
 6. Whether Lua survives as an optional scripting runtime in an extension process once Hammerspoon
    is gone. Decided in stage 6.
+7. The config's format and home once the app reads it, TOML in a folder of its own recommended,
+   with the Lua side reading the same files until it goes. Decided at 8.1, with Milos, added on
+   2026-11-28.
