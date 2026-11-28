@@ -532,6 +532,13 @@ do
   up = true
   clock = clock + 1
   eq(k:showing("fileSearch"), false, "keys: and the up it last said is forgotten")
+  note("local.olm.Olm.state", "filesearch:up")
+  eq(k:showing("fileSearch"), true, "keys: up again")
+  k:_forgetLists()
+  eq(k:showing("fileSearch"), false, "keys: a socket gone forgets the list, the app relaunched answering running")
+  open()
+  k:_forgetLists()
+  eq(k:showing("fileSearch"), false, "keys: and an open still waiting for its up")
   note("local.olm.Olm.state", "nonsense")
   note("local.olm.Olm.state", nil)
   eq(k:showing("fileSearch"), false, "keys: a note that is not a state changes nothing")

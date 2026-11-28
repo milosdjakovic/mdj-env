@@ -441,6 +441,12 @@ is built here, its subtitle, its keywords, its key or its gate, reaches the app 
 must keep the share's fields, and a change to the order in `_orderedRows` or the scan has a twin in
 `app/Sources/OlmLauncher`. `docs/DESIGN-APP-LAUNCHER.md` has the design.
 
+Since step 6.10a the app answers the calculator itself and asks for the typed rows only when the
+query has a shape the scope, convert or window size answers, `TypedGate.swift`, read from `typed` in
+the share, the live aliases and the query sources wired. A new query source, or a scope grammar
+other than a word and a space, changes that gate in the same change, since the gate asks for
+everything only for a source it does not know by name.
+
 ## App enumeration and caching
 
 The installed app list is scanned from the standard app directories and cached.

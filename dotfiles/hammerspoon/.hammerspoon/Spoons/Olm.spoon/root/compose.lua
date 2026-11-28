@@ -3494,6 +3494,20 @@ function obj.run(olm, cfg)
             bridgeModule:share("launchercatalog", function()
               local share = launcher:catalogShare()
               share.inApp = type(bridgeModule.catalogInApp) == "function" and bridgeModule:catalogInApp() or false
+              -- What the app needs to know which typed queries Hammerspoon still answers, the typed
+              -- rows in the app, every live alias of the query scope and the query sources wired
+              -- the way the launcher's are, so a query none of them answers is never asked.
+              local words, sources = {}, {}
+              local scopes = modules[plan.identity.queryscope or "queryscope"]
+              if scopes and type(scopes.catalog) == "function" then
+                for _, s in ipairs(scopes:catalog()) do
+                  for _, a in ipairs(s.aliases or {}) do words[#words + 1] = tostring(a):lower() end
+                end
+              end
+              for _, identity in ipairs((plan.sets.launcher or {}).queryRows or {}) do
+                if modules[identity] then sources[#sources + 1] = identity end
+              end
+              share.typed = { scopeWords = words, sources = sources }
               return share
             end)
           end)

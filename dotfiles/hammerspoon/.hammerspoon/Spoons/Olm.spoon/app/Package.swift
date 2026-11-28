@@ -69,7 +69,7 @@ let package = Package(
       path: "Sources/Olm"
     ),
     .executableTarget(name: "olm-fixtures", dependencies: ["OlmKit", "OlmSearch", "OlmLook", "OlmCore", "FileSearchPlugin", "OlmApps",
-      "KeepAwakePlugin"],
+      "KeepAwakePlugin", "OlmLauncher"],
       path: "Sources/olm-fixtures", swiftSettings: v5),
     // The bridge checked over a socket of its own, a fake Hammerspoon answering it.
     .executableTarget(name: "olm-bridge-check", dependencies: ["OlmKit", "OlmCore", "OlmBridge", "OlmSettings"],

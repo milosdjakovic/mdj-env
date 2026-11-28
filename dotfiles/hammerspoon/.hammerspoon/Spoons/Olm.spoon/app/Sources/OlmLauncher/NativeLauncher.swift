@@ -10,6 +10,7 @@
 // step. Hammerspoon keeps the recency and the memory and hands both back, the recency in the share
 // and the memory as the bridged launcher has it.
 
+import AppKit
 import Foundation
 import OlmBridge
 import CoreGraphics
@@ -42,6 +43,12 @@ public actor NativeLauncher: ListSource {
   private var ownerIcons: [String: [String: Icon]] = [:]
   private var waiting: (query: String, task: Task<(RowsAnswer, Bool)?, Never>)?
   private var unknownGates: Set<String> = []
+  /// Whether the last answer was a claim, set when the app answered the typed rows itself.
+  private var localClaimed: Bool?
+  /// Convert, run by the app where qalc is installed, step 6.10b.
+  private let convert = Convert(tool: Convert.find())
+  /// The query whose conversion the next rowsLanded runs.
+  private var converts: String?
   /// The rows of the plugins the app runs, and the list each opens, docs/DESIGN-APP-PLUGINS.md.
   private let externals: @Sendable () -> [Row]
   private let external: @Sendable (String) async -> (any ListSource)?
@@ -90,7 +97,8 @@ public actor NativeLauncher: ListSource {
       return
     }
     if inner.shown {
-      let owners = Set(share.entries.compactMap { $0.icon["owner"].string })
+      // The calculator's icon too, which a row the app makes itself wears.
+      let owners = Set(share.entries.compactMap { $0.icon["owner"].string } + (share.gate?.sources.sorted() ?? []))
       if !owners.isSubset(of: Set(ownerIcons.keys)) { ownerIcons = await inner.icons(owners) }
     }
     let icons = ownerIcons
@@ -144,7 +152,17 @@ public actor NativeLauncher: ListSource {
     }
     let memory = await inner.memorySnapshot()
     let catalog = Catalog.withBonus(built, memory: memory, query: query.text) + externals()
+    localClaimed = nil
+    converts = nil
     if query.text.isEmpty { return RowsAnswer(rows: catalog) }
+    // A query none of Hammerspoon's other sources can answer is the app's alone, the calculator's
+    // and convert's.
+    if let gate = localGate(), !gate.asks(query.text) {
+      localClaimed = false
+      let (typed, converting) = await typedHere(query.text)
+      if converting { converts = query.text }
+      return RowsAnswer(rows: typed + catalog, pending: converting)
+    }
     let inner = self.inner
     let task = Task<(RowsAnswer, Bool)?, Never> {
       guard let answer = try? await inner.rows(query) else { return nil }
@@ -175,11 +193,58 @@ public actor NativeLauncher: ListSource {
 
   public func rowsLanded(_ query: Query) async throws -> RowsAnswer? {
     if !native, let fallback { return try await fallback.rowsLanded(query) }
+    if converts == query.text {
+      converts = nil
+      return try await converted(query)
+    }
     guard let w = waiting, w.query == query.text else { return nil }
     waiting = nil
     guard let landed = await w.task.value, let built else { return nil }
     let catalog = Catalog.withBonus(built, memory: await inner.memorySnapshot(), query: query.text) + externals()
     return merge(landed, catalog)
+  }
+
+  // MARK: The typed rows the app answers itself
+
+  static let calcPrefix = "calc:"
+
+  /// The gate with what the app answers itself taken out, convert where qalc is here, nil from a
+  /// share that carries none.
+  private func localGate() -> TypedGate? {
+    guard var gate = share?.gate else { return nil }
+    if convert.tool != nil { gate.sources.remove("convert") }
+    return gate
+  }
+
+  /// The calculator's row and convert's, each where Hammerspoon wired it, as the Lua rows read, and
+  /// whether a conversion is still running, its row then the Lua placeholder.
+  private func typedHere(_ query: String) async -> ([Row], Bool) {
+    let sources = share?.gate?.sources ?? []
+    if sources.contains("arithmetic"), let value = Arithmetic.answer(query) {
+      return ([Row(key: Self.calcPrefix + value, title: value, subtitle: "Copy the result",
+        icon: ownerIcons["arithmetic"]?["arithmetic"], fromQuery: true)], false)
+    }
+    guard sources.contains("convert"), convert.tool != nil, Convert.parts(query) != nil else { return ([], false) }
+    let icon = ownerIcons["convert"]?["convert"]
+    switch await convert.cached(query) {
+    case .value(let value)?:
+      return ([Row(key: Self.calcPrefix + value, title: value, subtitle: "Copy the result", icon: icon, fromQuery: true)], false)
+    case .miss?:
+      return ([], false)
+    case nil:
+      return ([Row(key: "convert:pending", title: "Converting", icon: icon, fromQuery: true, inert: true)], true)
+    }
+  }
+
+  /// The conversion's answer once typing has paused. The Lua plugin waits a quarter second, since
+  /// each run there is a process the list waits on. Here a run is off the list's path and a newer
+  /// keystroke cancels this wait, so a short pause only keeps a burst of keys from starting one run
+  /// each.
+  private func converted(_ query: Query) async throws -> RowsAnswer? {
+    try await Task.sleep(for: .milliseconds(80))
+    _ = await convert.convert(query.text)
+    try Task.checkCancellation()
+    return try await rows(query)
   }
 
   private enum Outcome: Sendable {
@@ -207,6 +272,7 @@ public actor NativeLauncher: ListSource {
   public var claimed: Bool {
     get async {
       if !native, let fallback { return await fallback.claimed }
+      if let localClaimed { return localClaimed }
       return await inner.claimed
     }
   }
@@ -214,6 +280,15 @@ public actor NativeLauncher: ListSource {
   public func choose(_ pick: Pick) async -> [Effect] {
     if !native, let fallback { return await fallback.choose(pick) }
     if pick.key.hasPrefix(Self.externalPrefix) { return [.push(pick.key)] }
+    if pick.key.hasPrefix(Self.calcPrefix) {
+      // As the Lua calc row's run, the result on the pasteboard once the list is gone.
+      let value = String(pick.key.dropFirst(Self.calcPrefix.count))
+      await MainActor.run {
+        NSPasteboard.general.clearContents()
+        NSPasteboard.general.setString(value, forType: .string)
+      }
+      return [.hide]
+    }
     if await inner.holds(pick.key) { return await inner.choose(pick) }
     guard let item = built?.items[pick.key] else { return [] }
     return await inner.chooseItem(item, query: pick.query)

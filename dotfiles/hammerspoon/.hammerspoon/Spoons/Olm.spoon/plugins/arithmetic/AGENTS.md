@@ -80,3 +80,12 @@ Every other unit belongs to `Convert`, which is a separate spoon because it need
 tool that can be absent. Adding functions would mean putting names back in the
 alphabet and giving up the reason evaluation is safe, so it would need a real parser
 rather than a whitelist.
+
+## Olm.app answers it too, since 2026-11-28
+
+Olm.app's launcher evaluates a typed sum itself, `app/Sources/OlmLauncher/Arithmetic.swift`, step
+6.10a of `docs/PLAN-STANDALONE.md`, and asks Hammerspoon only for a query the scope, convert or
+window size could answer. It is this file's evaluator in Swift, Lua 5.4's numbers included, held to
+`test/fixtures/arithmetic/rows.json`, which `test/typedrows-record.lua` records from this plugin. A
+change to the grammar or the formatting here is recorded again and carried to the Swift until the
+fixture passes on both sides.

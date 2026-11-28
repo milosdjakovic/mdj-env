@@ -174,3 +174,18 @@ spoon against the real tool from plain `lua`, with no Hammerspoon and no test lo
 That is worth rebuilding rather than trusting a stub, because every defect found
 here was in what the tool actually returns rather than in the control flow around
 it.
+
+## Olm.app runs it too, since 2026-11-28
+
+Olm.app's launcher converts a typed query itself, `app/Sources/OlmLauncher/Convert.swift`, step
+6.10b of `docs/PLAN-STANDALONE.md`, with this file's gate, flags, retry, minus and cache. It was
+moved because this plugin's late answer is announced through `redraw`, which reaches only a list
+Hammerspoon draws, so in the app's launcher the placeholder stayed until a key asked again. The
+gate is held to `test/fixtures/convert/parts.json`, recorded from this plugin by
+`test/typedrows-record.lua`. A change to the gate, the flags or the retry here is carried to the
+Swift in the same change.
+
+Two things differ there on purpose, asked by Milos on 2026-11-28 since a conversion felt slow in
+both. The pause before a run is 80 ms rather than this file's quarter second, since a run in the app
+is off the list's path and a newer keystroke cancels the wait, and the minus form runs beside the
+plain one rather than after it, used by the same rule, so a mixed unit answer costs one run's time.

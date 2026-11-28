@@ -1973,3 +1973,59 @@ again. That relaunch first failed with error -600, since `pkill` returns before 
 `open` reached the process still going away, so a relaunch waits for the old one to be gone,
 `pkill -x Olm; while pgrep -qx Olm; do sleep 0.1; done; env -i open -g /Applications/Olm.app`. With
 4.4 ticked, stage 4 is done.
+
+### 2026-11-28 19:32, the typed rows in the app begin, the calculator and a gate so plain typing never asks Hammerspoon
+
+Moving only the calculator would have changed nothing, since the app asked Hammerspoon once per
+keystroke for every row made from the typed text, the scope, the calculator, convert and window
+size together. So Milos agreed to move the four as one step, 6.10, in four parts. The first is
+built. The calculator is ported to Swift as Lua 5.4's own arithmetic, since the Lua plugin hands a
+whitelisted expression to `load`, so integers wrap and stay integers through + - * // and %, / and
+^ give floats, and a name of any kind fails, and 117 cases recorded from the plugin hold the two
+alike. A gate decides when the app still asks, a typed word with its space, a digit with `to` or
+`->`, a digit with an x, each wider than the Lua test it stands for and never narrower, since a
+needless ask costs a round trip and a missed one loses a row, and a source the gate does not know
+makes it ask for everything. The share Hammerspoon writes carries the live words and the wired
+sources. When the gate does not ask, the app answers the calculator alone and claims nothing, so
+the launcher's shadow, which compares claims, would show a missed scope. Waiting on Milos's trial.
+
+### 2026-11-28 19:55, convert run by the app, since its late answer never reached the app's launcher
+
+Milos tried 6.10a. `10 km to miles` and `11 eur to rsd` sat on Converting until an arrow key or
+another key asked again. The cause is older than 6.10a: convert answers a placeholder first and
+announces the real answer through the root's `redraw`, which `service.redraws` sends only to a
+hosted presentation's level, never to a launcher level, so the app was never told. Rather than
+teach the bridge a redraw for launcher levels, convert moved into the app as 6.10b, planned next
+anyway. `Convert.swift` keeps the plugin's gate, flags, retry, minus and cache, runs `qalc` off the
+main thread with a five second limit, and lands the answer through `rowsLanded` a quarter second
+after typing pauses, the plugin's debounce. Checked against `qalc` run directly, about 50 ms a run,
+and its gate against 31 cases recorded from the plugin. Waiting on Milos's trial.
+
+### 2026-11-28 20:10, Hyper and Space opened nothing after Olm was killed with its launcher up
+
+After 6.10b was deployed, Hyper and Space opened nothing. Olm heard the presses, its main thread
+was idle and its socket was up, so a trace was added along the open. With the trace in, after a
+Hammerspoon reload, the launcher opened at once, which placed the cause in Hammerspoon. The bridge
+keeps which of the app's lists are up from the app's up and down notes and drops that record only
+when the app answers not running. Olm had been killed while its launcher was up and relaunched
+straight away, so the record outlived it, and Hammerspoon read Hyper and Space as the open list's
+close. The record is now dropped when the socket goes, `_forgetLists`, held by `test/bridge.lua`,
+and the trace is gone. Not caused by 6.10a or 6.10b. Any relaunch of Olm without a Hammerspoon
+reload could hit it.
+
+### 2026-11-28 20:20, a conversion lands about 130 ms after the last key, down from about 350
+
+Milos found a conversion sluggish, in Hammerspoon before 6.10b as well. Measured, a `qalc` run is
+about 50 ms and a mixed unit answer such as `10 km to miles` takes two, behind the plugin's quarter
+second debounce, so about 350 ms from the last key. The debounce was there so Hammerspoon did not
+start a process per keystroke. In the app a run is off the list's path and the stage cancels the
+wait on a newer keystroke, so the pause is 80 ms, and the minus form runs beside the plain one,
+kept only where the plugin's retry would keep it. The same answers, checked against the earlier
+run, `10 km to miles` 74 ms in place of 107. A qalc kept running and fed lines was not taken, since
+an unknown unit is told apart by the exit status a one shot run gives.
+
+### 2026-11-28 20:25, 6.10a and 6.10b tried by Milos
+
+Milos tried both and said everything works and conversion is much faster: sums and conversions
+answered in the app, typed words, sizes and the rest still asked of Hammerspoon, and Hyper and
+Space opening after a relaunch. 6.10c, window size from the app's own window plan, is next.

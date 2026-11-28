@@ -13,6 +13,7 @@ import OlmLook
 import OlmSearch
 import FileSearchPlugin
 import KeepAwakePlugin
+import OlmLauncher
 
 var failures = 0, passed = 0, skipped = 0
 
@@ -516,7 +517,46 @@ func runKeepAwake(_ file: String, _ doc: [String: Any]) {
   }
 }
 
+// arithmetic.rows, the calculator's row, recorded from plugins/arithmetic by test/typedrows-record.lua.
+func runArithmetic(_ file: String, _ doc: [String: Any]) {
+  for case let c as [String: Any] in (doc["cases"] as? [Any]) ?? [] {
+    let name = c["name"] as? String ?? "?"
+    let got = Arithmetic.answer(c["query"] as? String ?? "")
+    let want = c["expect"] as? String
+    if got == want { passed += 1 } else { fail(file, name, "wanted \(show(want)), got \(show(got))") }
+  }
+}
+
+// launcher.typedgate, whether the launcher asks Hammerspoon for the typed rows: every query a source
+// other than the calculator answers is asked, and plain words nothing answers are not.
+func runTypedGate(_ file: String, _ doc: [String: Any]) {
+  let gate = TypedGate(scopeWords: Set(doc["words"] as? [String] ?? []), sources: Set(doc["sources"] as? [String] ?? []))
+  for case let c as [String: Any] in (doc["cases"] as? [Any]) ?? [] {
+    let name = c["name"] as? String ?? "?"
+    let asks = gate.asks(c["query"] as? String ?? "")
+    if c["answers"] as? Bool == true, !asks {
+      fail(file, name, "a source answers it and the gate does not ask")
+    } else if c["quiet"] as? Bool == true, asks {
+      fail(file, name, "nothing answers plain words and the gate asks")
+    } else {
+      passed += 1
+    }
+  }
+}
+
+// convert.parts, whether a query is a conversion, recorded from plugins/convert by test/typedrows-record.lua.
+func runConvertParts(_ file: String, _ doc: [String: Any]) {
+  for case let c as [String: Any] in (doc["cases"] as? [Any]) ?? [] {
+    let name = c["name"] as? String ?? "?"
+    let got = Convert.parts(c["query"] as? String ?? "") != nil
+    if got == (c["converts"] as? Bool ?? false) { passed += 1 } else { fail(file, name, "wanted \(!got), got \(got)") }
+  }
+}
+
 let runners: [String: (String, [String: Any]) -> Void] = [
+  "convert.parts": runConvertParts,
+  "arithmetic.rows": runArithmetic,
+  "launcher.typedgate": runTypedGate,
   "keepawake.rows": runKeepAwake,
   "windows.plan": runWindowPlan,
   "stage.prefix": runPrefix,

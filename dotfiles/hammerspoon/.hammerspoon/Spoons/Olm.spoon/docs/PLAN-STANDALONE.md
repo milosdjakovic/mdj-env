@@ -157,7 +157,10 @@ Stage 6, the core in the app, one per step
 - [ ] 6.7 Menu search
 - [ ] 6.8 Input sources
 - [ ] 6.9 Text case
-- [ ] 6.10 The calculator and convert
+- [ ] 6.10 The calculator and convert, with window size and the typed words, the typed rows in the app, asked by Milos on 2026-11-28 so typing in the launcher never asks Hammerspoon
+  - 6.10a, the calculator in the app and the gate, built on 2026-11-28, tried by Milos the same day. `app/Sources/OlmLauncher/Arithmetic.swift` is Lua 5.4's arithmetic over the plugin's whitelist, held to 117 cases recorded from `plugins/arithmetic` into `test/fixtures/arithmetic/rows.json`. `TypedGate.swift` asks Hammerspoon only for a typed word and its space, a query with a digit and `to` or `->`, or a digit and an x, held to `test/fixtures/launcher/typedgate.json`, every query convert, window size or the scope answers asked and plain words never, `test/typedrows-record.lua` recording both. The catalog share carries the live words and the wired sources as `typed`, and a share without it asks for every query as before.
+  - 6.10b, convert run by the app, built on 2026-11-28 after Milos's trial of 6.10a showed a conversion stuck on Converting until a key, since Hammerspoon's late answer redraws only its own list and never reached the app's. `app/Sources/OlmLauncher/Convert.swift` runs `qalc` with the plugin's flags off the main thread, five seconds at most, retries a mixed unit answer, keeps every answer for the session, and its gate is held to `test/fixtures/convert/parts.json`. The placeholder lands as the answer through `rowsLanded` 80 ms after typing pauses, and the minus form of a mixed unit answer runs beside the plain one, about 130 ms from the last key where Hammerspoon took about 350. Where `qalc` is installed the gate no longer asks for a conversion. Tried by Milos on 2026-11-28.
+  - 6.10c, window size from the app's own window plan. 6.10d, a typed word for a tool the app serves opened in the app without asking.
 - [ ] 6.11 System Settings panes
 
 Stage 7, our other plugins, one per step, each a core plugin built into the app since Milos's call on 2026-11-28

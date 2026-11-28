@@ -493,7 +493,33 @@ local function runKeepAwake(case, file)
   return {}
 end
 
+-- arithmetic.rows and launcher.typedgate, the typed rows in the app, recorded from the launcher's
+-- typed sources by test/typedrows-record.lua, replayed against the same sources.
+local typedSources = assert(loadfile(here .. "typedrows-sources.lua"))()
+local function runArithmetic(case)
+  local got = typedSources.sum(case.query)
+  if got ~= case.expect then return { "wanted " .. show(case.expect) .. ", got " .. show(got) } end
+  return {}
+end
+local function runTypedGate(case, file)
+  local answers, quiet = typedSources.gate(case.query, plain(file.words))
+  if answers ~= case.answers or quiet ~= case.quiet then
+    return { "wanted answers " .. tostring(case.answers) .. " quiet " .. tostring(case.quiet) .. ", got " ..
+      tostring(answers) .. " " .. tostring(quiet) }
+  end
+  return {}
+end
+
+local function runConvertParts(case)
+  local got = typedSources.converts(case.query)
+  if got ~= case.converts then return { "wanted " .. tostring(case.converts) .. ", got " .. tostring(got) } end
+  return {}
+end
+
 local KINDS = {
+  ["convert.parts"] = runConvertParts,
+  ["arithmetic.rows"] = runArithmetic,
+  ["launcher.typedgate"] = runTypedGate,
   ["keepawake.rows"] = runKeepAwake,
   ["windows.plan"] = runWindowPlan,
   ["keys.repeat"] = runRepeat,

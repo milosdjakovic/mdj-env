@@ -334,7 +334,7 @@ function obj:serveLauncher(provider)
     onMessage = function(text) session:receive(text) end,
     onUp = function() log.i("connected to Olm.app's socket") end,
     onDown = function()
-      session:reset(); service.closeAll(); self:_reclaimKeys(); log.i("Olm.app's socket went")
+      session:reset(); service.closeAll(); self:_reclaimKeys(); self:_forgetLists(); log.i("Olm.app's socket went")
     end,
     log = function(text) log.w(text) end })
   self._conn = conn:start()
@@ -1031,6 +1031,15 @@ function obj:_state(object)
       if self._cycling == tool then self._cycling = nil end
     end
   end
+end
+
+-- The socket went, so every list the app said was up went with it. A relaunched app answered
+-- running, so the record outlived it, and with the launcher recorded up Hyper and Space closed a
+-- list that was not there and nothing opened, found in Milos's trial of 6.10b on 2026-11-28.
+function obj:_forgetLists()
+  for tool in pairs(self._up) do self._up[tool] = nil end
+  for tool in pairs(self._opening) do self:_endOpening(tool) end
+  self._cycling = nil
 end
 
 function obj:_opened(tool)

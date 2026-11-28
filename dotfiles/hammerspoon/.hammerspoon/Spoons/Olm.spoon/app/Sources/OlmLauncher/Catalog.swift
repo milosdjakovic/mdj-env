@@ -40,6 +40,9 @@ public struct CatalogShare: Sendable {
   public var appOpen: String
   /// Whether the launcher a person opens builds its catalog in the app, the launcherCatalog switch.
   public var inApp: Bool
+  /// Which typed queries Hammerspoon still answers, nil from a share written before the typed rows
+  /// moved, when every typed query is asked.
+  public var gate: TypedGate?
 
   public static func parse(_ data: Data) -> CatalogShare? {
     guard let j = JSON.decode(data), j["version"].int == 1 else { return nil }
@@ -56,7 +59,12 @@ public struct CatalogShare: Sendable {
     return CatalogShare(entries: entries, apps: apps, recency: (j["recency"].array ?? []).compactMap(\.string),
       ignoreUsage: Set((j["ignoreUsage"].array ?? []).compactMap(\.string)), selfBundle: j["self"].string,
       appWord: j["appWord"].string ?? "Application", appOpen: j["appOpen"].string ?? "Application · Open",
-      inApp: j["inApp"].bool ?? false)
+      inApp: j["inApp"].bool ?? false, gate: gate(j["typed"]))
+  }
+
+  static func gate(_ t: JSON) -> TypedGate? {
+    guard let words = t["scopeWords"].array, let sources = t["sources"].array else { return nil }
+    return TypedGate(scopeWords: Set(words.compactMap(\.string)), sources: Set(sources.compactMap(\.string)))
   }
 }
 
