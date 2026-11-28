@@ -482,7 +482,19 @@ local function runWindowPlan(case)
   return {}
 end
 
+-- keepawake.rows, the keep awake row, plugins/caffeinate/rows.lua, recorded by
+-- test/keepawake-record.lua, at the file's moment in UTC.
+local keepAwakeRows = assert(loadfile(here .. "../plugins/caffeinate/rows.lua"))()
+local function runKeepAwake(case, file)
+  local status = plain(case.status)
+  local row = keepAwakeRows.line(case.query, status, keepAwakeRows.utcClock(file.now))
+  local got = { title = row.title, subtitle = row.subTitle, icon = row.icon, choice = row.item }
+  if not near(got, plain(case.expect)) then return { "wanted " .. show(case.expect) .. ", got " .. show(got) } end
+  return {}
+end
+
 local KINDS = {
+  ["keepawake.rows"] = runKeepAwake,
   ["windows.plan"] = runWindowPlan,
   ["keys.repeat"] = runRepeat,
   ["stage.prefix"] = runPrefix,

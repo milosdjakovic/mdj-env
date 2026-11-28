@@ -104,7 +104,11 @@ return {
     -- tried in it by hand, docs/PARITY-FILESEARCH.md, where the olmapp piece is on. Going back is
     -- that piece turned off and a reload, which opens the Lua list again with the app's uses merged
     -- into it. The launcher's slash scope stays on the Lua list until stage 3.
-    serves = { "fileSearch" },
+    -- Keep awake is the app's since step 4.4 on 2026-11-28, a core list in Swift whose rows are
+    -- checked against plugins/caffeinate/rows.lua by test/fixtures/keepawake, and its session held by
+    -- the app, which took over the one Hammerspoon kept. Taking it out is the way back, the app's
+    -- session in ~/.olm/state/caffeinate then left for the app alone.
+    serves = { "fileSearch", "caffeinate" },
     -- Whether the bridge connects to the app's socket, ~/.olm/run/bridge.sock, and serves the
     -- launcher read only, step 2.2 of the plan. On since step 2.3, where the olmapp piece is on,
     -- which is the only place the bridge acts, and turning it off again is the way back.
@@ -152,7 +156,7 @@ return {
     -- for one replaces its rows in place in the app's window. A tool joins in the step that hosts
     -- it, and taking it out leaves its row put in the app's launcher, as before. Since step 3.6
     -- every tool a launcher row leads to, launcher naming Olm Keys, the page carrying its name.
-    hosts = { "caffeinate", "volume", "audio", "wifi", "inputsources", "tmuxSessions", "vpn", "emoji", "browserTabs", "speedtest",
+    hosts = { "volume", "audio", "wifi", "inputsources", "tmuxSessions", "vpn", "emoji", "browserTabs", "speedtest",
       "clipboard", "displayProfiles", "obsidian", "textCase", "workspaces", "processes",
       "olmchooser", "olmplacement", "olmplugins", "olmtheme", "launcher" },
     -- The tools whose every settled answer the app answers again and compares, step 1.3e. File

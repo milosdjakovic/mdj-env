@@ -1951,3 +1951,25 @@ look, the bars and sheets, messages and the repository's side, and stage 9 Olm a
 also retires every flip switch, every shadow and the bridge. `docs/DESIGN-APP-KEYS.md` already named
 stage 8 as where the keymap leaves Lua, which the new numbering keeps true.
 
+### 2026-11-28 14:05, keep awake built into the app and flipped, checked by a fixture rather than a shadow
+
+Step 4.4 is built, `app/Plugins/KeepAwake`, and `config/plugins.lua` serves `caffeinate`, so its
+key, its launcher row and its typed word open the app's list, the same hand over file search took.
+The Lua grammar moved into `plugins/caffeinate/rows.lua`, pure, with the clock handed in, and 63
+recorded cases in `test/fixtures/keepawake/rows.json` are passed by the Swift port and the Lua alike
+in `suite.sh dry`. A live shadow was not built, since the row is a pure function of the field, the
+session and the clock, so a fixture at a fixed moment in UTC checks the same words and the day
+boundaries a shadow would, with no log to read. The app holds macOS's display idle assertion, the
+one hs.caffeinate's displayIdle takes, its session in `~/.olm/state/caffeinate/session.json`. On its
+first start it took over the session Hammerspoon kept in hs.settings and removed that key, so
+Hammerspoon's engine finds nothing to hold on a load and the two never hold at once. Waiting on
+Milos's trial.
+
+### 2026-11-28 19:13, keep awake tried by Milos, stage 4 done
+
+Milos tried 4.4 and said it works, the toggle, a typed span and clock, the hold in the launcher's
+scope, the assertion released on stop and an indefinite hold restored after Olm was quit and opened
+again. That relaunch first failed with error -600, since `pkill` returns before Olm has quit and
+`open` reached the process still going away, so a relaunch waits for the old one to be gone,
+`pkill -x Olm; while pgrep -qx Olm; do sleep 0.1; done; env -i open -g /Applications/Olm.app`. With
+4.4 ticked, stage 4 is done.

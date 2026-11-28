@@ -21,6 +21,7 @@
 
 import AppKit
 import FileSearchPlugin
+import KeepAwakePlugin
 import OlmApps
 import OlmBridge
 import OlmKeys
@@ -69,6 +70,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
   private let searcher = Searcher()
   private lazy var stage = Stage(searcher: searcher)
   private let sources: [String: any ListSource]
+  private let keepAwake: KeepAwake
   private let shadows: [String: Shadow]
   // The catalog's shadow, reached by the tee over the launcher in use, step 6.1.
   @MainActor enum CatalogCompare { static var shadow: Shadow? }
@@ -249,7 +251,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     let launcher = BridgedLauncher(bridge: bridge)
     // File Search's row and its typed word push the app's own file search over the launcher, step
     // 3.3e, the same source its own key opens.
-    let natives: [String: any ListSource] = [fileSearch.manifest.name: fileSearch]
+    // Keep Awake, step 4.4, one for the app's life since its session outlives the list, restored at
+    // launch. Its key, its launcher row and its typed word open it here once config/plugins.lua's
+    // serves names caffeinate.
+    let keepAwake = KeepAwake(store: olm.appendingPathComponent("state/caffeinate"))
+    self.keepAwake = keepAwake
+    let natives: [String: any ListSource] = [fileSearch.manifest.name: fileSearch, keepAwake.manifest.name: keepAwake]
     let shownLauncher = BridgedLauncher(bridge: bridge, shown: true, natives: natives)
     self.shownLauncher = shownLauncher
     // The launcher a person opens since step 6.1, its catalog built in the app and only the typed rows
@@ -270,7 +277,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
       let claimed = await inUse.claimed
       await MainActor.run { CatalogCompare.shadow?.settled(query: query, keys: keys, status: answer.status, claimed: claimed) }
     }
-    sources = [fileSearch.manifest.name: fileSearch, shownLauncher.manifest.name: compared]
+    sources = [fileSearch.manifest.name: fileSearch, keepAwake.manifest.name: keepAwake,
+      shownLauncher.manifest.name: compared]
     // The shadow answers on a source of its own, so a list a person has open is never touched.
     let shadowed = FileSearchSource(context: context)
     shadows = [shadowed.manifest.name: Shadow(tool: shadowed.manifest.name, source: shadowed,
@@ -290,6 +298,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     DispatchQueue.global(qos: .utility).async { Browsers.refresh() }
     // The external plugins, each built when its sources moved and loaded, off the main thread.
     plugins.start()
+    // A keep awake hold kept from before, held again.
+    let keepAwake = keepAwake
+    Task { await keepAwake.start() }
     // LaunchServices keeps one instance for a bundle it opens, LSMultipleInstancesProhibited in
     // Info.plist. A second copy started some other way, the executable run by hand, leaves at once.
     let me = NSRunningApplication.current

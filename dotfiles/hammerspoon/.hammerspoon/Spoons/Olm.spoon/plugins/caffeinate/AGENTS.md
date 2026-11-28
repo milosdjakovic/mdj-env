@@ -103,3 +103,10 @@ next morning clock written as a full date would be needlessly long.
 **No actions pane.** Stay awake for, the common spans as a pick in the actions pane, was
 added on 2026-10-30 and removed on 2026-11-03 at Milos's request. Every span or clock is typed
 into the field, and with no verb beyond Confirm the list carries no Actions.
+
+**Olm.app serves it since 2026-11-28, step 4.4 of docs/PLAN-STANDALONE.md.** Where the olmapp piece
+is on, `serves` in `config/plugins.lua` names it, so its key, its launcher row and its typed word open
+the app's port, `app/Plugins/KeepAwake`, and the app holds the session. The grammar and the words
+live in `rows.lua`, pure, the clock handed in, so `test/keepawake-record.lua` records the fixture the
+port is checked against from the code this list runs. A change to the grammar is made here, recorded
+again, and carried to `Grammar.swift` until the fixture passes on both sides.

@@ -60,13 +60,16 @@ let package = Package(
     // Browser Switcher, a core plugin since 2026-11-28, its declarations beside it for Olm Settings.
     .target(name: "BrowserSwitcherPlugin", dependencies: ["OlmKit"], path: "Plugins/BrowserSwitcher",
       exclude: ["olm-plugin.json", "README.md"]),
+    // Keep Awake, a core list since step 4.4, the port of plugins/caffeinate.
+    .target(name: "KeepAwakePlugin", dependencies: ["OlmKit"], path: "Plugins/KeepAwake"),
     .executableTarget(
       name: "Olm",
       dependencies: ["OlmKit", "OlmCore", "OlmBridge", "OlmSettings", "OlmKeys", "OlmLauncher", "OlmApps", "OlmPlugins",
-        "FileSearchPlugin", "BrowserSwitcherPlugin"],
+        "FileSearchPlugin", "BrowserSwitcherPlugin", "KeepAwakePlugin"],
       path: "Sources/Olm"
     ),
-    .executableTarget(name: "olm-fixtures", dependencies: ["OlmKit", "OlmSearch", "OlmLook", "OlmCore", "FileSearchPlugin", "OlmApps"],
+    .executableTarget(name: "olm-fixtures", dependencies: ["OlmKit", "OlmSearch", "OlmLook", "OlmCore", "FileSearchPlugin", "OlmApps",
+      "KeepAwakePlugin"],
       path: "Sources/olm-fixtures", swiftSettings: v5),
     // The bridge checked over a socket of its own, a fake Hammerspoon answering it.
     .executableTarget(name: "olm-bridge-check", dependencies: ["OlmKit", "OlmCore", "OlmBridge", "OlmSettings"],

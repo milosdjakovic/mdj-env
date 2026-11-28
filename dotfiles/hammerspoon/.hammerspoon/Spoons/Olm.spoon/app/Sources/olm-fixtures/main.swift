@@ -12,6 +12,7 @@ import OlmKit
 import OlmLook
 import OlmSearch
 import FileSearchPlugin
+import KeepAwakePlugin
 
 var failures = 0, passed = 0, skipped = 0
 
@@ -483,7 +484,40 @@ func runWindowPlan(_ file: String, _ doc: [String: Any]) {
   }
 }
 
+// keepawake.rows, the keep awake row for a field and a session, KeepAwakeGrammar against what
+// plugins/caffeinate/rows.lua answered when test/keepawake-record.lua recorded it, in UTC.
+func runKeepAwake(_ file: String, _ doc: [String: Any]) {
+  var utc = Calendar(identifier: .gregorian)
+  utc.timeZone = TimeZone(identifier: "UTC")!
+  let now = (doc["now"] as? NSNumber)?.intValue ?? 0
+  for case let c as [String: Any] in (doc["cases"] as? [Any]) ?? [] {
+    let name = c["name"] as? String ?? "?"
+    let s = c["status"] as? [String: Any] ?? [:]
+    let status = KeepAwakeGrammar.Status(active: s["active"] as? Bool ?? false, expiry: (s["expiry"] as? NSNumber)?.intValue)
+    let got = KeepAwakeGrammar.line(query: c["query"] as? String ?? "", status: status, now: now, calendar: utc)
+    let want = c["expect"] as? [String: Any] ?? [:]
+    let choice = want["choice"] as? [String: Any] ?? [:]
+    let wantChoice: KeepAwakeGrammar.Choice?
+    switch choice["id"] as? String {
+    case "indefinite": wantChoice = .indefinite
+    case "off": wantChoice = .off
+    case "until": wantChoice = .until((choice["ts"] as? NSNumber)?.intValue ?? -1)
+    case "for": wantChoice = .span((choice["secs"] as? NSNumber)?.intValue ?? -1)
+    default: wantChoice = nil
+    }
+    var problems: [String] = []
+    if got.title != want["title"] as? String { problems.append("title wanted \(show(want["title"])), got \(show(got.title))") }
+    if got.subtitle != want["subtitle"] as? String {
+      problems.append("subtitle wanted \(show(want["subtitle"])), got \(show(got.subtitle))")
+    }
+    if got.icon != want["icon"] as? String { problems.append("icon wanted \(show(want["icon"])), got \(got.icon)") }
+    if got.choice != wantChoice { problems.append("choice wanted \(String(describing: wantChoice)), got \(String(describing: got.choice))") }
+    if problems.isEmpty { passed += 1 } else { fail(file, name, problems.joined(separator: "; ")) }
+  }
+}
+
 let runners: [String: (String, [String: Any]) -> Void] = [
+  "keepawake.rows": runKeepAwake,
   "windows.plan": runWindowPlan,
   "stage.prefix": runPrefix,
   "filesearch.parse": runParse,
