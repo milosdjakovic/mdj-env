@@ -65,14 +65,14 @@ mkdir -p "$stage/Contents/Resources/bin"
 cp "$scratch/release/olm-cli" "$stage/Contents/Resources/bin/olm"
 # OlmPluginKit's source, compiled into every external plugin the app builds, docs/DESIGN-APP-PLUGINS.md.
 cp "$here/PluginKit/OlmPluginKit.swift" "$stage/Contents/Resources/OlmPluginKit.swift"
-# Olm's own external plugins, sealed by the app's signature, so a folder in ~/.olm/plugins holding the
-# same files is known to be Olm's and runs without asking, PluginGate. One marked "test" is left out.
-for dir in "$here"/Plugins/External/*/; do
-  grep -Eq '"test"[[:space:]]*:[[:space:]]*true' "${dir}olm-plugin.json" && continue
-  dest="$stage/Contents/Resources/Plugins/$(basename "$dir")"
+# Olm's core plugins, built into the app, each declaring its page in Olm Settings in an olm-plugin.json
+# beside its module, read from CorePlugins/<id> by the host, docs/DESIGN-APP-PLUGINS.md.
+for manifest in "$here"/Plugins/*/olm-plugin.json; do
+  [ -f "$manifest" ] || continue
+  id="$(/usr/bin/plutil -extract id raw -o - "$manifest")"
+  dest="$stage/Contents/Resources/CorePlugins/$id"
   mkdir -p "$dest"
-  cp -Rp "${dir}Sources" "$dest/Sources"
-  cp -p "${dir}olm-plugin.json" "$dest/olm-plugin.json"
+  cp -p "$manifest" "$dest/olm-plugin.json"
 done
 if ! DEVELOPER_DIR="$tools" "$tools/usr/bin/swiftc" -sdk "$tools/SDKs/MacOSX.sdk" -O "$here/../plugins/filesearch/sources/fileindex.swift" \
   "$here/Sources/OlmSearch/Match.swift" -o "$stage/Contents/Resources/fileindex" >"$log" 2>&1; then

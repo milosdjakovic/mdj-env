@@ -9,9 +9,10 @@ is built, see As built.
 ## What he asked for
 
 - In the end Hammerspoon is out of the picture. Nothing here keeps it.
-- The core, what is reached constantly by key or touches windows, typing and the clipboard, is
-  Swift built into the app. Everything else, display profiles, tmux sessions, VPN and the like, is
-  an **external plugin**, and ours are written in Swift too.
+- **Every plugin of ours is core,** Swift built into the app, a module each under `app/Plugins`,
+  Milos's call on 2026-11-28, which replaced the split of 2026-11-20 that made ours external beyond
+  the lists reached constantly. An **external plugin** is everyone else's, and one Claude develops in
+  a folder of its own.
 - Anyone can write a plugin and install it without a build of Olm, by dropping it on Olm Settings
   or into a folder, and Swift source is compiled on install.
 - Claude can develop a plugin in any folder, outside this repository, and test it there.
@@ -25,14 +26,31 @@ is built, see As built.
 
 | | Plugins |
 |---|---|
-| Core, built into the app | the launcher and its apps, app toggler, window manager, window size, workspaces, clipboard, file search, emoji, menu search, input sources, text case, calculator and convert, System Settings panes |
-| External, ours, in Swift | display profiles, tmux sessions, VPN, Wi-Fi, audio, volume, keep awake, Dock auto hide, speed test, processes, Obsidian, browser tabs, capture, eyedropper |
+| Core, built into the app | the launcher and its apps, app toggler, window manager, window size, workspaces, clipboard, file search, emoji, menu search, input sources, text case, calculator and convert, System Settings panes, Browser Switcher, and every one still to move, display profiles, tmux sessions, VPN, Wi-Fi, audio, volume, keep awake, Dock auto hide, speed test, processes, Obsidian, browser tabs, capture, eyedropper |
+| External | everyone else's, installed from Olm Settings or a folder, and the runner's own test plugin, misbehave |
 | Gone | Olm Chooser, Olm Placement, Olm Theme, Olm Plugins, which the settings window replaced |
 
-The line is the round trip. A process round trip costs a few milliseconds plus whatever the plugin
-spends, which no one feels in a VPN list and everyone feels in the launcher or a window key. Ours
-being external is on purpose, so the format carries real plugins from the first day and a stranger's
-plugin works exactly as ours do.
+The line is who wrote it. Ours are core, so they cost no round trip, need no Allow, no build on
+install and no sandbox declared around them, and a rebuild of the app keeps every one of them
+current. The price, accepted by Milos on 2026-11-28, is that a core plugin cannot be killed, so a
+hang is only dropped and a crash takes Olm down, which is why core code that runs a program runs it
+off the main thread with a timeout on each, and that it runs with every permission Olm holds. The
+external format is no longer carried by plugins of ours, so misbehave and `test/olmplugins.sh` hold
+every case of it. Until 2026-11-28 ours being external was on purpose, so the format carried real
+plugins from the first day and a stranger's plugin worked exactly as ours did.
+
+**A core plugin's shape.** A module under `app/Plugins/<Name>`, depending on OlmKit alone, whose list
+is a `ListSource` and whose page in Olm Settings is declared in an `olm-plugin.json` beside it, the
+external format without the sandbox's fields, `id`, `title`, `description`, `icon`, `row`,
+`abilities`, `surface` and `settings`. `app/build.sh` carries each into the bundle's
+`CorePlugins/<id>`, and the host reads it there, so its page, its switch, its settings, its abilities
+and its log are drawn by the same parts as an external one's, with a switch and no Uninstall. What
+it asks of Olm, a link opened, the clipboard written, a line said, is a closure the host hands it,
+answering as an external plugin's request is answered. What it keeps is in `~/.olm/state/<id>`, and
+`OlmKit.Usage` is the kit's `OlmUsage` in the same file shape. A plugin of ours that ran as an
+external one keeps its id, so its settings and abilities carry over, and on Olm's start its folder in
+`~/.olm/plugins` gives its data to the state folder and goes to the Trash. A folder there with a core
+plugin's id is held and never run, and installing one is refused.
 
 ## The shape
 
@@ -396,6 +414,16 @@ shadow where its rows can be compared, then flipped, which switches the Lua plug
 `config/plugins.lua`. When the bridge serves nothing, Hammerspoon is switched off, the end of stage 6.
 
 ## As built
+
+**Core plugins, Browser Switcher moved in, built 2026-11-28.** Asked by Milos, every plugin of ours
+core and external plugins kept for everyone else's, a core plugin switched off rather than
+uninstalled. `app/Plugins/BrowserSwitcher` is the actor `BrowserSwitcher`, the same rows, words,
+actions and effects as the external one had, its "No favourite" row still taking Copy Link and Show
+All. `Olm/Plugins.swift` reads the core declarations once, lists them first among the plugins,
+opens a core plugin's list through `coreSource` with the browsers, the favourites and the order read
+at each open, and moves an external copy into the app at start, `moveIntoCore`. The `olm` command
+lists a core plugin as built into Olm and refuses its id for `new` and `install`. The skill points at
+the kit and the scaffold, since no plugin of ours ships as an external example any more.
 
 **The install page, built 2026-11-25.** Step 2 of the install plan, asked by Milos. Nothing of a plugin
 builds or runs until its button is pressed.

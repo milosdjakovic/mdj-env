@@ -51,8 +51,9 @@ supporting files.
 ## The Olm.app plugin skill
 
 `olm-app-plugin` guides building an external plugin for Olm.app from any folder. It routes to what
-every Mac with Olm carries, the kit and Browser Switcher inside `/Applications/Olm.app` and
-`olm plugin new`, rather than to this repository, so it works where the repository is not. Change it
+every Mac with Olm carries, the kit inside `/Applications/Olm.app` and
+`olm plugin new`, rather than to this repository, so it works where the repository is not. It is for everyone else's plugins, since Olm's own are core,
+built into the app, since 2026-11-28. Change it
 in the same change that moves the manifest, the kit or the `olm` command,
 `docs/DESIGN-APP-PLUGINS.md` in the Olm spoon has the As built.
 

@@ -23,7 +23,7 @@ gets one line under it saying where it stands and on which branch. A decided ope
 ticked with what was decided, and the decision goes into `decisions/olm-standalone.md` in the same
 commit.
 
-Next. 3.3 is done, its five steps 3.3a to 3.3e each tried by Milos, the last on 2026-11-17. 3.4, the keys of a list pushed in the app, is done, tried by Milos on 2026-11-17. 3.5, the flip of Hyper and Space, is built and held off behind `launcherFlip` until every tool the launcher leads to is shown in the app, since a row leading to one it does not show did nothing. 3.6 is done, tried by Milos on 2026-11-18. 3.7, one look for every picture and word, is done, tried by Milos on 2026-11-18. 3.5, the flip of Hyper and Space, is done, tried by Milos on 2026-11-18. Checking the resting point found a tool's own key still opening Hammerspoon's list, so 3.8 was added and is done, tried by Milos on 2026-11-18. Input Sources' cycle in the app is done. The resting point was called reached by Milos on 2026-11-20, the launcher's timings read from 62 opens, typing never waiting on Hammerspoon, its rows a Hammerspoon round trip of 73 ms median by design until stage 4, and file search's timings left to a follow up with one open recorded. The route to Olm standing alone is stages 4 to 8, written on 2026-11-20. 4.1, the plugin runner, the sandbox and a test plugin, is built and checked, waiting on Milos's trial, and the sandbox and the disclaim flag were both proved on macOS 27.0.1 first. On 2026-11-20 Milos put keys, stage 5, and the launcher's catalog, 6.1, before the rest of stage 4, since Hammerspoon cannot go while it binds the keys and serves the core lists. 5.1, the keys in shadow, is built, `docs/DESIGN-APP-KEYS.md`, waiting on Milos's trial. On 2026-11-20 Milos settled the split, the core built into the app in Swift and every other plugin an external one, ours in Swift too, each a process of its own run by the app, `docs/DESIGN-APP-PLUGINS.md`, whose design note he said go to. 5.3, META's and Hyper's keys claimed by the app, is built and flipped behind `appKeys`, every row still run in Hammerspoon, tried by Milos on 2026-11-20 and 2026-11-23, and the plain combos built and flipped on 2026-11-23, waiting on Milos's trial. 5.2, the cheat sheets, is built and flipped on 2026-11-20 behind `sheetsInApp`, the app drawing what Hammerspoon lays out, tried by Milos on 2026-11-23 after two fixes. 6.2, the app toggler, is built and flipped on 2026-11-20 behind `appToggler`, `docs/DESIGN-APP-APPS.md`, every press on an app handed to the app once it holds Accessibility and run by Hammerspoon until then, its shadow logging beside it, waiting on Milos's grant and trial. 2.3's shadow keeps logging, and its log empty is a condition of 3.5's flip. File search is the app's since 1.5's flip on 2026-11-12. Stage 4 stands but for 4.4 as of 2026-11-27, the runner, the kit, the `olm` command, installing from Olm Settings and the skill each tried by Milos, Browser Switcher the first external plugin of ours. Next is 4.4, keep awake, or the rest of stage 6, the core lists, which hold Hammerspoon in place.
+Next. 3.3 is done, its five steps 3.3a to 3.3e each tried by Milos, the last on 2026-11-17. 3.4, the keys of a list pushed in the app, is done, tried by Milos on 2026-11-17. 3.5, the flip of Hyper and Space, is built and held off behind `launcherFlip` until every tool the launcher leads to is shown in the app, since a row leading to one it does not show did nothing. 3.6 is done, tried by Milos on 2026-11-18. 3.7, one look for every picture and word, is done, tried by Milos on 2026-11-18. 3.5, the flip of Hyper and Space, is done, tried by Milos on 2026-11-18. Checking the resting point found a tool's own key still opening Hammerspoon's list, so 3.8 was added and is done, tried by Milos on 2026-11-18. Input Sources' cycle in the app is done. The resting point was called reached by Milos on 2026-11-20, the launcher's timings read from 62 opens, typing never waiting on Hammerspoon, its rows a Hammerspoon round trip of 73 ms median by design until stage 4, and file search's timings left to a follow up with one open recorded. The route to Olm standing alone is stages 4 to 8, written on 2026-11-20. 4.1, the plugin runner, the sandbox and a test plugin, is built and checked, waiting on Milos's trial, and the sandbox and the disclaim flag were both proved on macOS 27.0.1 first. On 2026-11-20 Milos put keys, stage 5, and the launcher's catalog, 6.1, before the rest of stage 4, since Hammerspoon cannot go while it binds the keys and serves the core lists. 5.1, the keys in shadow, is built, `docs/DESIGN-APP-KEYS.md`, waiting on Milos's trial. On 2026-11-20 Milos settled the split, the core built into the app in Swift and every other plugin an external one, ours in Swift too, each a process of its own run by the app, `docs/DESIGN-APP-PLUGINS.md`, whose design note he said go to. 5.3, META's and Hyper's keys claimed by the app, is built and flipped behind `appKeys`, every row still run in Hammerspoon, tried by Milos on 2026-11-20 and 2026-11-23, and the plain combos built and flipped on 2026-11-23, waiting on Milos's trial. 5.2, the cheat sheets, is built and flipped on 2026-11-20 behind `sheetsInApp`, the app drawing what Hammerspoon lays out, tried by Milos on 2026-11-23 after two fixes. 6.2, the app toggler, is built and flipped on 2026-11-20 behind `appToggler`, `docs/DESIGN-APP-APPS.md`, every press on an app handed to the app once it holds Accessibility and run by Hammerspoon until then, its shadow logging beside it, waiting on Milos's grant and trial. 2.3's shadow keeps logging, and its log empty is a condition of 3.5's flip. File search is the app's since 1.5's flip on 2026-11-12. Stage 4 stands but for 4.4 as of 2026-11-27, the runner, the kit, the `olm` command, installing from Olm Settings and the skill each tried by Milos, Browser Switcher the first external plugin of ours. Next is 4.4, keep awake, or the rest of stage 6, the core lists, which hold Hammerspoon in place. On 2026-11-28 Milos made every plugin of ours core, stage 7's included, and Browser Switcher moved into the app first, waiting on his trial.
 
 Stage 0, contracts
 - [x] 0.1 The decision record, 2026-11-05
@@ -131,8 +131,9 @@ Stage 4, the plugin runner, `docs/DESIGN-APP-PLUGINS.md`. After 4.1, stage 5 and
 - [x] 4.1 The runner, the sandbox and a test plugin, proved on this machine, 2026-11-24, `6e94a185`. Built and checked on 2026-11-20, `test/olmplugins.sh`, and proved by Browser Switcher running under it, confirmed by Milos on 2026-11-24.
 - [x] 4.2 `OlmPluginKit`, the `olm` command and the test harness, 2026-11-27, `8bccdd48`. The kit came with Browser Switcher on 2026-11-24, `6e94a185`, and `olm plugin` with list, log, test, new, dev, install and remove on 2026-11-27, tried by Milos.
 - [x] 4.3 Installing from Olm Settings and asking once, 2026-11-27, `aaedf4d1`. The install page, Allow and Uninstall from 2026-11-25, `7cf5eff5` on, and a sandbox's block offered with a switch on the plugin's page on 2026-11-27, each tried by Milos.
-- [ ] 4.4 Keep awake, shadowed and flipped
+- [ ] 4.4 Keep awake, shadowed and flipped, a core plugin built into the app since Milos's call on 2026-11-28
   - Browser Switcher became the first external plugin of ours instead, on 2026-11-24, `6e94a185`, its Lua copy deleted in `bfa3326c`. Keep awake is still to move.
+  - On 2026-11-28 Milos asked that every plugin of ours be core, and Browser Switcher moved into the app, `app/Plugins/BrowserSwitcher`, waiting on his trial. External plugins stay for everyone else's.
 - [x] 4.5 The skill for writing an external plugin in any folder, 2026-11-27, `48ad40c9`. `olm-app-plugin`, tried by Milos from another session, and `olm plugin test` ranking rows with Olm's own search.
 
 Stage 5, keys
@@ -158,8 +159,8 @@ Stage 6, the core in the app, one per step
 - [ ] 6.10 The calculator and convert
 - [ ] 6.11 System Settings panes
 
-Stage 7, our external plugins, one per step
-- [x] Browser Switcher, 2026-11-24, `6e94a185`, ahead of this stage as stage 4's first plugin
+Stage 7, our other plugins, one per step, each a core plugin built into the app since Milos's call on 2026-11-28
+- [x] Browser Switcher, 2026-11-24, `6e94a185`, ahead of this stage as stage 4's first plugin, external until it moved into the app on 2026-11-28
 - [ ] Display profiles
 - [ ] Tmux sessions
 - [ ] VPN
@@ -1196,11 +1197,13 @@ presses most, then the clipboard, whose flip moves the monitor and the store tog
 by the app from the same files before the flip so no history is lost and the Lua side can take it
 back, then the rest.
 
-### Stage 7, our external plugins
+### Stage 7, our other plugins, core
 
-Each of ours rewritten in Swift as an external plugin, on native APIs where one exists rather than
-the command line tool it calls today, declaring its sandbox, run in shadow and flipped. Display
-profiles first, since it is the one that must run in the background and proves that path.
+Each of ours rewritten in Swift as a core plugin built into the app, on native APIs where one exists
+rather than the command line tool it calls today, a program it still runs run off the main thread
+with a timeout, run in shadow and flipped. Display profiles first, since it is the one that must run
+in the background and proves that path. Written as external plugins on 2026-11-20 and made core by
+Milos on 2026-11-28, `docs/DESIGN-APP-PLUGINS.md` The split.
 
 ### Stage 8, Olm alone
 

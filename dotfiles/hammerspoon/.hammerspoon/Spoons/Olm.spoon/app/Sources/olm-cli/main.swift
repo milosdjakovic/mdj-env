@@ -56,8 +56,11 @@ let resources: URL = {
 }()
 let kit = resources.appendingPathComponent("OlmPluginKit.swift")
 let bundled = resources.appendingPathComponent("Plugins")
+/// Olm's core plugins, built into the app, each its declarations in a folder of its id.
+let core = resources.appendingPathComponent("CorePlugins")
 
-func isOurs(_ id: String) -> Bool { fm.fileExists(atPath: bundled.appendingPathComponent(id).path) }
+func isCore(_ id: String) -> Bool { fm.fileExists(atPath: core.appendingPathComponent(id).path) }
+func isOurs(_ id: String) -> Bool { isCore(id) || fm.fileExists(atPath: bundled.appendingPathComponent(id).path) }
 
 func json(_ url: URL) -> [String: Any] {
   guard let data = try? Data(contentsOf: url) else { return [:] }
@@ -95,8 +98,15 @@ func list() {
   let stopped = json(stateDir.appendingPathComponent("plugin-history.json"))["stopped"] as? [String: [String: Any]] ?? [:]
   let log = PluginLog()
   let names = ((try? fm.contentsOfDirectory(atPath: root.path)) ?? []).filter { !$0.hasPrefix(".") }.sorted()
-  guard !names.isEmpty else { say("No plugins in \(root.path)."); return }
+  let cores = ((try? fm.contentsOfDirectory(atPath: core.path)) ?? []).filter { !$0.hasPrefix(".") }.sorted()
+  guard !names.isEmpty || !cores.isEmpty else { say("No plugins in \(root.path)."); return }
   var lines: [(String, String, String)] = [("ID", "VERSION", "STATE")]
+  // Built into the app, so its version is the app's.
+  let version = NSDictionary(contentsOf: resources.deletingLastPathComponent().appendingPathComponent("Info.plist"))?["CFBundleShortVersionString"] as? String ?? "?"
+  for name in cores {
+    let state = off.contains(name) ? "off, built into Olm" : (stopped[name]?["why"] as? String).map { "switched off by Olm, \($0)" } ?? "on, built into Olm"
+    lines.append((name, version, state))
+  }
   for name in names {
     let folder = root.appendingPathComponent(name)
     let (verdict, manifest) = PluginGate.verdict(folder: folder, bundled: bundled, records: records)
@@ -414,7 +424,7 @@ func dev(_ args: [String]) -> Never {
   let manifest: PluginManifest
   do { manifest = try PluginManifest.read(folder: folder) } catch { fail("\(folder.path) \(error)") }
   let id = manifest.id
-  guard !isOurs(id) else { fail("\(id) is one of Olm's own, src/setup-olmapp.sh puts it in place") }
+  guard !isOurs(id) else { fail(isCore(id) ? "\(id) is one of Olm's own, built into Olm.app" : "\(id) is one of Olm's own, src/setup-olmapp.sh puts it in place") }
   signal(SIGINT, SIG_IGN)
   let interrupt = DispatchSource.makeSignalSource(signal: SIGINT, queue: .main)
   interrupt.setEventHandler {

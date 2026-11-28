@@ -1,8 +1,11 @@
-// The external plugins Olm.app runs, docs/DESIGN-APP-PLUGINS.md, each a folder under ~/.olm/plugins
-// with its olm-plugin.json, built from its Swift sources with OlmPluginKit beside them and run
-// sandboxed by the runner. This host finds them, builds the stale ones, loads them, answers what a
-// plugin asks of Olm, opens a plugin's list with what it is opened with, and gives its list the
-// bottom bar and the launcher row a Lua plugin gets from Hammerspoon's shares.
+// The plugins Olm.app runs, docs/DESIGN-APP-PLUGINS.md. Olm's own are core, built into the app as a
+// module each under Plugins/, their pages in Olm Settings read from the olm-plugin.json the bundle
+// carries in CorePlugins, Milos's call on 2026-11-28 that every plugin of ours is core. Everyone
+// else's are external, each a folder under ~/.olm/plugins with its olm-plugin.json, built from its
+// Swift sources with OlmPluginKit beside them and run sandboxed by the runner. This host finds them,
+// builds the stale ones, loads them, answers what a plugin asks of Olm, opens a plugin's list with
+// what it is opened with, and gives its list the bottom bar and the launcher row a Lua plugin gets
+// from Hammerspoon's shares.
 //
 // What a plugin asks of Olm is short, docs/DESIGN-APP-PLUGINS.md What a plugin may ask: open a link in
 // a browser Olm found, write the clipboard, say a line. A plugin holds no permission of macOS's, so
@@ -10,6 +13,7 @@
 // plugin declared and the person allows, ExternalPlugins.allowed.
 
 import AppKit
+import BrowserSwitcherPlugin
 import OlmBridge
 import OlmCore
 import OlmKit
@@ -23,6 +27,16 @@ final class PluginHost {
   nonisolated static let kit = Bundle.main.resourceURL?.appendingPathComponent("OlmPluginKit.swift")
 
   let runner: PluginRunner
+  /// Where the bundle carries each core plugin's declarations, CorePlugins/<id>/olm-plugin.json.
+  nonisolated static let coreFolder = Bundle.main.resourceURL?.appendingPathComponent("CorePlugins")
+  /// The core plugins, each its id and its list, made for one open with what it is opened with.
+  nonisolated static let coreIDs: Set<String> = [BrowserSwitcher.id]
+  /// The core plugins' declarations, ours, read once, since they change only with the app.
+  private let core: [PluginDeclarations]
+  /// Where a core plugin keeps what it keeps, ~/.olm/state/<id>.
+  nonisolated static func store(_ id: String) -> URL {
+    FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent(".olm/state/" + id)
+  }
   /// Olm's own plugins as the signed app carries them, what a folder is compared with.
   nonisolated static let bundled = Bundle.main.resourceURL?.appendingPathComponent("Plugins")
   private nonisolated let records = PluginRecords()
@@ -61,6 +75,16 @@ final class PluginHost {
     runner = PluginRunner(appVersion: version, log: { ExternalPlugins.log.add($0, $1, from: $2) }, serve: { id, method, params in
       await PluginHost.serve(id, method, params, bridge: bridge)
     }, grants: { PluginRecords().unblocked($0) })
+    core = Self.coreIDs.sorted().compactMap { id in
+      guard var d = Self.coreFolder.flatMap({ PluginDeclarations.read(folder: $0.appendingPathComponent(id)) }), d.id == id
+      else {
+        NSLog("Olm plugins: the core plugin %@ has no declarations in the app, so it has no page", id)
+        return nil
+      }
+      d.ours = true
+      return d
+    }
+    Self.moveIntoCore()
     // Read here as well as in start, so a link that launched Olm finds the plugin it goes to.
     publish(Self.scan(records))
     Self.migrate()
@@ -107,6 +131,10 @@ final class PluginHost {
     var out = Scan(), others: [Scan.Folder] = []
     for folder in found {
       let name = folder.lastPathComponent
+      if coreIDs.contains(name) {
+        out.held.append(.init(id: name, title: name, why: "Not taken, \(name) is the id of one of Olm's own plugins", review: false))
+        continue
+      }
       let (verdict, manifest) = PluginGate.verdict(folder: folder, bundled: bundled, records: records)
       if verdict.runs, let manifest, var declared = PluginDeclarations.read(folder: folder),
         let print = try? PluginGate.fingerprint(folder) {
@@ -131,7 +159,7 @@ final class PluginHost {
 
   private func publish(_ scan: Scan) {
     let through = scan.through.filter { failed[$0.manifest.id]?.print != $0.print }
-    let declared = through.map(\.declared)
+    let declared = core + through.map(\.declared)
     let held = scan.held + scan.through.filter { failed[$0.manifest.id]?.print == $0.print }.map {
       .init(id: $0.manifest.id, title: $0.manifest.title, why: "Did not build, so it does not run", review: true)
     }
@@ -359,7 +387,7 @@ final class PluginHost {
     case .success(let staged):
       let id = staged.manifest.id
       let refused: String?
-      if let own = Self.bundled?.appendingPathComponent(id), FileManager.default.fileExists(atPath: own.path) {
+      if Self.coreIDs.contains(id) || Self.bundled.map({ FileManager.default.fileExists(atPath: $0.appendingPathComponent(id).path) }) == true {
         refused = "\(name) was not taken, \(id) is the id of one of Olm's own plugins."
       } else if loaded[id] == staged.print {
         refused = "\(staged.manifest.title) is installed already, the same files."
@@ -442,8 +470,12 @@ final class PluginHost {
 
   /// The list of a plugin, opened with its settings, the browsers when it may have them, and what
   /// else the caller hands, a link. nil for a plugin switched off or not loaded.
-  func source(_ id: String, with extra: [String: JSON] = [:]) async -> ExternalSource? {
+  func source(_ id: String, with extra: [String: JSON] = [:]) async -> (any ListSource)? {
     guard ExternalPlugins.isOn(id), let p = ExternalPlugins.plugin(id) else { return nil }
+    let actions = p.verbs.enumerated().map { i, v in
+      Action(id: v.action, title: v.title, chord: i == 0 && p.secondary != nil ? ["cmd", "return"] : [])
+    }
+    if Self.coreIDs.contains(id) { return coreSource(p, extra, actions) }
     // Switched on again since the runner switched it off.
     if await runner.offReason(id) != nil { await runner.switchOn(id) }
     var context = extra
@@ -452,22 +484,56 @@ final class PluginHost {
     context["settings"] = .object(settings)
     // The browsers Olm finds, with their profiles only while the plugin has Browser Profiles on.
     if p.abilities.contains(where: { $0.use == "browserProfiles" }) {
-      let may = ExternalPlugins.allowed(id, "browserProfiles")
-      Self.used(id, "browserProfiles", may)
-      let scan = Browsers.scan(profiles: may)
-      // In the order dragged in Olm Settings.
-      let dragged = p.settings.first { $0.source == "browsers" && $0.orderedBy != nil }.map { ExternalPlugins.order(id, $0.key) } ?? []
-      let byID = Dictionary(scan.targets.map { ($0.id, $0) }, uniquingKeysWith: { a, _ in a })
-      let targets = Picks.arrange(scan.targets.map(\.id), by: dragged).compactMap { byID[$0] }
-      context["browsers"] = .array(targets.map { t in
+      context["browsers"] = .array(Self.browsers(p).map { t in
         .object(["title": .string(t.title), "browser": .string(t.browser), "bundle": .string(t.bundle),
           "id": .string(t.id)])
       })
     }
-    let actions = p.verbs.enumerated().map { i, v in
-      Action(id: v.action, title: v.title, chord: i == 0 && p.secondary != nil ? ["cmd", "return"] : [])
-    }
     return await runner.source(id, context: .object(context), actions: actions)
+  }
+
+  /// The browsers Olm finds for a plugin, with their profiles only while it has Browser Profiles on, in
+  /// the order dragged in Olm Settings.
+  private nonisolated static func browsers(_ p: PluginDeclarations) -> [BrowserTarget] {
+    let may = ExternalPlugins.allowed(p.id, "browserProfiles")
+    used(p.id, "browserProfiles", may)
+    let scan = Browsers.scan(profiles: may)
+    let dragged = p.settings.first { $0.source == "browsers" && $0.orderedBy != nil }.map { ExternalPlugins.order(p.id, $0.key) } ?? []
+    let byID = Dictionary(scan.targets.map { ($0.id, $0) }, uniquingKeysWith: { a, _ in a })
+    return Picks.arrange(scan.targets.map(\.id), by: dragged).compactMap { byID[$0] }
+  }
+
+  /// A core plugin's list, built in the app, what it asks of Olm answered in place, the same answers
+  /// an external plugin's requests get, docs/DESIGN-APP-PLUGINS.md Core plugins.
+  private func coreSource(_ p: PluginDeclarations, _ extra: [String: JSON], _ actions: [Action]) -> (any ListSource)? {
+    let id = p.id, bridge = self.bridge
+    switch id {
+    case BrowserSwitcher.id:
+      let host = BrowserSwitcher.Host(
+        targets: {
+          Self.browsers(p).map { BrowserSwitcher.Target(title: $0.title, browser: $0.browser, bundle: $0.bundle, id: $0.id) }
+        },
+        favourites: { ExternalPlugins.value(id, "favourites") as? [String] ?? [] },
+        order: { ExternalPlugins.value(id, "order") as? String },
+        open: { url, browser in
+          guard case .success(let link) = PluginRequests.link(.object(["url": .string(url), "browser": .string(browser)]))
+          else { return false }
+          return await MainActor.run {
+            if case .success = Self.open(link, for: id) { return true }
+            return false
+          }
+        },
+        copy: { text in
+          await MainActor.run {
+            NSPasteboard.general.clearContents()
+            NSPasteboard.general.setString(text, forType: .string)
+          }
+        },
+        notify: { text in Task { _ = try? await bridge.request("notify", .object(["text": .string(text)])) } })
+      return BrowserSwitcher(host: host, link: extra["link"]?["url"].string, store: Self.store(id), actions: actions)
+    default:
+      return nil
+    }
   }
 
   /// Writes an ability used, or refused because it is off, in the plugin's log.
@@ -609,6 +675,29 @@ final class PluginHost {
   }
 
   // MARK: Moving over
+
+  /// A plugin of ours that ran as an external one, its folder in ~/.olm/plugins, moved into the app:
+  /// what it kept in its data goes to its state folder, files already there kept, and the folder goes
+  /// to the Trash, so nothing it had is lost and nothing of it runs twice.
+  nonisolated static func moveIntoCore() {
+    let fm = FileManager.default
+    for id in coreIDs {
+      let folder = root.appendingPathComponent(id)
+      guard fm.fileExists(atPath: folder.appendingPathComponent("olm-plugin.json").path) else { continue }
+      let data = folder.appendingPathComponent("data"), store = store(id)
+      try? fm.createDirectory(at: store, withIntermediateDirectories: true)
+      for name in (try? fm.contentsOfDirectory(atPath: data.path)) ?? [] {
+        let to = store.appendingPathComponent(name)
+        if !fm.fileExists(atPath: to.path) { try? fm.moveItem(at: data.appendingPathComponent(name), to: to) }
+      }
+      do {
+        try fm.trashItem(at: folder, resultingItemURL: nil)
+        ExternalPlugins.log.add(id, "built into Olm, its external copy moved to the Trash")
+      } catch {
+        NSLog("Olm plugins: the external copy of %@ could not go to the Trash, %@", id, error.localizedDescription)
+      }
+    }
+  }
 
   /// The favourites saved for the Lua Browser Switcher, taken over once by the plugin that replaced
   /// it, so its first open shows what the old one did.

@@ -14,7 +14,7 @@
 //   OlmKeys      the keys heard and resolved against the keymap Hammerspoon compiled, docs/DESIGN-APP-KEYS.md
 //   OlmApps      bringing an app forward, focus or cycle, show or hide and placement, step 6.2, docs/DESIGN-APP-APPS.md
 //   OlmPlugins   the runner for external plugins, a sandboxed process each, docs/DESIGN-APP-PLUGINS.md
-//   plugins      one module each under Plugins/, depending on OlmKit alone
+//   plugins      one module each under Plugins/, depending on OlmKit alone, Olm's core plugins
 //   Olm          the composition root
 //
 // The new layers build in Swift 6's language mode, so the compiler checks which thread each piece
@@ -57,10 +57,13 @@ let package = Package(
     .target(name: "OlmPlugins", dependencies: ["OlmKit", "OlmBridge"], path: "Sources/OlmPlugins"),
     // File search, the first native plugin. Its grammar and its index are its own.
     .target(name: "FileSearchPlugin", dependencies: ["OlmKit"], path: "Plugins/FileSearch"),
+    // Browser Switcher, a core plugin since 2026-11-28, its declarations beside it for Olm Settings.
+    .target(name: "BrowserSwitcherPlugin", dependencies: ["OlmKit"], path: "Plugins/BrowserSwitcher",
+      exclude: ["olm-plugin.json", "README.md"]),
     .executableTarget(
       name: "Olm",
       dependencies: ["OlmKit", "OlmCore", "OlmBridge", "OlmSettings", "OlmKeys", "OlmLauncher", "OlmApps", "OlmPlugins",
-        "FileSearchPlugin"],
+        "FileSearchPlugin", "BrowserSwitcherPlugin"],
       path: "Sources/Olm"
     ),
     .executableTarget(name: "olm-fixtures", dependencies: ["OlmKit", "OlmSearch", "OlmLook", "OlmCore", "FileSearchPlugin", "OlmApps"],

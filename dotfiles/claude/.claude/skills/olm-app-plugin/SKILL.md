@@ -1,6 +1,6 @@
 ---
 name: olm-app-plugin
-description: Build, change, test or review an external plugin for Olm.app, a folder with olm-plugin.json and Swift sources written against OlmPluginKit, run sandboxed by Olm.app and installed into ~/.olm/plugins. Use for any work on olm-plugin.json, OlmPluginKit, test.json, or the `olm plugin` command (new, test, dev, install, remove, list, log), in any folder. Not for the Lua plugins inside the Olm Hammerspoon spoon, which the olm-plugin skill of the mdj-env repository covers.
+description: Build, change, test or review an external plugin for Olm.app, a folder with olm-plugin.json and Swift sources written against OlmPluginKit, run sandboxed by Olm.app and installed into ~/.olm/plugins. Use for any work on olm-plugin.json, OlmPluginKit, test.json, or the `olm plugin` command (new, test, dev, install, remove, list, log), in any folder. Not for Olm's own plugins, which are core, built into Olm.app, and not for the Lua plugins inside the Olm Hammerspoon spoon, which the olm-plugin skill of the mdj-env repository covers.
 ---
 
 # Olm.app plugins
@@ -8,7 +8,8 @@ description: Build, change, test or review an external plugin for Olm.app, a fol
 An external plugin is a folder Olm.app builds from source and runs as its own process, in a sandbox
 written from its manifest, speaking to Olm over stdin and stdout. Olm draws everything. A plugin
 answers rows and says what choosing one does, and asks Olm for what its sandbox keeps from it.
-Nothing of it needs to live in any repository.
+Nothing of it needs to live in any repository. Olm's own plugins are not external, they are core,
+built into the app, so this skill is for everyone else's.
 
 This skill holds the judgment. The truth lives on disk, and where the two disagree the disk wins and
 the disagreement is reported, so it can be fixed here:
@@ -16,8 +17,6 @@ the disagreement is reported, so it can be fixed here:
 - **The kit,** `/Applications/Olm.app/Contents/Resources/OlmPluginKit.swift`. Every type and handler
   a plugin uses, compiled into each plugin beside its sources. Read it before writing code, never
   write the API from memory.
-- **A plugin that ships,** `/Applications/Olm.app/Contents/Resources/Plugins/browserswitcher/`, its
-  manifest and `Sources/main.swift`. The worked example of abilities, actions, settings and links.
 - **The scaffold,** `olm plugin new ID DIR`, a folder whose `test.json` already passes.
 - **The command,** `olm plugin` with no command prints every command and its arguments.
 
@@ -33,7 +32,8 @@ and when it cannot be, say so plainly and let the person decide.
    `ID/` inside that folder, so never name the plugin's own folder as the second argument. The id is one lowercase word of letters and digits, the folder's name too,
    never one of Olm's own plugins' ids or Olm's words (olm, plugins, settings, log, ability and the
    like), which Olm refuses when it reads the manifest.
-2. Read the kit and the example, then write `Sources/*.swift` and the manifest.
+2. Read the kit, its header shows a whole plugin, and the scaffold, then write `Sources/*.swift` and
+   the manifest.
 3. Write `test.json` for what the plugin promises and run `olm plugin test DIR` until every case
    passes. `olm plugin test DIR -q TEXT` prints the rows for a typed text. It builds the plugin apart,
    runs it through Olm's real runner and sandbox, ranks the rows with Olm's own search as the list

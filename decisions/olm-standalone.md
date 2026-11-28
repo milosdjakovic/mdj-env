@@ -11,7 +11,8 @@ Milos's own trial, as that section stood on 2026-11-16.
 The goal is a native app that needs no Hammerspoon, whose launcher runs no Lua and never lets a
 search hold up typing, with leader keys built in so kanata and Karabiner are no longer needed, and
 with built in plugins written natively beside extensions on a plugin API comparable to Raycast's,
-though not compatible with Raycast's extensions. Olm.app is built first and runs beside
+though not compatible with Raycast's extensions. Every plugin of ours is built in, since 2026-11-28,
+and extensions are everyone else's. Olm.app is built first and runs beside
 Hammerspoon, kanata and the Karabiner driver. A bridge between the two processes is the one seam,
 and each step moves one responsibility across it, a shadow comparison first and a flip that one
 switch takes back, until nothing is left on the Hammerspoon side. Behaviour that moves is pinned
@@ -90,6 +91,11 @@ bridge socket, runs on the trial key Hyper and 0 until step 3.5 gives it Hyper a
   Built that way the same morning. Undo removed the line, and it came back only at the next block, so
   Milos found it lost. One row a door now stays where it is with a switch, kept across a relaunch.
   Plus and minus were turned down too, since they read as adding doors a plugin never asked for.
+- **Our own plugins as external ones, beyond the lists reached constantly.** 2026-11-28. Settled on
+  2026-11-20 15:50 so the format carried real plugins from the first day and a stranger's worked
+  exactly as ours, and Browser Switcher ran that way from 2026-11-24. Milos asked that anything he
+  develops be core, accepting that a core plugin cannot be killed or sandboxed. Ours are built into
+  the app, and external plugins stay for everyone else's.
 
 ## Log
 
@@ -1920,3 +1926,14 @@ than a copy of it in the command, and the template hands every row. The skill al
 as if DIR were the plugin's folder, and the session got `emojicopy/emojicopy`. `dev` names what a
 plugin asks for in words, copy to the clipboard, show a message, not `need:copy`.
 
+### 2026-11-28 11:42, every plugin of ours is core, Browser Switcher moved into the app
+
+Asked by Milos after stage 4 was ticked, keep awake and the rest of stage 6 both core and anything he
+develops core. Asked, he chose Browser Switcher moving in too, external plugins staying for everyone
+else's, and a core plugin's page keeping a switch with no Uninstall. A core plugin is a module under
+`app/Plugins` with a `ListSource` and an `olm-plugin.json` for its page, read from the bundle's
+`CorePlugins`. Browser Switcher keeps its id, so its settings and abilities carried over, and its
+external folder goes to the Trash on Olm's start with its data moved to `~/.olm/state/browserswitcher`.
+The skill's worked example was Browser Switcher inside the app, so it now routes to the kit and the
+scaffold. `docs/DESIGN-APP-PLUGINS.md` has the shape and the split, and the plan's 4.4 and stage 7
+became core steps.
