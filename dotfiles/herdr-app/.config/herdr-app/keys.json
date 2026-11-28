@@ -28,6 +28,7 @@
     "cmd-,": "app.settings",
     "cmd-d": "pane.split:right",
     "cmd-shift-d": "pane.split:down",
+    "cmd-enter": "mod.open:mdj-split",
     "cmd-shift-w": "window.close",
     "cmd-shift-enter": "pane.zoom",
     "cmd-alt-enter": "pane.zoom",

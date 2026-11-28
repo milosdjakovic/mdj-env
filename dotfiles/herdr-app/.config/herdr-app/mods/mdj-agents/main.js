@@ -68,6 +68,24 @@ function fades(t, view, inset) {
 const card = (id, on, t, radius = 14) => div().id(id).absolute().top(0).left(0).right(0).bottom(0).rounded(radius)
   .bg(t.raised).shadow_sm().opacity(on ? 1 : 0);
 const dimmed = (t) => t.raised + "80";
+// mdj: a group's header hovers in its own letter's colour at 12%, a label that folds and not a row to pick.
+const faint = (color) => color.slice(0, 7) + "1f";
+
+// mdj: a group's caret turns between folded, right, and open, down. Herdr animates no rotation, so it is drawn in
+// frames 18 degrees apart. The turn reads the fold afresh each step, so a click midway turns it back from there.
+const CARET = ["chevron-right", "chevron-turn-1", "chevron-turn-2", "chevron-turn-3", "chevron-turn-4", "chevron-down"];
+function turnCaret(view, id, cx) {
+  const at = view.turns.get(id);
+  if (at === undefined) return;
+  const to = view.folded.has(id) ? 0 : CARET.length - 1;
+  const next = at + Math.sign(to - at);
+  if (next === to) view.turns.delete(id);
+  else {
+    view.turns.set(id, next);
+    cx.timer.after(25, (cx) => turnCaret(view, id, cx));
+  }
+  cx.notify();
+}
 
 function find(node, id) {
   if (node?.id === id) return node;
@@ -139,34 +157,16 @@ function icon(p, size, color) {
   return p.tint ? svg(p.icon).size(size).flex_none().text_color(color) : image(p.icon).w(size).h(size).flex_none();
 }
 
-// mdj: a program icon is drawn on a tile, and a tab of more than one pane as a stack of them, in a 22px box, so the
-// icon is larger than the 14px it was while the 28px row keeps its height, 3px above and below. The front tile is
-// 18px with 3px corners and a 14px glyph, the shell's when the program has none, and up to three more tiles peek
-// out behind it up and to the right, 4/3px a step, each carrying its own pane's glyph. Every tile is opaque, mixed
-// from the row's own colour and `dim`, a step darker the further back it sits, so the layers read on the canvas,
-// a selected card and a hover alike. Written out in mdj-tabs and mdj-agents, since a mod cannot import from
-// another, so a change to one is a change to both. Asked by Milos on 2026-11-23.
-const ICON_BOX = 22;
-function tiles(t, fill, programs) {
-  const rgb = (h) => [1, 3, 5].map(k => parseInt(h.slice(k, k + 2), 16));
-  const blend = (a, b, k) => "#" + rgb(a).map((v, i) => Math.round(v + (rgb(b)[i] - v) * k).toString(16).padStart(2, "0")).join("");
-  const dim = t.dim.slice(0, 7);
-  const TILE = 18, STEP = 4 / 3, n = Math.min(programs.length, 4);
-  const span = TILE + (n - 1) * STEP, x0 = (ICON_BOX - span) / 2, y0 = (ICON_BOX - span) / 2 + (n - 1) * STEP;
-  const glyph = (p) => p?.icon ? (p.tint ? svg(p.icon).size(14) : image(p.icon).size(14)) : svg("icons/shell.svg").size(14);
-  const tile = (k) => div().absolute().size(TILE).left(x0 + k * STEP).top(y0 - k * STEP).rounded(3)
-    .bg(blend(fill.slice(0, 7), dim, 0.18 + 0.1 * k)).flex().items_center().justify_center().child(glyph(programs[k]));
-  return Array.from({ length: n }, (_, i) => tile(n - 1 - i));
-}
-const mixHalf = (a, b) => {
-  const rgb = (h) => [1, 3, 5].map(k => parseInt(h.slice(k, k + 2), 16));
-  return "#" + rgb(a).map((v, k) => Math.round((v + rgb(b)[k]) / 2).toString(16).padStart(2, "0")).join("");
-};
+// mdj: an agent's program icon is drawn flat, 16px with no tile, open and on the rail alike, so folding the
+// sidebar changes neither its size nor its look. The tabs keep their tiles. Asked by Milos on 2026-11-28.
+const flatIcon = (t, p) => icon(p, 16, t.foreground) ?? svg("icons/shell.svg").size(14).flex_none().text_color(t.muted);
 
 export default class Agents extends View {
   init(_props, cx) {
     if (props()?.sortMenu) return;
     this.folded = new Set();
+    this.turns = new Map(); // group id -> the caret's frame while it turns
+    this.groupHover = null;
     // Each agent's last state and when it changed (ms), kept across restarts.
     this.changed = JSON.parse(localStorage.getItem("changed") ?? "{}");
     this.pendingPins = JSON.parse(localStorage.getItem("pins") ?? "[]");
@@ -420,7 +420,7 @@ export default class Agents extends View {
           .child(card(`ag-card-${a.address}`, a.focused, t, 14))
           .when(!a.focused, (el) => el.hover((s) => s.bg(dimmed(t))))
           .on_click(() => run("pane.focus", { pane: a.pane }))
-          .child(railState(t, a.status, icon(a.program, 16, t.foreground) ?? div().text_color(t.muted).child(String(i + 1))));
+          .child(railState(t, a.status, flatIcon(t, a.program)));
       }
       const when = this.since(a);
       const idle = a.status === "idle" && !a.focused;
@@ -448,13 +448,13 @@ export default class Agents extends View {
       const name = full ? a.space_name || label(a) : more ?? (/^\d+$/.test(label(a)) ? a.program?.name || label(a) : label(a));
       return h_flex()
         .id(`ag-${a.address}`)
-        .pl(7)
+        .pl(9)
         .pr(9)
         .h(28)
         .flex_none()
         .rounded_full()
         .items_center()
-        .gap(6)
+        .gap(8)
         // The focused agent looks like the pane and the selected tab: the terminal's page, a soft shadow.
         .relative()
         .child(card(`ag-card-${a.address}`, a.focused, t, 14))
@@ -466,15 +466,13 @@ export default class Agents extends View {
           cx.notify();
         })
         .on_click(() => run("pane.focus", { pane: a.pane }))
-        // The agent's icon on a tile, as a tab draws it, but never stacked. A row is one pane, and two agents can share
-        // a tab, so the tab's other panes say nothing about this one. Asked by Milos on 2026-11-23.
-        .child(div().id(`agent-fold-${a.address}`).size(ICON_BOX).flex_none().relative()
+        // The agent's icon, flat in an 18px box 9px in, where a space's letter sits, centred where its rail cube is.
+        .child(h_flex().id(`agent-fold-${a.address}`).size(18).flex_none().items_center().justify_center()
           .when(subs.length > 0, el => el.on_click((_e, cx) => {
             cx.stop_propagation();
             this.folded.has(a.address) ? this.folded.delete(a.address) : this.folded.add(a.address);
             cx.notify();
-          })).children(tiles(t, a.focused ? t.raised : this.hovered === a.address ? mixHalf(t.canvas.slice(0, 7), t.raised.slice(0, 7)) : t.canvas,
-            [a.program])))
+          })).child(flatIcon(t, a.program)))
         .child(h_flex().flex_1().min_w(0).gap(5).items_center()
           .child(div().min_w(0).max_w(full && more ? 120 : 200).truncate().text_color(idle ? t.muted : t.foreground).child(name))
           .when(full && Boolean(more), el => el.child(div().flex_1().min_w(0).truncate().text_color(t.dim).child(`\u00b7 ${more}`))))
@@ -500,22 +498,38 @@ export default class Agents extends View {
       const open = !this.folded.has(g.id);
       const top = g.members.reduce((m, a) => ((RANK[a.status] ?? 0) > (RANK[m] ?? 0) ? a.status : m), null);
       const fold = (_e, cx) => {
-        open ? this.folded.add(g.id) : this.folded.delete(g.id);
+        const turning = this.turns.has(g.id);
+        this.folded.has(g.id) ? this.folded.delete(g.id) : this.folded.add(g.id);
+        if (!turning) {
+          this.turns.set(g.id, this.folded.has(g.id) ? CARET.length - 1 : 0);
+          turnCaret(this, g.id, cx);
+        }
         cx.notify();
       };
+      const over = (on, cx) => {
+        if (on) this.groupHover = g.id;
+        else if (this.groupHover === g.id) this.groupHover = null;
+        cx.notify();
+      };
+      // mdj: the caret keeps its 18px slot, where a row's close button stands, so showing it moves nothing.
+      const icon = CARET[this.turns.get(g.id) ?? (open ? CARET.length - 1 : 0)];
+      const caret = h_flex().id(`${g.id}-caret`).size(18).flex_none().items_center().justify_center()
+        .opacity(!open || this.groupHover === g.id ? 1 : 0)
+        .transition("opacity", { duration: 120, easing: "ease-out" })
+        .child(svg(`mods/mdj-icons/11/${icon}.svg`).size(11).flex_none().text_color(t.dim));
       const tail = (el) => el
         .when(byPriority || !open, (el) => el.child(div().text_color(t.dim).child(String(g.members.length))))
         .child(div().flex_1())
-        .when(!open, (el) => el
-          .when(!byPriority && top && top !== "idle", (el) => el.child(this.status(t, { status: top }, true)))
-          .child(svg("mods/mdj-icons/11/chevron-right.svg").size(11).flex_none().text_color(t.dim)));
-      if (g.space) return v_flex().id(g.id).pt(8).h(GROUP).flex_none().on_click(fold)
-        .child(tail(h_flex().h(28).flex_none().items_center().w_full().pl(9).pr(9).gap(8).text_size(13.5)
+        .when(!open && !byPriority && top && top !== "idle", (el) => el.child(this.status(t, { status: top }, true)))
+        .child(caret);
+      if (g.space) return v_flex().pt(8).h(GROUP).flex_none()
+        .child(tail(h_flex().id(g.id).h(28).rounded(14).hover((s) => s.bg(faint(tint(g)))).on_hover(over).on_click(fold).flex_none().items_center().w_full().pl(9).pr(9).gap(8).text_size(13.5)
           .child(letter(g).size(18).text_size(13.5))
           .child(div().truncate().text_color(t.foreground).child(g.label))));
       return tail(h_flex()
         .id(g.id)
-        .px(8)
+        .pl(8)
+        .pr(9)
         .pt(8)
         .h(30)
         .flex_none()
@@ -525,12 +539,13 @@ export default class Agents extends View {
         .font_medium()
         .cursor_pointer()
         .hover((s) => s.text_color(t.foreground))
+        .on_hover(over)
         .on_click(fold)
         .child(div().truncate().text_color(t[g.status] ?? t.dim).child(g.label)));
     };
     // mdj: open, a space's group header is drawn as Spaces draws an unselected space, a 28px row with the
     // avatar's letter, same slot, font, size and 18px box 9px in, then the name in `foreground`, with no
-    // border, hover or cursor, and a click still folds the group. On the rail it is a 28px circle with a
+    // border or cursor. A click folds the group, and hovering shows a faint pill and the caret. On the rail it is a 28px circle with a
     // 1px border in that space's avatar colour, the shape of a selected rail cube, so it reads
     // as that space's label and never as one to pick, in the same 36px as open, so folding moves no row. A priority section belongs to no space and keeps its plain header, and Lucide's
     // bot on the rail in its state's colour, pinned dim. The bot stood for every group from 2026-11-15 until
@@ -591,7 +606,7 @@ export default class Agents extends View {
             .flex_none()
             .items_center()
             .justify_between()
-            .when(collapsed, (el) => el.pl(4))
+            .when(collapsed, (el) => el.pl(8).pr(8))
             .when(!collapsed, (el) => el.child(div().text_size(13.5).font_medium().text_color(t.dim).child("Agents")))
             .child(
               // mdj: the same 26px box as the Spaces + above, so the two line up with the sidebar button.
@@ -621,7 +636,7 @@ export default class Agents extends View {
       .child(div().id("ag-list").relative().flex_1().min_h(0).overflow_hidden()
         .on_size_change((s, cx) => { if (s.height !== this.viewH) { this.viewH = s.height; cx.notify(); } })
         .on_scroll_wheel((e, cx) => { scrolled(this, e); cx.notify(); })
-        .child(v_flex().id("ag-content").absolute().left(0).right(0).top(-drawnAt(this)).px(4).pb(4).gap(4)
+        .child(v_flex().id("ag-content").absolute().left(0).right(0).top(-drawnAt(this)).px(collapsed ? 8 : 4).pb(4).gap(4)
           .on_size_change((s, cx) => { if (s.height !== this.contentH) { this.contentH = s.height; cx.notify(); } })
           .children(rows)))
       .children(fades(t, this, collapsed ? 10 : 36));

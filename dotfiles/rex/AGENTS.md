@@ -32,7 +32,7 @@ is the section used most. Go to Anything exists only while Rex's experimental Ne
 on, `Workspace.experiments.usesNewQuickSwitcher` in `SETTINGS`, and without it `cmd+p` only
 beeps, since the action is gone from the app and its menus. New session on `cmd+shift+n` and close window on `cmd+shift+w` are Rex's own, and Herdr
 was moved to match. A few differ because only one app has the feature. Herdr's agents keys,
-`cmd+]` and `ctrl+alt+j` among them, and its layout switch exist only there, and Rex's float and
+`cmd+]` and `ctrl+alt+j` among them, its layout switch and `cmd+enter`, the split along the longer side, exist only there, and Rex's float and
 activity keys only here. Herdr's `ctrl+1` to `9` for spaces is not carried, since Rex selects a
 session by id and not by position.
 

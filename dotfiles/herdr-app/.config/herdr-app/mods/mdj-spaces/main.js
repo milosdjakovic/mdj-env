@@ -569,7 +569,7 @@ export default class Spaces extends View {
       .on_size_change((s) => setShared("mdj.spaces.h", s.height))
       .child(h_flex().h(26).pl(12).pr(4).items_center().justify_between().text_size(13.5).font_medium().text_color(t.dim)
         // mdj: the header is 26px on the rail as well, so folding the sidebar leaves every row where it was.
-        .when(collapsed, el => el.pl(4).pr(4))
+        .when(collapsed, el => el.pl(8).pr(8))
         .when(!collapsed, el => el.child("Spaces"))
         .child(div().id("space-new").size(26).text_color(t.muted).when(collapsed, el => el.w_full().rounded_full()).flex_none().flex().items_center().justify_center().rounded_full().hover(s => s.bg((t.hover === t.canvas ? t.chrome : t.hover)).text_color(t.foreground))
           .on_click(() => run("space.new")).child(svg("mods/mdj-icons/14/plus.svg").size(14))))
@@ -580,7 +580,7 @@ export default class Spaces extends View {
         .on_mouse_up("left", (_e, cx) => { this.pressed = null; cx.notify(); })
         .on_size_change((s, cx) => { if (s.height !== this.viewH) { this.viewH = s.height; cx.notify(); } })
         .on_scroll_wheel((e, cx) => { scrolled(this, e); cx.notify(); })
-        .child(v_flex().id("sp-content").absolute().left(0).right(0).top(-drawnAt(this)).px(4).pb(4).gap(4)
+        .child(v_flex().id("sp-content").absolute().left(0).right(0).top(-drawnAt(this)).px(collapsed ? 8 : 4).pb(4).gap(4)
           .on_size_change((s, cx) => { if (s.height !== this.contentH) { this.contentH = s.height; cx.notify(); } })
           .children(this.grouped(t, collapsed))))
       .children(fades(t, this, 26));

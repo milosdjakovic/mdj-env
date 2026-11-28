@@ -14,10 +14,11 @@ function find(node, id) {
 // The sidebar's rail goes by its width, not a flag: dragging its edge narrows it too.
 const narrow = () => (find(layout(), "sidebar")?.size?.px ?? Infinity) < 160;
 
-// To the rail, or back to the width it had. mdj: the rail is a column of 28px cubes in the 4px strips, 36px,
-// narrower than the macOS window buttons, so the pane moves left under them and the tab bar pads itself
+// To the rail, or back to the width it had. mdj: the rail is a column of 28px cubes 8px in, 44px, so each cube centres
+// where the open rows have their icon, 26px from the window edge, and folding moves nothing sideways. It is narrower
+// than the macOS window buttons, so the pane moves left under them and the tab bar pads itself
 // clear of them and stays where it was.
-const railWidth = () => 36;
+const railWidth = () => 44;
 function toggleSidebar() {
   const width = find(layout(), "sidebar")?.size?.px;
   if (!narrow()) setShared("sidebar.width", width);
@@ -36,13 +37,13 @@ export default class MdjBrand extends View {
     const t = theme();
     const collapsed = narrow();
     if (props()?.footer) {
-      const row = (id, icon, label, dim, action) => h_flex().id(id).h(28).px(10).gap(9).items_center().rounded_full()
+      const row = (id, icon, label, dim, action) => h_flex().id(id).h(28).pl(11).pr(10).gap(8).items_center().rounded_full()
         .when(collapsed, el => el.relative().w_full().px(0).rounded_full().justify_center().tooltip(label))
         .text_color(dim ? t.dim : t.muted).hover(s => s.bg((t.hover === t.canvas ? t.chrome : t.hover)).text_color(t.foreground)).cursor_pointer()
         .on_click(action).child(svg(`mods/mdj-icons/14/${icon}.svg`).size(14))
         .when(!collapsed, el => el.child(label));
       const ready = div().size(6).rounded_full().bg(t.accent);
-      return v_flex().size_full().px(4).pb(4).bg(t.canvas).justify_end().text_size(13.5)
+      return v_flex().size_full().px(collapsed ? 8 : 4).pb(4).bg(t.canvas).justify_end().text_size(13.5)
         
         .child(row("settings", "settings", "Settings", false, () => run("app.settings"))
           .when(Boolean(updates().app.ready), el => el.child(collapsed ? ready.absolute().top(5).right(6) : ready)))

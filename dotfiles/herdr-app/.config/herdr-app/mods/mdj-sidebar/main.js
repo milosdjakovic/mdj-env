@@ -16,7 +16,7 @@ function find(node, id) {
 }
 
 const narrow = () => (find(layout(), "sidebar")?.size?.px ?? Infinity) < 160;
-const railWidth = () => 36;
+const railWidth = () => 44;
 function toggleSidebar() {
   const sidebar = find(layout(), "sidebar");
   // A sidebar hidden some other way comes back open rather than staying hidden.

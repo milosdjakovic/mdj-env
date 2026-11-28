@@ -268,3 +268,20 @@ frame and the icon `LINE` return to 1.5 from the entry above, and `terminal_padd
 
 2026-11-16 16:10. Asked by Milos. The pane frame's `border` and `focus` go to 1.75 to try it, with
 `terminal_padding` at 12.25 by 10.25.
+
+2026-11-25 11:25. Asked by Milos. A space's agent group header hovers again, which reverses the
+no-hover choice of 2026-11-17 for the open header only, the rail's marker staying without one.
+Hover is `raised` at a quarter, half a tab's, and a caret fades in at the right, always shown
+while folded. Herdr's `transition` takes no rotation, so the caret turns through four drawn
+frames between `chevron-right` and `chevron-down`, 25 ms each.
+
+2026-11-25 11:55. Asked by Milos. A group header's hover is its letter's colour at 12% rather
+than `raised` at a quarter, the entry above, so each group hovers in its own palette colour.
+
+2026-11-28 12:20. Asked by Milos. Folding the sidebar shifted every icon and space letter 4px left,
+measured on screenshots, the open rows' icons centring 26px from the window edge and the 36px
+rail's cubes 22. The rail is 44px now, the layout's `min` with it, and each list, header and the
+footer inset 8px on the rail, so a 28px cube centres at 26, and the footer rows pad 11 on the left
+so their icon centres there open too. This reverses 2026-11-09 18:50's 36px only in width, the
+pane still moving left under the window buttons. An agent row's icon is flat again, 16px in the
+18px box with no tile, open and on the rail, the tile of 2026-11-23 kept for the tabs only.
