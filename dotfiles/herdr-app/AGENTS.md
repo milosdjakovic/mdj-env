@@ -66,10 +66,10 @@ launch code is therefore written out in each launcher's `main.js`, and a change 
 change to all three. A launcher does nothing unless it was opened as an overlay, because
 `herdr-app check` runs `init` and would otherwise start the tool in a terminal nobody sees.
 
-`cmd-b` runs `mod.open` on `mdj-sidebar`, which folds the sidebar to its rail or opens it to the
+`cmd-b` and `cmd-/` run `mod.open` on `mdj-sidebar`, which folds the sidebar to its rail or opens it to the
 width it had and closes itself, the same toggle as the brand bar's button. A key reaches a mod
 only through `mod.open`, and `layout.toggle:sidebar`, on `cmd-shift-b`, hides the sidebar outright
-rather than folding it. The toggle is written out in `mdj-sidebar` and in `mdj-brand` for the
+rather than folding it. `cmd-shift-/` alone shows the keybindings, `app.help`, asked by Milos on 2026-11-28, where `cmd-/` used to show them too. The toggle is written out in `mdj-sidebar` and in `mdj-brand` for the
 import reason above, so a change to one is a change to both.
 
 `cmd-enter` runs `mod.open` on `mdj-split`, which splits the focused pane along its longer side and closes itself, so a wide pane splits side by side and each half then top and bottom, asked by Milos on 2026-11-28. Herdr's `pane.split` takes only `right` or `down`, so the mod turns the terminal's `cols` and `rows` into a shape, a cell taken as 0.6 by 1.2 em and scaled by the layout's `terminal_cell_width` and `terminal_line_height`. A mod pane has no terminal and splits right. `cmd-d` and `cmd-shift-d` still force a direction. Rex has no such split, so the key is Herdr's alone.
